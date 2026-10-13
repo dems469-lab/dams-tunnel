@@ -1,0 +1,62 @@
+name: Dams CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ANDROID_HOME: ${{ runner.temp }}/android-sdk
+  ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
+  NDK_HOME: ${{ runner.temp }}/android-sdk/ndk/30.0.16248370
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-37.0 build-tools;37.0.0 platform-tools ndk;30.0.16248370"
+
+      - name: Build native tunnel
+        run: bash compile-hevtun.sh
+
+      - name: Download pinned Xray AAR
+        run: |
+          mkdir -p V2rayNG/app/libs
+          curl --fail --location --retry 3 \
+            -o V2rayNG/app/libs/libv2ray.aar \
+            https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.10.10/libv2ray.aar
+          test "$(sha256sum V2rayNG/app/libs/libv2ray.aar | cut -d' ' -f1)" = \
+            15db760bfbc24c0492ee997784b48a7b5e1bc5032950d617cd252fc2195f7ac7
+          cp -r libs V2rayNG/app/
+
+      - name: Check native libraries
+        run: |
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            test -f "V2rayNG/app/libs/$abi/libhev-socks5-tunnel.so"
+            test -f "V2rayNG/app/libs/$abi/libhevsockstun.so"
+          done
+          unzip -l V2rayNG/app/libs/libv2ray.aar | grep -q 'jni/arm64-v8a/libgojni.so'
+
+      - name: Run tests and lint
+        working-directory: V2rayNG
+        run: ./gradlew testPlaystoreDebugUnitTest lintPlaystoreDebug
+

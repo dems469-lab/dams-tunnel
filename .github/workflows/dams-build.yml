@@ -1,0 +1,68 @@
+name: Dams APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["phase-*"]
+
+permissions:
+  contents: read
+
+env:
+  ANDROID_HOME: ${{ runner.temp }}/android-sdk
+  ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
+  NDK_HOME: ${{ runner.temp }}/android-sdk/ndk/30.0.16248370
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-37.0 build-tools;37.0.0 platform-tools ndk;30.0.16248370"
+
+      - name: Build native tunnel
+        run: bash compile-hevtun.sh
+
+      - name: Download pinned Xray AAR
+        run: |
+          mkdir -p V2rayNG/app/libs
+          curl --fail --location --retry 3 \
+            -o V2rayNG/app/libs/libv2ray.aar \
+            https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.10.10/libv2ray.aar
+          test "$(sha256sum V2rayNG/app/libs/libv2ray.aar | cut -d' ' -f1)" = \
+            15db760bfbc24c0492ee997784b48a7b5e1bc5032950d617cd252fc2195f7ac7
+          cp -r libs V2rayNG/app/
+
+      - name: Build debug APK
+        working-directory: V2rayNG
+        run: ./gradlew assemblePlaystoreDebug
+
+      - name: Verify APK contents
+        run: |
+          find V2rayNG/app/build/outputs/apk -name '*.apk' -print
+          test -n "$(find V2rayNG/app/build/outputs/apk -name '*.apk' -print -quit)"
+          for apk in V2rayNG/app/build/outputs/apk/**/*.apk; do
+            unzip -l "$apk" | grep -q 'lib/arm64-v8a/libhev-socks5-tunnel.so'
+            unzip -l "$apk" | grep -q 'lib/arm64-v8a/libgojni.so'
+          done
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: dams-debug-apks
+          path: V2rayNG/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
