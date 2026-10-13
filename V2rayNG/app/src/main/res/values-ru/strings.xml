@@ -566,7 +566,11 @@
     <string name="value_unknown">неизвестно</string>
     <string name="dams_tab_home">Главная</string>
     <string name="dams_tab_servers">Серверы</string>
+    <string name="dams_tab_configs">Конфигурации</string>
     <string name="dams_tab_journal">Журнал</string>
+    <string name="dams_tab_plus">Ещё</string>
+    <string name="dams_slogan">Одно подключение. Безграничные возможности.</string>
+    <string name="dams_version_format">v%1$s</string>
     <string name="dams_secure_connection">Защищённое соединение</string>
     <string name="dams_privacy_protected">Ваша конфиденциальность защищена</string>
     <string name="dams_ready_to_connect">Готово к подключению</string>
@@ -575,6 +579,8 @@
     <string name="dams_metric_latency">Задержка</string>
     <string name="dams_metric_profiles">Профили</string>
     <string name="dams_metric_protocol">Протокол</string>
+    <string name="dams_metric_download">Загрузка</string>
+    <string name="dams_metric_upload">Отправка</string>
     <string name="dams_metric_unavailable">Недоступно</string>
     <string name="dams_server_group">Группа серверов</string>
     <string name="dams_file_invalid">Файл Dams недействителен, просрочен или пароль неверен.</string>

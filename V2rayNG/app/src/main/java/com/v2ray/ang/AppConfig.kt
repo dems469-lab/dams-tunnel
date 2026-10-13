@@ -60,6 +60,7 @@ object AppConfig {
     const val PREF_UI_MODE_NIGHT = "pref_ui_mode_night"
     const val PREF_DYNAMIC_COLOR = "pref_dynamic_color"
     const val PREF_DAMS_BRANDING_MIGRATED = "pref_dams_branding_migrated"
+    const val PREF_DAMS_DARK_THEME_MIGRATED = "pref_dams_dark_theme_migrated"
     const val PREF_IPV6_ENABLED = "pref_ipv6_enabled"
     const val PREF_PREFER_IPV6 = "pref_prefer_ipv6"
     const val PREF_PROXY_SHARING = "pref_proxy_sharing_enabled"

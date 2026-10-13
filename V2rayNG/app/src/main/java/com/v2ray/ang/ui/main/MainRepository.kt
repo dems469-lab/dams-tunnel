@@ -22,6 +22,7 @@ import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.handler.SubscriptionUpdater
+import com.v2ray.ang.ui.compose.ThemeManager
 import com.v2ray.ang.helper.MessageHelper
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
@@ -33,6 +34,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 class MainRepository(
     private val app: AngApplication
 ) : MainDataSource {
+
+    override fun setThemeMode(mode: String) {
+        ThemeManager.setThemeMode(mode)
+    }
 
     private val localizedContext: Context
         get() = AppLocaleManager.localizedContext(app)

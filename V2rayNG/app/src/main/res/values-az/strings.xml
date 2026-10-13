@@ -563,7 +563,11 @@
     <string name="value_unknown">naməlum</string>
     <string name="dams_tab_home">Ana səhifə</string>
     <string name="dams_tab_servers">Serverlər</string>
+    <string name="dams_tab_configs">Konfiqurasiyalar</string>
     <string name="dams_tab_journal">Jurnal</string>
+    <string name="dams_tab_plus">Daha çox</string>
+    <string name="dams_slogan">Bir bağlantı. Sonsuz imkanlar.</string>
+    <string name="dams_version_format">v%1$s</string>
     <string name="dams_secure_connection">Təhlükəsiz bağlantı</string>
     <string name="dams_privacy_protected">Məxfiliyiniz qorunur</string>
     <string name="dams_ready_to_connect">Bağlantıya hazırdır</string>
@@ -572,6 +576,8 @@
     <string name="dams_metric_latency">Gecikmə</string>
     <string name="dams_metric_profiles">Profillər</string>
     <string name="dams_metric_protocol">Protokol</string>
+    <string name="dams_metric_download">Yükləmə</string>
+    <string name="dams_metric_upload">Göndərmə</string>
     <string name="dams_metric_unavailable">Əlçatan deyil</string>
     <string name="dams_server_group">Server qrupu</string>
     <string name="dams_file_invalid">Dams faylı etibarsızdır, müddəti bitib və ya parol yanlışdır.</string>

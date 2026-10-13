@@ -562,7 +562,11 @@
     <string name="value_unknown">نا موشخس</string>
     <string name="dams_tab_home">خونه</string>
     <string name="dams_tab_servers">سرورا</string>
+    <string name="dams_tab_configs">کانفیگا</string>
     <string name="dams_tab_journal">لاگ</string>
+    <string name="dams_tab_plus">بیشتر</string>
+    <string name="dams_slogan">یه اتصال. امکانات بی‌نهایت.</string>
+    <string name="dams_version_format">v%1$s</string>
     <string name="dams_secure_connection">اتصال ایمن</string>
     <string name="dams_privacy_protected">حریم خصوصی شما محافظت ابیه</string>
     <string name="dams_ready_to_connect">آماده اتصال</string>
@@ -571,6 +575,8 @@
     <string name="dams_metric_latency">تاخیر</string>
     <string name="dams_metric_profiles">پروفایلا</string>
     <string name="dams_metric_protocol">پروتکل</string>
+    <string name="dams_metric_download">دریافت</string>
+    <string name="dams_metric_upload">ارسال</string>
     <string name="dams_metric_unavailable">در دسترس نؽ</string>
     <string name="dams_server_group">گروه سرور</string>
     <string name="dams_file_invalid">فایل Dams نؽ درست یه، ورۊش اومده یا رمز غلطه.</string>

@@ -560,7 +560,11 @@
     <string name="value_unknown">未知</string>
     <string name="dams_tab_home">首頁</string>
     <string name="dams_tab_servers">伺服器</string>
+    <string name="dams_tab_configs">設定檔</string>
     <string name="dams_tab_journal">日誌</string>
+    <string name="dams_tab_plus">更多</string>
+    <string name="dams_slogan">一次連線，無限可能。</string>
+    <string name="dams_version_format">v%1$s</string>
     <string name="dams_secure_connection">安全連線</string>
     <string name="dams_privacy_protected">您的隱私受到保護</string>
     <string name="dams_ready_to_connect">準備連線</string>
@@ -569,6 +573,8 @@
     <string name="dams_metric_latency">延遲</string>
     <string name="dams_metric_profiles">設定檔</string>
     <string name="dams_metric_protocol">通訊協定</string>
+    <string name="dams_metric_download">下載</string>
+    <string name="dams_metric_upload">上傳</string>
     <string name="dams_metric_unavailable">無法使用</string>
     <string name="dams_server_group">伺服器群組</string>
     <string name="dams_file_invalid">Dams 檔案無效、已過期或密碼不正確。</string>

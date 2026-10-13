@@ -5,7 +5,10 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -18,6 +21,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -28,11 +33,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 private val LightColor = lightColorScheme(
-    primary = Color(0xFF0B4F9C), // Dams blue
+    primary = Color(0xFF087CB0),
     onPrimary = Color(0xFFFFFFFF), // White
     primaryContainer = Color(0xFFDCEBFF), // Soft blue
     onPrimaryContainer = Color(0xFF062E61), // Deep blue
-    secondary = Color(0xFF00A9D6), // Cyan
+    secondary = Color(0xFF008EAA),
     onSecondary = Color(0xFFFFFFFF), // White
     secondaryContainer = Color(0xFFC5F3FF), // Pale cyan
     onSecondaryContainer = Color(0xFF003544), // Deep cyan
@@ -44,62 +49,77 @@ private val LightColor = lightColorScheme(
     errorContainer = Color(0xFFFFDAD6), // Light Red
     onError = Color(0xFFFFFFFF), // White
     onErrorContainer = Color(0xFF410002), // Dark Red
-    background = Color(0xFFF0F7FF), // Pale Dams blue
+    background = Color(0xFFF4F8FF),
     onBackground = Color(0xFF1C1B1F), // Near Black
     surface = Color(0xFFFBFDFF), // Cool white
     onSurface = Color(0xFF1C1B1F), // Near Black
-    surfaceVariant = Color(0xFFE7E0EC), // Light Purple Gray
+    surfaceVariant = Color(0xFFE8EFFA),
     onSurfaceVariant = Color(0xFF49454F), // Dark Gray
-    outline = Color(0xFF79747E), // Medium Gray
-    outlineVariant = Color(0xFFCAC4D0), // Light Gray
+    outline = Color(0xFF8295B6),
+    outlineVariant = Color(0xFFCCDAF3),
     inverseSurface = Color(0xFF313033), // Dark Gray
     inverseOnSurface = Color(0xFFF4EFF4), // Very Light Gray
     inversePrimary = Color(0xFF9CC7FF), // Light blue
     scrim = Color(0xFF000000), // Black
     surfaceTint = Color(0xFF000000), // Black
     surfaceContainerLowest = Color(0xFFFFFFFF), // White
-    surfaceContainerLow = Color(0xFFEAF3FF), // Pale blue
-    surfaceContainer = Color(0xFFE4EFFF), // Light blue
-    surfaceContainerHigh = Color(0xFFDCEAFF), // Light blue
-    surfaceContainerHighest = Color(0xFFD4E5FF), // Light blue
+    surfaceContainerLow = Color(0xFFEDF3FC),
+    surfaceContainer = Color(0xFFE6EEF9),
+    surfaceContainerHigh = Color(0xFFDCE7F6),
+    surfaceContainerHighest = Color(0xFFD2E0F2),
 )
 
 private val DarkColor = darkColorScheme(
-    primary = Color(0xFF9CC7FF), // Light blue
-    onPrimary = Color(0xFF003064), // Deep blue
-    primaryContainer = Color(0xFF174A82), // Blue
-    onPrimaryContainer = Color(0xFFDCEBFF), // Soft blue
-    secondary = Color(0xFF4DDBFF), // Cyan
-    onSecondary = Color(0xFF003544), // Deep cyan
-    secondaryContainer = Color(0xFF00566B), // Cyan blue
-    onSecondaryContainer = Color(0xFFC5F3FF), // Pale cyan
-    tertiary = Color(0xFF83D6B5), // Mint Green
-    onTertiary = Color(0xFF00382E), // Dark Teal
-    tertiaryContainer = Color(0xFF005143), // Teal
-    onTertiaryContainer = Color(0xFFA0F2D0), // Light Green
-    error = Color(0xFFFFB4AB), // Light Red
-    errorContainer = Color(0xFF93000A), // Dark Red
-    onError = Color(0xFF690005), // Deep Red
-    onErrorContainer = Color(0xFFFFDAD6), // Light Red
-    background = Color(0xFF1C1B1F), // Near Black
-    onBackground = Color(0xFFE6E1E5), // Light Gray
-    surface = Color(0xFF1C1B1F), // Near Black
-    onSurface = Color(0xFFE6E1E5), // Light Gray
-    surfaceVariant = Color(0xFF49454F), // Dark Gray
-    onSurfaceVariant = Color(0xFFCAC4D0), // Light Gray
-    outline = Color(0xFF938F99), // Grayish Purple
-    outlineVariant = Color(0xFF49454F), // Dark Gray
-    inverseSurface = Color(0xFFE6E1E5), // Light Gray
-    inverseOnSurface = Color(0xFF1C1B1F), // Near Black
-    inversePrimary = Color(0xFF0B4F9C), // Dams blue
-    scrim = Color(0xFF000000), // Black
-    surfaceTint = Color(0xFFC0C0C0), // Silver Gray
-    surfaceContainerLowest = Color(0xFF0F0F12), // Near Black
-    surfaceContainerLow = Color(0xFF1A191D), // Dark Gray
-    surfaceContainer = Color(0xFF1E1D21), // Dark Gray
-    surfaceContainerHigh = Color(0xFF282729), // Dark Gray
-    surfaceContainerHighest = Color(0xFF333234), // Dark Gray
+    primary = Color(0xFF38BDF8),
+    onPrimary = Color(0xFF00263A),
+    primaryContainer = Color(0xFF0B3A6B),
+    onPrimaryContainer = Color(0xFFE8F0FF),
+    secondary = Color(0xFF22D3EE),
+    onSecondary = Color(0xFF00343B),
+    secondaryContainer = Color(0xFF0A4355),
+    onSecondaryContainer = Color(0xFFD5F8FF),
+    tertiary = Color(0xFF5EE5AE),
+    onTertiary = Color(0xFF003827),
+    tertiaryContainer = Color(0xFF064B39),
+    onTertiaryContainer = Color(0xFFD1FBE8),
+    error = Color(0xFFEF4444),
+    errorContainer = Color(0xFF601D2A),
+    onError = Color(0xFFFFFFFF),
+    onErrorContainer = Color(0xFFFFD9DC),
+    background = Color(0xFF050B1A),
+    onBackground = Color(0xFFE8F0FF),
+    surface = Color(0xFF0A1530),
+    onSurface = Color(0xFFE8F0FF),
+    surfaceVariant = Color(0xFF111F3D),
+    onSurfaceVariant = Color(0xFF8FA4CF),
+    outline = Color(0xFF516B9C),
+    outlineVariant = Color(0xFF1B2C55),
+    inverseSurface = Color(0xFFE8F0FF),
+    inverseOnSurface = Color(0xFF050B1A),
+    inversePrimary = Color(0xFF087CB0),
+    scrim = Color(0xFF000000),
+    surfaceTint = Color(0xFF38BDF8),
+    surfaceContainerLowest = Color(0xFF030816),
+    surfaceContainerLow = Color(0xFF08112A),
+    surfaceContainer = Color(0xFF0A1530),
+    surfaceContainerHigh = Color(0xFF101E3A),
+    surfaceContainerHighest = Color(0xFF142546),
 )
+
+private val DamsShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(16.dp),
+)
+
+private val DamsTypography = Typography().run {
+    copy(
+        bodySmall = bodySmall.copy(fontFamily = FontFamily.Monospace),
+        labelSmall = labelSmall.copy(fontFamily = FontFamily.Monospace),
+    )
+}
 
 // Semantic Colors
 val colorPing = Color(0xFF009966) // Green
@@ -195,7 +215,9 @@ fun AppTheme(
         LocalAppSnackbar provides snackbarController
     ) {
         MaterialTheme(
-            colorScheme = colorScheme
+            colorScheme = colorScheme,
+            typography = DamsTypography,
+            shapes = DamsShapes,
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AppSnackbarBridge(controller = snackbarController)

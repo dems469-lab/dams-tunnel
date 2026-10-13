@@ -562,7 +562,11 @@
     <string name="value_unknown">অজানা</string>
     <string name="dams_tab_home">হোম</string>
     <string name="dams_tab_servers">সার্ভার</string>
+    <string name="dams_tab_configs">কনফিগ</string>
     <string name="dams_tab_journal">লগ</string>
+    <string name="dams_tab_plus">আরও</string>
+    <string name="dams_slogan">একটি সংযোগ। অফুরন্ত সম্ভাবনা।</string>
+    <string name="dams_version_format">v%1$s</string>
     <string name="dams_secure_connection">সুরক্ষিত সংযোগ</string>
     <string name="dams_privacy_protected">আপনার গোপনীয়তা সুরক্ষিত</string>
     <string name="dams_ready_to_connect">সংযোগের জন্য প্রস্তুত</string>
@@ -571,6 +575,8 @@
     <string name="dams_metric_latency">বিলম্ব</string>
     <string name="dams_metric_profiles">প্রোফাইল</string>
     <string name="dams_metric_protocol">প্রোটোকল</string>
+    <string name="dams_metric_download">ডাউনলোড</string>
+    <string name="dams_metric_upload">আপলোড</string>
     <string name="dams_metric_unavailable">পাওয়া যাচ্ছে না</string>
     <string name="dams_server_group">সার্ভার গ্রুপ</string>
     <string name="dams_file_invalid">Dams ফাইলটি অবৈধ, মেয়াদ শেষ, অথবা পাসওয়ার্ড ভুল।</string>

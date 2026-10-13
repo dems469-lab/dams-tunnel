@@ -48,8 +48,16 @@ class AngApplication : Application() {
         // Apply the Dams brand defaults once; the user can change theme settings afterwards.
         if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_DAMS_BRANDING_MIGRATED, false)) {
             MmkvManager.encodeSettings(AppConfig.PREF_DYNAMIC_COLOR, false)
-            MmkvManager.encodeSettings(AppConfig.PREF_UI_MODE_NIGHT, "1")
+            MmkvManager.encodeSettings(AppConfig.PREF_UI_MODE_NIGHT, "2")
             MmkvManager.encodeSettings(AppConfig.PREF_DAMS_BRANDING_MIGRATED, true)
+        }
+
+        // The previous Dams default selected light mode; migrate that default to the requested dark look.
+        if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_DAMS_DARK_THEME_MIGRATED, false)) {
+            if (MmkvManager.decodeSettingsString(AppConfig.PREF_UI_MODE_NIGHT, "0") == "1") {
+                MmkvManager.encodeSettings(AppConfig.PREF_UI_MODE_NIGHT, "2")
+            }
+            MmkvManager.encodeSettings(AppConfig.PREF_DAMS_DARK_THEME_MIGRATED, true)
         }
 
         // Initialize theme state from MMKV

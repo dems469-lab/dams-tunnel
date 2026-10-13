@@ -46,6 +46,7 @@ sealed interface MainAction {
     data object SortByTestResults : MainAction
     data object UpdateSubscriptions : MainAction
     data object ExportAll : MainAction
+    data class SetThemeMode(val mode: String) : MainAction
 
     data object ImportQRcode : MainAction
     data object ImportClipboard : MainAction
@@ -67,4 +68,8 @@ sealed interface MainAction {
     data class ImportBatchConfig(val configText: String) : MainAction
 
     data object LocateHandled : MainAction
+}
+
+internal fun persistDamsThemeModeIfSupported(mode: String, persist: (String) -> Unit) {
+    if (mode == "0" || mode == "1" || mode == "2") persist(mode)
 }

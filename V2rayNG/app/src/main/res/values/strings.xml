@@ -30,7 +30,11 @@
     <string name="title_server">Config</string>
     <string name="dams_tab_home">Home</string>
     <string name="dams_tab_servers">Servers</string>
+    <string name="dams_tab_configs">Configs</string>
     <string name="dams_tab_journal">Journal</string>
+    <string name="dams_tab_plus">Plus</string>
+    <string name="dams_slogan">One connection. Endless possibilities.</string>
+    <string name="dams_version_format">v%1$s</string>
     <string name="dams_secure_connection">Secure connection</string>
     <string name="dams_privacy_protected">Your privacy is protected</string>
     <string name="dams_ready_to_connect">Ready to connect</string>
@@ -39,6 +43,8 @@
     <string name="dams_metric_latency">Latency</string>
     <string name="dams_metric_profiles">Profiles</string>
     <string name="dams_metric_protocol">Protocol</string>
+    <string name="dams_metric_download">Download</string>
+    <string name="dams_metric_upload">Upload</string>
     <string name="dams_metric_unavailable">Unavailable</string>
     <string name="dams_server_group">Server group</string>
     <string name="menu_item_add_config">Add config</string>

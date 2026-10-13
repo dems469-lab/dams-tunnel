@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.withContext
 import java.io.IOException
 
 class LogcatViewModel(application: Application) : BaseViewModel(application) {
@@ -31,15 +32,13 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
     fun loadLogcat() {
         launchLoading {
             try {
-                val lst = LinkedHashSet<String>()
-                lst.add("logcat")
-                lst.add("-d")
-                lst.add("-v")
-                lst.add("time")
-                lst.add("-s")
-                lst.add("GoLog,${AppConfig.ANG_PACKAGE},AndroidRuntime,System.err")
-                val process = Runtime.getRuntime().exec(lst.toTypedArray())
-                val allText = process.inputStream.bufferedReader().use { it.readLines() }.reversed()
+                val allText = withContext(Dispatchers.IO) {
+                    val args = arrayOf(
+                        "logcat", "-d", "-v", "time", "-s",
+                        "GoLog,${AppConfig.ANG_PACKAGE},AndroidRuntime,System.err"
+                    )
+                    Runtime.getRuntime().exec(args).inputStream.bufferedReader().use { it.readLines() }.reversed()
+                }
 
                 logsetsAll.clear()
                 logsetsAll.addAll(allText)

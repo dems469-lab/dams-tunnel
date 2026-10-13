@@ -560,7 +560,11 @@
     <string name="value_unknown">không xác định</string>
     <string name="dams_tab_home">Trang chủ</string>
     <string name="dams_tab_servers">Máy chủ</string>
+    <string name="dams_tab_configs">Cấu hình</string>
     <string name="dams_tab_journal">Nhật ký</string>
+    <string name="dams_tab_plus">Thêm</string>
+    <string name="dams_slogan">Một kết nối. Khả năng vô hạn.</string>
+    <string name="dams_version_format">v%1$s</string>
     <string name="dams_secure_connection">Kết nối an toàn</string>
     <string name="dams_privacy_protected">Quyền riêng tư của bạn được bảo vệ</string>
     <string name="dams_ready_to_connect">Sẵn sàng kết nối</string>
@@ -569,6 +573,8 @@
     <string name="dams_metric_latency">Độ trễ</string>
     <string name="dams_metric_profiles">Hồ sơ</string>
     <string name="dams_metric_protocol">Giao thức</string>
+    <string name="dams_metric_download">Tải xuống</string>
+    <string name="dams_metric_upload">Tải lên</string>
     <string name="dams_metric_unavailable">Không khả dụng</string>
     <string name="dams_server_group">Nhóm máy chủ</string>
     <string name="dams_file_invalid">Tệp Dams không hợp lệ, đã hết hạn hoặc mật khẩu không đúng.</string>

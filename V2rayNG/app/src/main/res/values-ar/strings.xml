@@ -570,7 +570,11 @@
     <string name="value_unknown">غير معروف</string>
     <string name="dams_tab_home">الرئيسية</string>
     <string name="dams_tab_servers">الخوادم</string>
+    <string name="dams_tab_configs">الإعدادات</string>
     <string name="dams_tab_journal">السجل</string>
+    <string name="dams_tab_plus">المزيد</string>
+    <string name="dams_slogan">اتصال واحد. إمكانيات لا نهائية.</string>
+    <string name="dams_version_format">v%1$s</string>
     <string name="dams_secure_connection">اتصال آمن</string>
     <string name="dams_privacy_protected">خصوصيتك محمية</string>
     <string name="dams_ready_to_connect">جاهز للاتصال</string>
@@ -579,6 +583,8 @@
     <string name="dams_metric_latency">زمن الاستجابة</string>
     <string name="dams_metric_profiles">الملفات</string>
     <string name="dams_metric_protocol">البروتوكول</string>
+    <string name="dams_metric_download">التنزيل</string>
+    <string name="dams_metric_upload">الرفع</string>
     <string name="dams_metric_unavailable">غير متاح</string>
     <string name="dams_server_group">مجموعة الخوادم</string>
     <string name="dams_file_invalid">ملف Dams غير صالح أو منتهي الصلاحية أو كلمة المرور غير صحيحة.</string>
