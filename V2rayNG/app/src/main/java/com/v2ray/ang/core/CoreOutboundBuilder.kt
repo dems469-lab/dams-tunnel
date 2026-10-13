@@ -341,7 +341,7 @@ object CoreOutboundBuilder {
     fun populateTransportSettings(streamSettings: OutboundBean.StreamSettingsBean, profileItem: ProfileItem): String? {
         val transport = profileItem.network.orEmpty()
         val headerType = profileItem.headerType
-        val host = profileItem.host
+        val host = profileItem.host?.trim().nullIfBlank()
         val path = profileItem.path
         val seed = profileItem.seed
 //        val quicSecurity = profileItem.quicSecurity
@@ -559,14 +559,15 @@ object CoreOutboundBuilder {
         // permissive TLS behavior of older Xray cores. Preserve that compatibility by
         // treating a missing flag as enabled unless a certificate pin is supplied.
         val allowInsecure = profileItem.insecure != false && profileItem.pinnedCA256.isNullOrEmpty()
-        val sni = if (profileItem.sni.isNullOrEmpty()) {
+        val explicitSni = profileItem.sni?.trim().nullIfBlank()
+        val sni = if (explicitSni == null) {
             when {
                 sniExt.isNotNullEmpty() && Utils.isDomainName(sniExt) -> sniExt
-                profileItem.server.isNotNullEmpty() && Utils.isDomainName(profileItem.server) -> profileItem.server
+                profileItem.server?.trim().isNotNullEmpty() && Utils.isDomainName(profileItem.server?.trim()) -> profileItem.server?.trim()
                 else -> sniExt
             }
         } else {
-            profileItem.sni
+            explicitSni
         }
 
         streamSettings.security = streamSecurity.nullIfBlank()
