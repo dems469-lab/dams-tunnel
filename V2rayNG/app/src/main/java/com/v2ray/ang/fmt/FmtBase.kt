@@ -78,7 +78,7 @@ open class FmtBase {
         config.insecure = when {
             allowInsecureKeys.any { queryParam[it] == "1" } -> true
             allowInsecureKeys.any { queryParam[it] == "0" } -> false
-            else -> false
+            else -> true
         }
         config.sni = queryParam["sni"]
         config.fingerPrint = queryParam["fp"]

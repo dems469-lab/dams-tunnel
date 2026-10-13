@@ -131,7 +131,7 @@ data class V2rayNShareItem(
             sni = Sni,
             alpn = Alpn,
             fingerPrint = Fingerprint,
-            insecure = AllowInsecure?.toBoolean(),
+            insecure = AllowInsecure?.toBoolean() ?: true,
             echConfigList = EchConfigList,
             verifyPeerCertByName = VerifyPeerCertByName,
             pinnedCA256 = CertSha,

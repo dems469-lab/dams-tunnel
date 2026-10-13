@@ -27,7 +27,7 @@ object TrojanFmt : FmtBase() {
         if (uri.rawQuery.isNullOrEmpty()) {
             config.network = NetworkType.TCP.type
             config.security = AppConfig.TLS
-            config.insecure = false
+            config.insecure = true
         } else {
             val queryParam = getQueryParam(uri)
 
