@@ -559,19 +559,7 @@ object CoreOutboundBuilder {
         // permissive TLS behavior of older Xray cores. Preserve that compatibility by
         // treating a missing flag as enabled unless a certificate pin is supplied.
         val allowInsecure = profileItem.insecure != false && profileItem.pinnedCA256.isNullOrEmpty()
-        val explicitSni = profileItem.sni?.trim().nullIfBlank()
-        val sni = if (explicitSni == null) {
-            // The transport Host is an HTTP/WebSocket header, not a TLS SNI.
-            // Keep the target server as the default SNI so profiles where Host
-            // differs from the target (or where SNI is omitted) remain valid.
-            when {
-                profileItem.server?.trim().isNotNullEmpty() && Utils.isDomainName(profileItem.server?.trim()) -> profileItem.server?.trim()
-                sniExt.isNotNullEmpty() && Utils.isDomainName(sniExt) -> sniExt
-                else -> sniExt
-            }
-        } else {
-            explicitSni
-        }
+        val sni = resolveTlsServerName(profileItem, sniExt)
 
         streamSettings.security = streamSecurity.nullIfBlank()
         if (streamSettings.security == null) return
@@ -598,6 +586,21 @@ object CoreOutboundBuilder {
 
         if (profileItem.finalMask.isNullOrEmpty()) {
             updateOutboundFragment(streamSettings)
+        }
+    }
+
+    /** Resolves TLS SNI without touching persistent settings or native state. */
+    internal fun resolveTlsServerName(profileItem: ProfileItem, sniExt: String?): String? {
+        val explicitSni = profileItem.sni?.trim().nullIfBlank()
+        if (explicitSni != null) return explicitSni
+
+        // The transport Host is an HTTP/WebSocket header, not a TLS SNI.
+        // Keep the target server as the default SNI so profiles where Host
+        // differs from the target (or where SNI is omitted) remain valid.
+        return when {
+            profileItem.server?.trim().isNotNullEmpty() && Utils.isDomainName(profileItem.server?.trim()) -> profileItem.server?.trim()
+            sniExt.isNotNullEmpty() && Utils.isDomainName(sniExt) -> sniExt
+            else -> sniExt
         }
     }
 

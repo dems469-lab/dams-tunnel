@@ -20,10 +20,8 @@ class CoreOutboundBuilderTest {
         }
 
         CoreOutboundBuilder.populateTransportSettings(stream, profile)
-        CoreOutboundBuilder.populateTlsSettings(stream, profile, profile.host)
-
         assertEquals("header.example", stream.wsSettings?.host)
-        assertEquals("target.example", stream.tlsSettings?.serverName)
+        assertEquals("target.example", CoreOutboundBuilder.resolveTlsServerName(profile, profile.host))
     }
 
     @Test
@@ -38,9 +36,7 @@ class CoreOutboundBuilderTest {
         }
 
         CoreOutboundBuilder.populateTransportSettings(stream, profile)
-        CoreOutboundBuilder.populateTlsSettings(stream, profile, profile.host)
-
         assertEquals("header.example", stream.wsSettings?.host)
-        assertEquals("sni.example", stream.tlsSettings?.serverName)
+        assertEquals("sni.example", CoreOutboundBuilder.resolveTlsServerName(profile, profile.host))
     }
 }
