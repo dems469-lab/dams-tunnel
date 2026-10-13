@@ -56,12 +56,22 @@ jobs:
           find V2rayNG/app/build/outputs/apk -name '*.apk' -print0 | while IFS= read -r -d '' apk; do
             echo "=== $apk ==="
             unzip -l "$apk" | grep -E 'lib/(arm64-v8a|armeabi-v7a)/(libhev|libgojni)' || true
-            unzip -l "$apk" | grep -q 'lib/arm64-v8a/libhev-socks5-tunnel.so' || {
-              echo "Missing libhev-socks5-tunnel.so in $apk"; exit 1;
-            }
-            unzip -l "$apk" | grep -q 'lib/arm64-v8a/libgojni.so' || {
-              echo "Missing libgojni.so in $apk"; exit 1;
-            }
+            case "$apk" in
+              *arm64-v8a*) abis="arm64-v8a" ;;
+              *armeabi-v7a*) abis="armeabi-v7a" ;;
+              *x86_64*) abis="x86_64" ;;
+              *x86*) abis="x86" ;;
+              *universal*) abis="arm64-v8a armeabi-v7a x86 x86_64" ;;
+              *) echo "Unknown ABI in $apk"; exit 1 ;;
+            esac
+            for abi in $abis; do
+              unzip -l "$apk" | grep -q "lib/$abi/libhev-socks5-tunnel.so" || {
+                echo "Missing libhev-socks5-tunnel.so for $abi in $apk"; exit 1;
+              }
+              unzip -l "$apk" | grep -q "lib/$abi/libgojni.so" || {
+                echo "Missing libgojni.so for $abi in $apk"; exit 1;
+              }
+            done
           done
 
       - name: Upload APKs
