@@ -2,6 +2,7 @@
 <resources>
     <string name="app_widget_name">Interrupteur</string>
     <string name="app_tile_name">Interrupteur</string>
+    <string name="app_tile_first_use">Ajoutez une configuration dans l’application avant d’utiliser cette fonction.</string>
     <string name="dams_tab_home">Accueil</string>
     <string name="dams_tab_servers">Serveurs</string>
     <string name="dams_tab_configs">Configs</string>
