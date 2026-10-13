@@ -40,9 +40,9 @@ jobs:
           mkdir -p V2rayNG/app/libs
           curl --fail --location --retry 3 \
             -o V2rayNG/app/libs/libv2ray.aar \
-            https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.10.10/libv2ray.aar
+            https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.27/libv2ray.aar
           test "$(sha256sum V2rayNG/app/libs/libv2ray.aar | cut -d' ' -f1)" = \
-            15db760bfbc24c0492ee997784b48a7b5e1bc5032950d617cd252fc2195f7ac7
+            7846eb7f663d1d8ae931034faa7a56cccc82d618c2d029198e6e91a77fd8de1e
           cp -r libs V2rayNG/app/
 
       - name: Build debug APK
