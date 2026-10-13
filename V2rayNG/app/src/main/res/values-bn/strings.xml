@@ -560,5 +560,13 @@
     <string name="tasker_blurb_stop">%1$s বন্ধ করুন</string>
     <string name="connection_test_empty_message">কোনো বিবরণ পাওয়া যায়নি</string>
     <string name="value_unknown">অজানা</string>
+    <string name="dams_file_invalid">Dams ফাইলটি অবৈধ, মেয়াদ শেষ, অথবা পাসওয়ার্ড ভুল।</string>
+    <string name="title_dams_export">সুরক্ষিত .dams রপ্তানি</string>
+    <string name="title_dams_password">পাসওয়ার্ড</string>
+    <string name="title_dams_password_confirm">পাসওয়ার্ড নিশ্চিত করুন</string>
+    <string name="dams_password_mismatch">পাসওয়ার্ড মিলছে না।</string>
+    <string name="title_dams_expiry">মেয়াদ শেষের তারিখ (ঐচ্ছিক)</string>
+    <string name="dams_no_expiry">কোনও মেয়াদ নেই</string>
+    <string name="title_dams_export_action">সম্পূর্ণ কনফিগারেশন রপ্তানি করুন (.dams)</string>
 
 </resources>

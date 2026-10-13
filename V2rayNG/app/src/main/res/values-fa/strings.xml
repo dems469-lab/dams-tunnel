@@ -560,5 +560,13 @@
     <string name="tasker_blurb_stop">توقف %1$s</string>
     <string name="connection_test_empty_message">جزئیاتی در دسترس نیست</string>
     <string name="value_unknown">ناشناخته</string>
+    <string name="dams_file_invalid">فایل Dams نامعتبر است، منقضی شده یا رمز عبور اشتباه است.</string>
+    <string name="title_dams_export">خروجی محافظت‌شده .dams</string>
+    <string name="title_dams_password">رمز عبور</string>
+    <string name="title_dams_password_confirm">تأیید رمز عبور</string>
+    <string name="dams_password_mismatch">رمزهای عبور یکسان نیستند.</string>
+    <string name="title_dams_expiry">تاریخ انقضا (اختیاری)</string>
+    <string name="dams_no_expiry">بدون انقضا</string>
+    <string name="title_dams_export_action">خروجی پیکربندی کامل (.dams)</string>
 
 </resources>

@@ -564,5 +564,13 @@
     <string name="tasker_blurb_stop">Остановить %1$s</string>
     <string name="connection_test_empty_message">подробности отсутствуют</string>
     <string name="value_unknown">неизвестно</string>
+    <string name="dams_file_invalid">Файл Dams недействителен, просрочен или пароль неверен.</string>
+    <string name="title_dams_export">Защищённый экспорт .dams</string>
+    <string name="title_dams_password">Пароль</string>
+    <string name="title_dams_password_confirm">Подтвердите пароль</string>
+    <string name="dams_password_mismatch">Пароли не совпадают.</string>
+    <string name="title_dams_expiry">Дата окончания (необязательно)</string>
+    <string name="dams_no_expiry">Без окончания</string>
+    <string name="title_dams_export_action">Экспорт полной конфигурации (.dams)</string>
 
 </resources>

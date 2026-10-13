@@ -561,5 +561,13 @@
     <string name="tasker_blurb_stop">%1$s Dayandır</string>
     <string name="connection_test_empty_message">ətraflı məlumat yoxdur</string>
     <string name="value_unknown">naməlum</string>
+    <string name="dams_file_invalid">Dams faylı etibarsızdır, müddəti bitib və ya parol yanlışdır.</string>
+    <string name="title_dams_export">Qorunan .dams ixracı</string>
+    <string name="title_dams_password">Parol</string>
+    <string name="title_dams_password_confirm">Parolu təsdiqləyin</string>
+    <string name="dams_password_mismatch">Parollar uyğun gəlmir.</string>
+    <string name="title_dams_expiry">Bitmə tarixi (istəyə görə)</string>
+    <string name="dams_no_expiry">Bitmə yoxdur</string>
+    <string name="title_dams_export_action">Tam konfiqurasiyanı ixrac et (.dams)</string>
 
 </resources>

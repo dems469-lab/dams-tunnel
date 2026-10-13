@@ -558,5 +558,13 @@
     <string name="tasker_blurb_stop">停止 %1$s</string>
     <string name="connection_test_empty_message">无详细信息</string>
     <string name="value_unknown">未知</string>
+    <string name="dams_file_invalid">Dams 文件无效、已过期或密码不正确。</string>
+    <string name="title_dams_export">导出受保护的 .dams</string>
+    <string name="title_dams_password">密码</string>
+    <string name="title_dams_password_confirm">确认密码</string>
+    <string name="dams_password_mismatch">密码不匹配。</string>
+    <string name="title_dams_expiry">到期日期（可选）</string>
+    <string name="dams_no_expiry">无期限</string>
+    <string name="title_dams_export_action">导出完整配置（.dams）</string>
 
 </resources>

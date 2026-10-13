@@ -558,5 +558,13 @@
     <string name="tasker_blurb_stop">Dừng %1$s</string>
     <string name="connection_test_empty_message">không có thông tin chi tiết</string>
     <string name="value_unknown">không xác định</string>
+    <string name="dams_file_invalid">Tệp Dams không hợp lệ, đã hết hạn hoặc mật khẩu không đúng.</string>
+    <string name="title_dams_export">Xuất .dams được bảo vệ</string>
+    <string name="title_dams_password">Mật khẩu</string>
+    <string name="title_dams_password_confirm">Xác nhận mật khẩu</string>
+    <string name="dams_password_mismatch">Mật khẩu không khớp.</string>
+    <string name="title_dams_expiry">Ngày hết hạn (tùy chọn)</string>
+    <string name="dams_no_expiry">Không hết hạn</string>
+    <string name="title_dams_export_action">Xuất cấu hình đầy đủ (.dams)</string>
 
 </resources>

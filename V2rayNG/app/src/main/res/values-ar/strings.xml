@@ -568,5 +568,13 @@
     <string name="tasker_blurb_stop">إيقاف %1$s</string>
     <string name="connection_test_empty_message">لا تتوفر تفاصيل</string>
     <string name="value_unknown">غير معروف</string>
+    <string name="dams_file_invalid">ملف Dams غير صالح أو منتهي الصلاحية أو كلمة المرور غير صحيحة.</string>
+    <string name="title_dams_export">تصدير .dams محمي</string>
+    <string name="title_dams_password">كلمة المرور</string>
+    <string name="title_dams_password_confirm">تأكيد كلمة المرور</string>
+    <string name="dams_password_mismatch">كلمتا المرور غير متطابقتين.</string>
+    <string name="title_dams_expiry">تاريخ الانتهاء (اختياري)</string>
+    <string name="dams_no_expiry">بدون انتهاء</string>
+    <string name="title_dams_export_action">تصدير الإعدادات الكاملة (.dams)</string>
 
 </resources>
