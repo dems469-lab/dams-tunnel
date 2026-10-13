@@ -328,7 +328,6 @@ fun MainScreen(
                         }
                     }
                 }
-                }
 
                 DamsTab.Journal -> JournalTabContent(
                     contentPadding = innerPadding,
