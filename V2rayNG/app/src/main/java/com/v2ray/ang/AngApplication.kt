@@ -45,6 +45,13 @@ class AngApplication : Application() {
         // Ensure critical preference defaults are present in MMKV early
         SettingsManager.initApp(this)
 
+        // Apply the Dams brand defaults once; the user can change theme settings afterwards.
+        if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_DAMS_BRANDING_MIGRATED, false)) {
+            MmkvManager.encodeSettings(AppConfig.PREF_DYNAMIC_COLOR, false)
+            MmkvManager.encodeSettings(AppConfig.PREF_UI_MODE_NIGHT, "1")
+            MmkvManager.encodeSettings(AppConfig.PREF_DAMS_BRANDING_MIGRATED, true)
+        }
+
         // Initialize theme state from MMKV
         ThemeManager.refresh()
     }
