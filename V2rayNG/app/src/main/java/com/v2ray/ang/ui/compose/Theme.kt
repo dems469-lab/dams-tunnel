@@ -44,9 +44,9 @@ private val LightColor = lightColorScheme(
     errorContainer = Color(0xFFFFDAD6), // Light Red
     onError = Color(0xFFFFFFFF), // White
     onErrorContainer = Color(0xFF410002), // Dark Red
-    background = Color(0xFFFFFFFF), // White
+    background = Color(0xFFF0F7FF), // Pale Dams blue
     onBackground = Color(0xFF1C1B1F), // Near Black
-    surface = Color(0xFFFFFFFF), // White
+    surface = Color(0xFFFBFDFF), // Cool white
     onSurface = Color(0xFF1C1B1F), // Near Black
     surfaceVariant = Color(0xFFE7E0EC), // Light Purple Gray
     onSurfaceVariant = Color(0xFF49454F), // Dark Gray
@@ -58,10 +58,10 @@ private val LightColor = lightColorScheme(
     scrim = Color(0xFF000000), // Black
     surfaceTint = Color(0xFF000000), // Black
     surfaceContainerLowest = Color(0xFFFFFFFF), // White
-    surfaceContainerLow = Color(0xFFF7F7F7), // Very Light Gray
-    surfaceContainer = Color(0xFFF1F1F1), // Light Gray
-    surfaceContainerHigh = Color(0xFFEBEBEB), // Light Gray
-    surfaceContainerHighest = Color(0xFFE5E5E5), // Light Gray
+    surfaceContainerLow = Color(0xFFEAF3FF), // Pale blue
+    surfaceContainer = Color(0xFFE4EFFF), // Light blue
+    surfaceContainerHigh = Color(0xFFDCEAFF), // Light blue
+    surfaceContainerHighest = Color(0xFFD4E5FF), // Light blue
 )
 
 private val DarkColor = darkColorScheme(

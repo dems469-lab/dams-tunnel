@@ -28,6 +28,19 @@
 
     <!--ServerActivity-->
     <string name="title_server">Config</string>
+    <string name="dams_tab_home">Home</string>
+    <string name="dams_tab_servers">Servers</string>
+    <string name="dams_tab_journal">Journal</string>
+    <string name="dams_secure_connection">Secure connection</string>
+    <string name="dams_privacy_protected">Your privacy is protected</string>
+    <string name="dams_ready_to_connect">Ready to connect</string>
+    <string name="dams_no_server_selected">No server selected</string>
+    <string name="dams_select_server_prompt">Choose a server to get started</string>
+    <string name="dams_metric_latency">Latency</string>
+    <string name="dams_metric_profiles">Profiles</string>
+    <string name="dams_metric_protocol">Protocol</string>
+    <string name="dams_metric_unavailable">Unavailable</string>
+    <string name="dams_server_group">Server group</string>
     <string name="menu_item_add_config">Add config</string>
     <string name="menu_item_save_config">Save config</string>
     <string name="menu_item_edit_config">Edit config</string>

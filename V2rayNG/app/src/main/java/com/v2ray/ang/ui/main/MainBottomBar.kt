@@ -46,6 +46,7 @@ fun MainBottomBar(
     displayText: String,
     isRunning: Boolean,
     isDarkTheme: Boolean,
+    includeNavigationBars: Boolean = true,
     onAction: (MainAction) -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -63,7 +64,10 @@ fun MainBottomBar(
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface)
                 .clickable(onClick = { onAction(MainAction.TestCurrentServer) })
-                .windowInsetsPadding(WindowInsets.navigationBars)
+                .let { modifier ->
+                    if (includeNavigationBars) modifier.windowInsetsPadding(WindowInsets.navigationBars)
+                    else modifier
+                }
         ) {
             AppDivider()
             Row(
