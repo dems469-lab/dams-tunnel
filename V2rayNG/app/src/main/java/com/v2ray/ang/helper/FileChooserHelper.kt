@@ -32,7 +32,7 @@ class FileChooserHelper(private val activity: ComponentActivity) {
         }
 
     private val documentCreateLauncher: ActivityResultLauncher<String> =
-        activity.registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        activity.registerForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
             documentCreateCallback?.invoke(uri)
             documentCreateCallback = null
         }

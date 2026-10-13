@@ -13,6 +13,7 @@ import com.v2ray.ang.ui.base.BaseViewModel
 import com.v2ray.ang.ui.base.ViewModelEvent
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.ZipUtil
+import com.v2ray.ang.util.DamsFileCodec
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -79,6 +80,36 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
+    fun prepareDamsBackupForUri(
+        cacheDir: File,
+        appName: String,
+        targetUri: Uri,
+        password: String,
+        expiresAtEpochMillis: Long?,
+    ) {
+        launchLoading {
+            try {
+                val ret = backupConfigurationToCache(cacheDir, appName)
+                if (!ret.first) {
+                    toastError(R.string.toast_failure)
+                    return@launchLoading
+                }
+                val zipBytes = File(ret.second).readBytes()
+                val damsBytes = DamsFileCodec.encrypt(
+                    zipBytes,
+                    DamsFileCodec.ExportOptions(password, expiresAtEpochMillis),
+                )
+                val damsPath = File(cacheDir, "${appName}_${System.currentTimeMillis()}.dams")
+                damsPath.writeBytes(damsBytes)
+                File(ret.second).delete()
+                _viewModelEvent.send(BackupViewModelEvent.ExportLocal(damsPath.absolutePath, targetUri))
+            } catch (e: Exception) {
+                LogUtil.e(AppConfig.TAG, "Failed to create Dams export", e)
+                toastError(R.string.toast_failure)
+            }
+        }
+    }
+
     fun restoreConfiguration(cacheDir: File, zipFile: File) {
         launchLoading {
             val success = performRestore(cacheDir, zipFile)
@@ -87,6 +118,27 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                 _viewModelEvent.send(BackupViewModelEvent.RestoreSuccess)
             } else {
                 toastError(R.string.toast_failure)
+            }
+        }
+    }
+
+    fun restoreDamsConfiguration(cacheDir: File, damsFile: File, password: String) {
+        launchLoading {
+            try {
+                val zipFile = File(cacheDir, "restore_${System.currentTimeMillis()}.zip")
+                zipFile.writeBytes(DamsFileCodec.decrypt(damsFile.readBytes(), password))
+                val success = performRestore(cacheDir, zipFile)
+                zipFile.delete()
+                damsFile.delete()
+                if (success) {
+                    toastSuccess(R.string.toast_success)
+                    _viewModelEvent.send(BackupViewModelEvent.RestoreSuccess)
+                } else {
+                    toastError(R.string.toast_failure)
+                }
+            } catch (e: Exception) {
+                LogUtil.e(AppConfig.TAG, "Failed to restore Dams export", e)
+                toastError(R.string.dams_file_invalid)
             }
         }
     }

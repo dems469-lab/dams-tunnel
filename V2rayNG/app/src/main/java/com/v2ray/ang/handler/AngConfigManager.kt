@@ -2,6 +2,7 @@ package com.v2ray.ang.handler
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Base64
 import android.text.TextUtils
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.core.CoreConfigManager
@@ -72,6 +73,23 @@ object AngConfigManager {
             return -1
         }
         return 0
+    }
+
+    /** Copies a Dams profile link while keeping the standard protocol URI inside it. */
+    fun shareDamsProfileLink2Clipboard(context: Context, guid: String): Int {
+        return try {
+            val config = shareConfig(guid)
+            if (config.isEmpty()) return -1
+            val encoded = Base64.encodeToString(
+                config.toByteArray(Charsets.UTF_8),
+                Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+            )
+            Utils.setClipboard(context, "dams://profile/v1/$encoded")
+            0
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "Failed to share Dams profile link", e)
+            -1
+        }
     }
 
     /**
@@ -181,6 +199,10 @@ object AngConfigManager {
      */
     fun importBatchConfig(server: String?, subid: String, append: Boolean): Pair<Int, Int> {
         return try {
+            val damsProfile = decodeDamsProfileLink(server)
+            if (damsProfile != null) {
+                return importBatchConfig(damsProfile, subid, append)
+            }
             var count = parseBatchConfig(Utils.decode(server), subid, append)
             if (count <= 0) {
                 count = parseBatchConfig(server, subid, append)
@@ -202,6 +224,19 @@ object AngConfigManager {
             LogUtil.e(AppConfig.TAG, "Failed to store imported profiles", e)
             0 to 0
         }
+    }
+
+    private fun decodeDamsProfileLink(value: String?): String? {
+        if (value.isNullOrBlank()) return null
+        val uri = runCatching { URI(value.trim()) }.getOrNull() ?: return null
+        if (uri.scheme != "dams" || uri.host != "profile" || uri.path?.startsWith("/v1/") != true) {
+            return null
+        }
+        val encoded = uri.path.removePrefix("/v1/")
+        if (encoded.isEmpty()) return null
+        return runCatching {
+            Base64.decode(encoded, Base64.URL_SAFE or Base64.NO_WRAP).toString(Charsets.UTF_8)
+        }.getOrNull()
     }
 
     /**

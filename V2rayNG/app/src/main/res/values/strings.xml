@@ -108,6 +108,14 @@
     <string name="server_lab_kcp_tti">mKCP TTI (optional, default 50 ms)</string>
     <string name="toast_success">Success</string>
     <string name="toast_failure">Failure</string>
+    <string name="dams_file_invalid">The Dams file is invalid, expired, or the password is incorrect.</string>
+    <string name="title_dams_export">Export protected .dams</string>
+    <string name="title_dams_password">Password</string>
+    <string name="title_dams_password_confirm">Confirm password</string>
+    <string name="dams_password_mismatch">Passwords do not match.</string>
+    <string name="title_dams_expiry">Expiration date (optional)</string>
+    <string name="dams_no_expiry">No expiration</string>
+    <string name="title_dams_export_action">Export full configuration (.dams)</string>
     <string name="toast_none_data">No data available</string>
     <string name="toast_incorrect_protocol">Incorrect protocol</string>
     <string name="toast_decoding_failed">Decoding failed</string>

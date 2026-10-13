@@ -206,7 +206,16 @@
             android:exported="false" />
         <activity
             android:name=".ui.backup.BackupActivity"
-            android:exported="false" />
+            android:exported="true"
+            android:grantUriPermissions="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="application/vnd.dams.configuration" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".ui.AboutActivity"
             android:exported="false" />

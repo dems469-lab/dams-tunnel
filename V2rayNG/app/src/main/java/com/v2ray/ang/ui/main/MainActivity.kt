@@ -124,7 +124,7 @@ class MainActivity : HelperBaseComponentActivity() {
     }
 
     private fun shareToClipboard(guid: String): Boolean =
-        AngConfigManager.share2Clipboard(this, guid) == 0
+        AngConfigManager.shareDamsProfileLink2Clipboard(this, guid) == 0
 
     private fun shareFullContentAsync(guid: String) {
         lifecycleScope.launch(Dispatchers.IO) {
@@ -235,6 +235,18 @@ class MainActivity : HelperBaseComponentActivity() {
         launchFileChooser { uri ->
             if (uri == null) return@launchFileChooser
             try {
+                val header = contentResolver.openInputStream(uri)?.use { input ->
+                    ByteArray(5).also { bytes -> input.read(bytes) }
+                }
+                if (header?.contentEquals("DAMS1".toByteArray()) == true) {
+                    startActivity(
+                        Intent(this, BackupActivity::class.java).putExtra(
+                            BackupActivity.EXTRA_DAMS_URI,
+                            uri.toString()
+                        )
+                    )
+                    return@launchFileChooser
+                }
                 contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
                     mainViewModel.onAction(MainAction.ImportBatchConfig(reader.readText()))
                 }

@@ -3,6 +3,9 @@ package com.v2ray.ang.ui.backup
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.text.InputType
+import android.widget.EditText
+import androidx.appcompat.app.AlertDialog as PlatformAlertDialog
 import androidx.activity.viewModels
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
@@ -14,6 +17,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -24,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
@@ -45,6 +58,7 @@ import com.v2ray.ang.ui.compose.NavigationBarsSpacer
 import com.v2ray.ang.ui.compose.SelectListDialog
 import com.v2ray.ang.ui.compose.SettingsMenuItem
 import com.v2ray.ang.util.LogUtil
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.io.File
@@ -58,11 +72,45 @@ enum class BackupLocation(@StringRes val labelRes: Int) {
 
 class BackupActivity : HelperBaseComponentActivity() {
 
+    companion object {
+        const val EXTRA_DAMS_URI = "extra_dams_uri"
+    }
+
     private val viewModel: BackupViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         observeViewModel()
+        (intent.getStringExtra(EXTRA_DAMS_URI)?.let { Uri.parse(it) } ?: intent.data)?.let {
+            showDamsImportDialog(it)
+        }
+    }
+
+    private fun showDamsImportDialog(uri: Uri) {
+        val password = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            hint = getString(R.string.title_dams_password)
+        }
+        PlatformAlertDialog.Builder(this)
+            .setTitle(R.string.title_configuration_restore)
+            .setView(password)
+            .setNegativeButton(R.string.action_cancel, null)
+            .setPositiveButton(R.string.action_ok) { _, _ ->
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val file = File(cacheDir, "import_${System.currentTimeMillis()}.dams")
+                    try {
+                        contentResolver.openInputStream(uri)?.use { input ->
+                            file.outputStream().use(input::copyTo)
+                        }
+                        viewModel.restoreDamsConfiguration(cacheDir, file, password.text.toString())
+                    } catch (e: Exception) {
+                        file.delete()
+                        LogUtil.e(AppConfig.TAG, "Failed to read Dams import", e)
+                        toastError(R.string.dams_file_invalid)
+                    }
+                }
+            }
+            .show()
     }
 
     private fun observeViewModel() {
@@ -101,6 +149,7 @@ class BackupActivity : HelperBaseComponentActivity() {
                 }
             },
             onShareClick = { viewModel.shareBackup(cacheDir, getString(R.string.app_name)) },
+            onDamsExport = { password, expiry -> exportDams(password, expiry) },
             onRestoreOptionSelected = { location ->
                 when (location) {
                     BackupLocation.Local -> restoreViaLocal()
@@ -160,6 +209,22 @@ class BackupActivity : HelperBaseComponentActivity() {
         }
     }
 
+    private fun exportDams(password: String, expiresAt: Long?) {
+        val dateFormatted = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault())
+            .format(System.currentTimeMillis())
+        launchCreateDocument("${getString(R.string.app_name)}_$dateFormatted.dams") { uri ->
+            if (uri != null) {
+                viewModel.prepareDamsBackupForUri(
+                    cacheDir,
+                    getString(R.string.app_name),
+                    uri,
+                    password,
+                    expiresAt,
+                )
+            }
+        }
+    }
+
     private fun restoreViaLocal() {
         launchFileChooser { uri ->
             if (uri == null) {
@@ -188,6 +253,7 @@ fun BackupScreen(
     webDavConfigState: StateFlow<WebDavConfig?>,
     onBackupOptionSelected: (BackupLocation) -> Unit,
     onShareClick: () -> Unit,
+    onDamsExport: (String, Long?) -> Unit,
     onRestoreOptionSelected: (BackupLocation) -> Unit,
     onCleanupProfiles: () -> Unit,
     onWebDavSave: (WebDavConfig) -> Unit,
@@ -199,6 +265,7 @@ fun BackupScreen(
     var showRestoreDialog by remember { mutableStateOf(false) }
     var showCleanupDialog by remember { mutableStateOf(false) }
     var showWebDavDialog by remember { mutableStateOf(false) }
+    var showDamsExportDialog by remember { mutableStateOf(false) }
 
     val webDavSummary = currentWebDavConfig?.baseUrl
 
@@ -227,6 +294,11 @@ fun BackupScreen(
                 icon = painterResource(R.drawable.ic_share_24dp),
                 title = stringResource(R.string.title_configuration_share),
                 onClick = onShareClick
+            )
+            SettingsMenuItem(
+                icon = painterResource(R.drawable.ic_backup_24dp),
+                title = stringResource(R.string.title_dams_export_action),
+                onClick = { showDamsExportDialog = true }
             )
             SettingsMenuItem(
                 icon = painterResource(R.drawable.ic_restore_24dp),
@@ -290,6 +362,78 @@ fun BackupScreen(
             },
             onDismiss = { showWebDavDialog = false }
         )
+    }
+    if (showDamsExportDialog) {
+        DamsExportDialog(
+            onDismiss = { showDamsExportDialog = false },
+            onExport = { password, expiry ->
+                showDamsExportDialog = false
+                onDamsExport(password, expiry)
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DamsExportDialog(
+    onDismiss: () -> Unit,
+    onExport: (String, Long?) -> Unit,
+) {
+    var password by remember { mutableStateOf("") }
+    var passwordConfirmation by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var expiry by remember { mutableStateOf<Long?>(null) }
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = expiry)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.title_dams_export)) },
+        text = {
+            Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text(stringResource(R.string.title_dams_password)) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                )
+                OutlinedTextField(
+                    value = passwordConfirmation,
+                    onValueChange = { passwordConfirmation = it },
+                    label = { Text(stringResource(R.string.title_dams_password_confirm)) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                )
+                TextButton(onClick = { showDatePicker = true }) {
+                    Text(
+                        expiry?.let {
+                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date(it))
+                        } ?: stringResource(R.string.dams_no_expiry)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = password.isNotEmpty() && password == passwordConfirmation,
+                onClick = { onExport(password, expiry) }
+            ) {
+                Text(stringResource(R.string.action_ok))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    expiry = datePickerState.selectedDateMillis
+                    showDatePicker = false
+                }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) } }
+        ) { DatePicker(state = datePickerState) }
     }
 }
 
