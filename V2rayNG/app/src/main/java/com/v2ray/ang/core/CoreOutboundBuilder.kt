@@ -597,11 +597,7 @@ object CoreOutboundBuilder {
         // The transport Host is an HTTP/WebSocket header, not a TLS SNI.
         // Keep the target server as the default SNI so profiles where Host
         // differs from the target (or where SNI is omitted) remain valid.
-        return when {
-            profileItem.server?.trim().isNotNullEmpty() && Utils.isDomainName(profileItem.server?.trim()) -> profileItem.server?.trim()
-            sniExt.isNotNullEmpty() && Utils.isDomainName(sniExt) -> sniExt
-            else -> sniExt
-        }
+        return profileItem.server?.trim().nullIfBlank() ?: sniExt
     }
 
     /**
