@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">v2rayNG</string>
+    <string name="app_name" translatable="false">Dams Tunnel</string>
     <string name="app_widget_name">Kết nối ngay</string>
     <string name="app_tile_name">Kết nối ngay</string>
     <string name="app_tile_first_use">Vui lòng thêm một cấu hình vào v2rayNG để sử dụng!</string>
@@ -14,7 +14,7 @@
     <string name="pull_down_to_refresh">Kéo xuống để làm mới!</string>
 
     <!-- Notifications -->
-    <string name="notification_channel_service">Dịch vụ v2rayNG</string>
+    <string name="notification_channel_service">Dịch vụ Dams Tunnel</string>
     <string name="notification_channel_subscription_updates">Cập nhật gói đăng ký</string>
     <string name="notification_channel_connection_checks">Kiểm tra kết nối</string>
     <string name="notification_action_stop_v2ray">Ngắt kết nối v2rayNG</string>
