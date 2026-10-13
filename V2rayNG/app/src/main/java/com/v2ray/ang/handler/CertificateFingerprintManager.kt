@@ -16,16 +16,8 @@ object CertificateFingerprintManager {
 
     fun fetchForManualFill(profile: ProfileItem): String? {
         val request = buildRequest(profile) ?: return null
-        val result = if (profile.configType == EConfigType.HYSTERIA2) {
-            fetch("quic", request) { Libv2ray.fetchQuicCertSha256(it) }
-        } else {
-            fetch("tls", request) { Libv2ray.fetchTlsCertSha256(it) }
-        }
-
-        return result
-            ?.takeIf { it.error.isBlank() }
-            ?.sha256
-            ?.takeIf { it.isNotBlank() }
+        LogUtil.w(AppConfig.TAG, "Certificate fingerprint fetch is unavailable in legacy-compatible core")
+        return null
     }
 
     private fun buildRequest(profile: ProfileItem): CertSha256Request? {

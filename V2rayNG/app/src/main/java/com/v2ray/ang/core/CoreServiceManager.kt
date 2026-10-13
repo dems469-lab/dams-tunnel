@@ -9,7 +9,6 @@ import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.os.Build
 import android.os.ParcelFileDescriptor
-import android.system.OsConstants
 import androidx.core.content.ContextCompat
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.contracts.IDialerService
@@ -40,16 +39,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import libv2ray.CoreCallbackHandler
 import libv2ray.CoreController
-import libv2ray.ProcessFinder
 import java.lang.ref.SoftReference
-import java.net.InetSocketAddress
 
 object CoreServiceManager {
 
     private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
     private val mMsgReceive = ReceiveMessageHandler()
     private var currentConfig: ProfileItem? = null
-    private var processFinder: XrayProcessFinder? = null
     private var browserDialer: IDialerService? = null
     private var networkMonitor: NetworkMonitor? = null
     private val connectionTestScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -65,10 +61,6 @@ object CoreServiceManager {
             field = value
             val service = value?.get()?.getService()
             CoreNativeManager.initCoreEnv(service)
-            if (service != null && processFinder == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                processFinder = XrayProcessFinder(service)
-                coreController.registerProcessFinder(processFinder)
-            }
         }
 
     /**
@@ -284,31 +276,8 @@ object CoreServiceManager {
      * Go side format: tag,direction,value;tag,direction,value;
      */
     fun queryAllOutboundTrafficStats(): List<OutboundTrafficStat> {
-        // The stats manager is gone once the core stops, querying it then reaches into freed state.
-        if (!isRunning()) return emptyList()
-
-        val payload = coreController.queryAllOutboundTrafficStats()
-
-        val result = ArrayList<OutboundTrafficStat>()
-
-        payload.split(';').forEach { entry ->
-            if (entry.isBlank()) return@forEach
-
-            val parts = entry.split(',', limit = 3)
-            if (parts.size != 3) return@forEach
-
-            val value = parts[2].toLongOrNull() ?: return@forEach
-
-            result.add(
-                OutboundTrafficStat(
-                    tag = parts[0],
-                    direction = parts[1],
-                    value = value,
-                )
-            )
-        }
-//        LogUtil.d(AppConfig.TAG, "Queried outbound traffic stats: $result")
-        return result
+        // The legacy-compatible AAR does not expose outbound statistics.
+        return emptyList()
     }
 
     /**
@@ -406,43 +375,6 @@ object CoreServiceManager {
         override fun onEmitStatus(l: Long, s: String?): Long {
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: CoreCallback onEmitStatus $s")
             return 0
-        }
-    }
-
-    /**
-     * Process finder implementation for Xray core.
-     * Uses ConnectivityManager to find the owning UID of a connection based on network parameters.
-     */
-    private class XrayProcessFinder(context: Context) : ProcessFinder {
-        private val cm: ConnectivityManager? = context.getSystemService(ConnectivityManager::class.java)
-
-        override fun findProcessByConnection(network: String, srcIP: String, srcPort: Long, destIP: String, destPort: Long): Long {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return -1L
-            if (cm == null) return -1L
-            val proto = when (network) {
-                "tcp" -> OsConstants.IPPROTO_TCP
-                "udp" -> OsConstants.IPPROTO_UDP
-                else -> return -1L
-            }
-
-            if (destIP.isBlank() || destPort == 0L) {
-                LogUtil.d(AppConfig.TAG, "ProcessFinder: Find $network connection from $srcIP:$srcPort to :$destPort, (no dest)")
-                return -1L
-            }
-
-            return try {
-                val uid = cm.getConnectionOwnerUid(
-                    proto,
-                    InetSocketAddress(srcIP, srcPort.toInt()),
-                    InetSocketAddress(destIP, destPort.toInt())
-                ).toLong()
-                LogUtil.d(AppConfig.TAG, "ProcessFinder: Find $network connection from $srcIP:$srcPort to $destIP:$destPort, uid=$uid")
-                //LogUtil.d(AppConfig.TAG, "ProcessFinder: Find $network connection from $srcIP:$srcPort to $destIP:$destPort, uid=$uid,${PackageUidResolver.uidToPackageName(uid.toString())}")
-
-                uid
-            } catch (_: Exception) {
-                -1L
-            }
         }
     }
 
