@@ -561,9 +561,12 @@ object CoreOutboundBuilder {
         val allowInsecure = profileItem.insecure != false && profileItem.pinnedCA256.isNullOrEmpty()
         val explicitSni = profileItem.sni?.trim().nullIfBlank()
         val sni = if (explicitSni == null) {
+            // The transport Host is an HTTP/WebSocket header, not a TLS SNI.
+            // Keep the target server as the default SNI so profiles where Host
+            // differs from the target (or where SNI is omitted) remain valid.
             when {
-                sniExt.isNotNullEmpty() && Utils.isDomainName(sniExt) -> sniExt
                 profileItem.server?.trim().isNotNullEmpty() && Utils.isDomainName(profileItem.server?.trim()) -> profileItem.server?.trim()
+                sniExt.isNotNullEmpty() && Utils.isDomainName(sniExt) -> sniExt
                 else -> sniExt
             }
         } else {
