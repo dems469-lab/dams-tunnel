@@ -11,6 +11,7 @@ class MainImportMenuTest {
             ServerMenuAction.ShareQRCode,
             ServerMenuAction.ShareClipboard,
             ServerMenuAction.ShareFullContent,
+            ServerMenuAction.ShareDamsFile,
         )
         assertEquals(expected, serverMenuActions(isComplexProfile = false, includeManagementActions = false))
     }
@@ -24,9 +25,9 @@ class MainImportMenuTest {
     }
 
     @Test
-    fun complexShareMenuContainsOnlyFullContent() {
+    fun complexShareMenuContainsFullContentAndProtectedDamsExport() {
         assertEquals(
-            listOf(ServerMenuAction.ShareFullContent),
+            listOf(ServerMenuAction.ShareFullContent, ServerMenuAction.ShareDamsFile),
             serverMenuActions(isComplexProfile = true, includeManagementActions = false),
         )
     }
@@ -35,6 +36,7 @@ class MainImportMenuTest {
     fun complexMoreMenuRetainsManagementActions() {
         val expected = listOf(
             ServerMenuAction.ShareFullContent,
+            ServerMenuAction.ShareDamsFile,
             ServerMenuAction.Edit,
             ServerMenuAction.Delete,
         )
