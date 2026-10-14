@@ -588,5 +588,7 @@
     <string name="dams_no_expiry">بدون پایان</string>
     <string name="title_dams_export_action">ورۊ کردن کانفیگ کامل (.dams)</string>
     <string name="toast_allow_insecure_warning">هشدار: ای پروفایل TLS ناامن دارنه. اتصال مجازه، ولی گواهی بررسی نؽ.</string>
+    <string name="connection_connecting">دارنه وصل موشه…</string>
+    <string name="connection_reconnecting">دارنه دوباره وصل موشه…</string>
 
 </resources>

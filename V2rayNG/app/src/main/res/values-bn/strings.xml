@@ -588,5 +588,7 @@
     <string name="dams_no_expiry">কোনও মেয়াদ নেই</string>
     <string name="title_dams_export_action">সম্পূর্ণ কনফিগারেশন রপ্তানি করুন (.dams)</string>
     <string name="toast_allow_insecure_warning">সতর্কতা: এই প্রোফাইলে অনিরাপদ TLS ব্যবহার করা হয়েছে। সংযোগ অনুমোদিত, তবে সার্টিফিকেট যাচাই করা হয়নি।</string>
+    <string name="connection_connecting">সংযোগ হচ্ছে…</string>
+    <string name="connection_reconnecting">পুনরায় সংযোগ হচ্ছে…</string>
 
 </resources>

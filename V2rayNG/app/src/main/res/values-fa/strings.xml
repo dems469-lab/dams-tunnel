@@ -588,5 +588,7 @@
     <string name="dams_no_expiry">بدون انقضا</string>
     <string name="title_dams_export_action">خروجی پیکربندی کامل (.dams)</string>
     <string name="toast_allow_insecure_warning">هشدار: این پروفایل از TLS ناامن استفاده می‌کند. اتصال مجاز است، اما گواهی بررسی نمی‌شود.</string>
+    <string name="connection_connecting">در حال اتصال…</string>
+    <string name="connection_reconnecting">در حال اتصال مجدد…</string>
 
 </resources>

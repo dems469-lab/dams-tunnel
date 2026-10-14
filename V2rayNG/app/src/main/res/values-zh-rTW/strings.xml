@@ -586,5 +586,7 @@
     <string name="dams_no_expiry">無期限</string>
     <string name="title_dams_export_action">匯出完整設定（.dams）</string>
     <string name="toast_allow_insecure_warning">警告：此設定使用不安全的 TLS。連線仍可用，但憑證不會被驗證。</string>
+    <string name="connection_connecting">正在連線…</string>
+    <string name="connection_reconnecting">正在重新連線…</string>
 
 </resources>

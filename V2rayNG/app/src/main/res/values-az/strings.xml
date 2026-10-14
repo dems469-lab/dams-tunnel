@@ -589,5 +589,7 @@
     <string name="dams_no_expiry">Bitmə yoxdur</string>
     <string name="title_dams_export_action">Tam konfiqurasiyanı ixrac et (.dams)</string>
     <string name="toast_allow_insecure_warning">Xəbərdarlıq: bu profil TLS insecure istifadə edir. Bağlantıya icazə verilir, lakin sertifikat yoxlanılmır.</string>
+    <string name="connection_connecting">Qoşulma…</string>
+    <string name="connection_reconnecting">Yenidən qoşulma…</string>
 
 </resources>

@@ -592,5 +592,7 @@
     <string name="dams_no_expiry">Без окончания</string>
     <string name="title_dams_export_action">Экспорт полной конфигурации (.dams)</string>
     <string name="toast_allow_insecure_warning">Внимание: этот профиль использует небезопасный TLS. Подключение разрешено, но сертификат не проверяется.</string>
+    <string name="connection_connecting">Подключение…</string>
+    <string name="connection_reconnecting">Повторное подключение…</string>
 
 </resources>
