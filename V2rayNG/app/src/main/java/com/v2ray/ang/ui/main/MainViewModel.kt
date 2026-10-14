@@ -348,7 +348,8 @@ class MainViewModel(
             MainAction.LocateSelectedServer,
             is MainAction.EditServer,
             is MainAction.ShareClipboard,
-            is MainAction.ShareFullContent -> {
+            is MainAction.ShareFullContent,
+            MainAction.ShareDamsFile -> {
                 // Handled by Activity via its onAction lambda
             }
         }

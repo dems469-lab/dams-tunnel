@@ -389,7 +389,13 @@ object CoreServiceManager {
     fun queryAllOutboundTrafficStats(): List<OutboundTrafficStat> {
         if (!isRunning()) return emptyList()
         return runCatching {
-            TrafficStatsParser.parse(coreController.queryAllOutboundTrafficStats())
+            // La méthode n'existe pas dans toutes les versions de l'AAR libv2ray.
+            // L'appel réflexif conserve la compatibilité binaire et active les
+            // statistiques lorsque le cœur les supporte.
+            val method = coreController.javaClass.methods.firstOrNull {
+                it.name == "queryAllOutboundTrafficStats" && it.parameterCount == 0
+            } ?: return@runCatching emptyList()
+            TrafficStatsParser.parse(method.invoke(coreController) as? String ?: "")
         }.onFailure {
             LogUtil.w(AppConfig.TAG, "StartCore-Manager: failed to query traffic statistics", it)
         }.getOrDefault(emptyList())

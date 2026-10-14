@@ -50,6 +50,7 @@ object CoreConfigManager {
                 guid = guid,
                 errorMessage = "Failed to get V2ray config: ${e.message ?: e.javaClass.simpleName}"
             )
+        }
     }
 
     /**
