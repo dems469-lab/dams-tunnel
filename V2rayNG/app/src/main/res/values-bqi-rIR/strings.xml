@@ -587,5 +587,6 @@
     <string name="title_dams_expiry">تاریخ پایان (اختیاری)</string>
     <string name="dams_no_expiry">بدون پایان</string>
     <string name="title_dams_export_action">ورۊ کردن کانفیگ کامل (.dams)</string>
+    <string name="toast_allow_insecure_warning">هشدار: ای پروفایل TLS ناامن دارنه. اتصال مجازه، ولی گواهی بررسی نؽ.</string>
 
 </resources>

@@ -585,5 +585,6 @@
     <string name="title_dams_expiry">到期日期（可选）</string>
     <string name="dams_no_expiry">无期限</string>
     <string name="title_dams_export_action">导出完整配置（.dams）</string>
+    <string name="toast_allow_insecure_warning">警告：此配置使用不安全的 TLS。连接仍可用，但证书不会被验证。</string>
 
 </resources>

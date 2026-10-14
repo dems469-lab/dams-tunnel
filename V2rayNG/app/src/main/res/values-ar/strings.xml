@@ -595,5 +595,6 @@
     <string name="title_dams_expiry">تاريخ الانتهاء (اختياري)</string>
     <string name="dams_no_expiry">بدون انتهاء</string>
     <string name="title_dams_export_action">تصدير الإعدادات الكاملة (.dams)</string>
+    <string name="toast_allow_insecure_warning">تنبيه: يستخدم هذا الملف الشخصي TLS غير آمن. الاتصال مسموح، لكن الشهادة غير موثقة.</string>
 
 </resources>

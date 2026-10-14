@@ -585,5 +585,6 @@
     <string name="title_dams_expiry">Ngày hết hạn (tùy chọn)</string>
     <string name="dams_no_expiry">Không hết hạn</string>
     <string name="title_dams_export_action">Xuất cấu hình đầy đủ (.dams)</string>
+    <string name="toast_allow_insecure_warning">Cảnh báo: cấu hình này sử dụng TLS không an toàn. Kết nối được phép nhưng chứng chỉ không được xác minh.</string>
 
 </resources>
