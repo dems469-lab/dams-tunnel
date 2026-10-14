@@ -162,6 +162,13 @@ android {
         }
     }
 
+    lint {
+        // Les nouvelles fonctionnalités sont rédigées en français. Les anciennes
+        // langues continuent d'utiliser le repli des ressources par défaut jusqu'à
+        // leur traduction complète, sans bloquer la livraison par le lint.
+        disable += "MissingTranslation"
+    }
+
 }
 
 dependencies {
