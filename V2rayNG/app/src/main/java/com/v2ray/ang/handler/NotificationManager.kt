@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.core.CoreServiceManager
+import com.v2ray.ang.dto.TrafficSnapshot
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.extension.delay
 import com.v2ray.ang.extension.toSpeedString
@@ -43,18 +44,18 @@ object NotificationManager {
      * Starts the speed notification.
      * @param currentConfig The current profile configuration.
      */
-    fun startSpeedNotification() {
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_SPEED_ENABLED) != true) return
-        if (speedNotificationJob != null || CoreServiceManager.isRunning() == false) return
+    fun startSpeedNotification() = Unit
 
-        var lastZeroSpeed = false
+    /** Called by the daemon-owned core stats loop; counters are queried only once. */
+    fun updateTraffic(snapshot: TrafficSnapshot) {
+        val up = snapshot.uplinkBytesPerSecond.toSpeedString()
+        val down = snapshot.downlinkBytesPerSecond.toSpeedString()
+        updateNotification("⬆️ $up · ⬇️ $down", snapshot.uplinkTotalBytes, snapshot.downlinkTotalBytes)
+    }
 
-        speedNotificationJob = CoroutineScope(Dispatchers.IO).launch {
-            while (isActive) {
-                lastZeroSpeed = updateSpeedNotificationOnce(lastZeroSpeed)
-                delay(QUERY_INTERVAL_MS)
-            }
-        }
+    fun updateState(text: String, color: Int) {
+        mBuilder?.setContentText(text)?.setColor(color)
+        getNotificationManager()?.notify(NOTIFICATION_ID, mBuilder?.build())
     }
 
     /**
@@ -98,6 +99,7 @@ object NotificationManager {
             .setOngoing(true)
             .setShowWhen(false)
             .setOnlyAlertOnce(true)
+            .setContentText(service.getString(R.string.connection_connecting))
             .setContentIntent(contentPendingIntent)
             .addAction(
                 R.drawable.ic_delete_24dp,

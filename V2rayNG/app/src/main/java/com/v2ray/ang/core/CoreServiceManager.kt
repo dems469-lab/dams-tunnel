@@ -15,10 +15,12 @@ import com.v2ray.ang.contracts.IDialerService
 import com.v2ray.ang.contracts.ServiceControl
 import com.v2ray.ang.dto.ConnectionTestResult
 import com.v2ray.ang.dto.OutboundTrafficStat
+import com.v2ray.ang.dto.TrafficSnapshot
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.BrowserDialerMode
 import com.v2ray.ang.extension.delay
 import com.v2ray.ang.extension.isNotNullEmpty
+import com.v2ray.ang.extension.isGroupType
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.handler.SettingsManager
@@ -28,6 +30,7 @@ import com.v2ray.ang.service.DialerNativeService
 import com.v2ray.ang.service.DialerWebviewService
 import com.v2ray.ang.service.NetworkMonitor
 import com.v2ray.ang.util.LogUtil
+import com.v2ray.ang.util.TrafficStatsParser
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
@@ -36,6 +39,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import libv2ray.CoreCallbackHandler
 import libv2ray.CoreController
@@ -49,9 +55,21 @@ object CoreServiceManager {
     private var browserDialer: IDialerService? = null
     private var networkMonitor: NetworkMonitor? = null
     private val connectionTestScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val _trafficSnapshot = MutableStateFlow(TrafficSnapshot())
+    val trafficSnapshot: StateFlow<TrafficSnapshot> = _trafficSnapshot.asStateFlow()
+    private var trafficStatsJob: kotlinx.coroutines.Job? = null
 
     @Volatile
     private var isReloading = false
+    private var failoverAttempted = false
+
+    @Volatile
+    private var userStopped = true
+
+    /** Appelé uniquement par une action explicite de l'utilisateur. */
+    fun markUserStopped() {
+        userStopped = true
+    }
 
     /** Tun descriptor the core was started with, null in the proxy only and root run modes. */
     private var currentVpnInterface: ParcelFileDescriptor? = null
@@ -93,6 +111,8 @@ object CoreServiceManager {
         }
 
         try {
+            userStopped = false
+            failoverAttempted = false
             doStartCoreLoop(service, vpnInterface)
             return true
         } catch (e: Exception) {
@@ -170,10 +190,96 @@ object CoreServiceManager {
         }
 
         if (!isReload) {
-            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
+            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_CONNECTING, "")
+            NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_connecting), android.graphics.Color.rgb(245, 196, 81))
+        } else {
+            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_CONNECTING, "")
         }
-        NotificationManager.startSpeedNotification()
+        verifyConnection(service)
+        startTrafficStats(service)
         LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core started successfully")
+    }
+
+    /**
+     * Xray can report that its loop started before the first real request succeeds.
+     * Only publish CONNECTED after a request has crossed the running core.
+     */
+    private fun verifyConnection(service: Service) {
+        connectionTestScope.launch {
+            var delayMillis = -1L
+            var lastError: String? = null
+            for (attempt in 0 until 2) {
+                if (attempt > 0) delay(1500L)
+                try {
+                    delayMillis = coreController.measureDelay(SettingsManager.getDelayTestUrl())
+                    if (delayMillis >= 0) break
+                } catch (e: Exception) {
+                    lastError = e.message
+                    LogUtil.w(AppConfig.TAG, "StartCore-Manager: connectivity verification failed", e)
+                }
+            }
+            if (delayMillis >= 0 && isRunning()) {
+                NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_connected), android.graphics.Color.rgb(34, 211, 238))
+                MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
+            } else if (isRunning()) {
+                if (!failoverAttempted && tryFailover(service)) {
+                    return@launch
+                }
+                val message = service.getString(com.v2ray.ang.R.string.connection_verification_failed)
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: no traffic after startup: ${lastError ?: "unknown error"}")
+                MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
+                NotificationManager.updateState(message, android.graphics.Color.rgb(239, 68, 68))
+                stopCoreLoop(cancelConnectionChecks = false)
+                service.stopSelf()
+            }
+        }
+    }
+
+    /** Essaie une autre configuration du groupe avant d'abandonner la connexion. */
+    private fun tryFailover(service: Service): Boolean {
+        val failed = currentConfig ?: return false
+        val candidates = MmkvManager.decodeServerList(failed.subscriptionId)
+            .asSequence()
+            .filter { it != MmkvManager.getSelectServer() }
+            .mapNotNull { guid -> MmkvManager.decodeServerConfig(guid)?.let { guid to it } }
+            .filter { (_, profile) -> !profile.configType.isGroupType() }
+            .toList()
+        val next = candidates.firstOrNull() ?: return false
+
+        failoverAttempted = true
+        MmkvManager.setSelectServer(next.first)
+        LogUtil.w(AppConfig.TAG, "StartCore-Manager: switching to backup profile")
+        MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
+        NotificationManager.updateState(
+            service.getString(com.v2ray.ang.R.string.connection_reconnecting),
+            android.graphics.Color.rgb(245, 196, 81),
+        )
+        return reloadCore(cancelConnectionChecks = false)
+    }
+
+    private fun startTrafficStats(service: Service) {
+        trafficStatsJob?.cancel()
+        trafficStatsJob = connectionTestScope.launch {
+            var previousTime = System.currentTimeMillis()
+            while (isRunning()) {
+                delay(1000L)
+                val now = System.currentTimeMillis()
+                val stats = queryAllOutboundTrafficStats()
+                val uplink = stats.filter { it.direction == AppConfig.UPLINK }.sumOf { it.value }
+                val downlink = stats.filter { it.direction == AppConfig.DOWNLINK }.sumOf { it.value }
+                val seconds = ((now - previousTime).coerceAtLeast(1L)) / 1000.0
+                val snapshot = TrafficSnapshot(
+                    uplinkBytesPerSecond = ((uplink / seconds).toLong()).coerceAtLeast(0L),
+                    downlinkBytesPerSecond = ((downlink / seconds).toLong()).coerceAtLeast(0L),
+                    uplinkTotalBytes = _trafficSnapshot.value.uplinkTotalBytes + uplink,
+                    downlinkTotalBytes = _trafficSnapshot.value.downlinkTotalBytes + downlink,
+                )
+                previousTime = now
+                _trafficSnapshot.value = snapshot
+                NotificationManager.updateTraffic(snapshot)
+                MessageHelper.sendMsg2UI(service, AppConfig.MSG_TRAFFIC_UPDATE, snapshot)
+            }
+        }
     }
 
     /**
@@ -181,8 +287,11 @@ object CoreServiceManager {
      * Unregisters broadcast receivers, stops notifications, and shuts down plugins.
      * @return True if the core was stopped successfully, false otherwise.
      */
-    fun stopCoreLoop(): Boolean {
-        connectionTestScope.coroutineContext.cancelChildren()
+    fun stopCoreLoop(cancelConnectionChecks: Boolean = true): Boolean {
+        if (cancelConnectionChecks) connectionTestScope.coroutineContext.cancelChildren()
+        trafficStatsJob?.cancel()
+        trafficStatsJob = null
+        _trafficSnapshot.value = TrafficSnapshot()
         val service = getService() ?: return false
 
         networkMonitor?.unregister()
@@ -244,7 +353,7 @@ object CoreServiceManager {
      *
      * @return True if the core is running again.
      */
-    private fun reloadCore(): Boolean {
+    private fun reloadCore(cancelConnectionChecks: Boolean = true): Boolean {
         if (isReloading) return false
         val service = getService() ?: return false
         if (!isRunning()) return false
@@ -253,8 +362,10 @@ object CoreServiceManager {
             val tunFd = currentVpnInterface
 
             isReloading = true
-            connectionTestScope.coroutineContext.cancelChildren()
+            if (cancelConnectionChecks) connectionTestScope.coroutineContext.cancelChildren()
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload start...")
+            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
+            NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_reconnecting), android.graphics.Color.rgb(245, 196, 81))
 
             coreController.stopLoop()
             launchCore(service, tunFd, isReload = true)
@@ -276,8 +387,12 @@ object CoreServiceManager {
      * Go side format: tag,direction,value;tag,direction,value;
      */
     fun queryAllOutboundTrafficStats(): List<OutboundTrafficStat> {
-        // The legacy-compatible AAR does not expose outbound statistics.
-        return emptyList()
+        if (!isRunning()) return emptyList()
+        return runCatching {
+            TrafficStatsParser.parse(coreController.queryAllOutboundTrafficStats())
+        }.onFailure {
+            LogUtil.w(AppConfig.TAG, "StartCore-Manager: failed to query traffic statistics", it)
+        }.getOrDefault(emptyList())
     }
 
     /**

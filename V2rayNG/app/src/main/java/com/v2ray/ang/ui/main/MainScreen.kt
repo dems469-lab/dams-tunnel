@@ -55,6 +55,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -70,6 +72,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.R
+import com.v2ray.ang.extension.toSpeedString
 import com.v2ray.ang.ui.compose.QRCodeDialog
 import com.v2ray.ang.ui.compose.ThemeManager
 import com.v2ray.ang.ui.logcat.LogcatViewModel
@@ -93,6 +96,7 @@ fun MainScreen(
     val doubleColumnDisplay = uiState.doubleColumnDisplay
     val confirmRemove = uiState.confirmRemove
     val shareQRCodeBitmap = uiState.shareQRCodeBitmap
+    val traffic = uiState.traffic
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -256,7 +260,11 @@ fun MainScreen(
                     selectedServerName = selectedServer?.profile?.remarks,
                     selectedServerAddress = selectedServer?.profile?.server,
                     protocolName = selectedServer?.profile?.configType?.protocolScheme?.uppercase(),
-                    delayMillis = selectedServer?.testDelayMillis,
+                    delayMillis = uiState.connectionDelayMillis ?: selectedServer?.testDelayMillis,
+                    downloadBytesPerSecond = traffic.downlinkBytesPerSecond,
+                    uploadBytesPerSecond = traffic.uplinkBytesPerSecond,
+                    trafficHistory = uiState.trafficHistory,
+                    diagnostic = uiState.diagnostic,
                     onOpenServers = { selectedTab = DamsTab.Configs },
                     onTestConnection = { onAction(MainAction.TestCurrentServer) },
                     onToggleConnection = { onAction(MainAction.ToggleService) },
@@ -414,6 +422,10 @@ private fun DamsDashboard(
     selectedServerAddress: String?,
     protocolName: String?,
     delayMillis: Long?,
+    downloadBytesPerSecond: Long,
+    uploadBytesPerSecond: Long,
+    trafficHistory: List<com.v2ray.ang.dto.TrafficSnapshot>,
+    diagnostic: ConnectionDiagnostic?,
     onOpenServers: () -> Unit,
     onTestConnection: () -> Unit,
     onToggleConnection: () -> Unit,
@@ -555,15 +567,64 @@ private fun DamsDashboard(
             DashboardMetric(
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.dams_metric_download),
-                value = "—",
+                value = if (isRunning) downloadBytesPerSecond.toSpeedString() else "—",
             )
             DashboardMetric(
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.dams_metric_upload),
-                value = "—",
+                value = if (isRunning) uploadBytesPerSecond.toSpeedString() else "—",
             )
         }
+        if (isRunning && trafficHistory.size > 1) {
+            Card(
+                modifier = Modifier.fillMaxWidth().height(96.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = MaterialTheme.shapes.large,
+            ) {
+                Canvas(Modifier.fillMaxSize().padding(12.dp)) {
+                    val max = trafficHistory.maxOf { maxOf(it.uplinkBytesPerSecond, it.downlinkBytesPerSecond) }
+                        .coerceAtLeast(1L).toFloat()
+                    val path = Path()
+                    trafficHistory.forEachIndexed { index, point ->
+                        val x = size.width * index / (trafficHistory.size - 1).toFloat()
+                        val y = size.height * (1f - point.downlinkBytesPerSecond / max)
+                        if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                    }
+                    drawPath(
+                        path,
+                        MaterialTheme.colorScheme.secondary,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f),
+                    )
+                }
+            }
+        }
+        diagnostic?.let { result ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = MaterialTheme.shapes.large,
+            ) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    DiagnosticRow(stringResource(R.string.diagnostic_network), result.networkAvailable)
+                    DiagnosticRow(stringResource(R.string.diagnostic_server), result.serverReachable)
+                    DiagnosticRow(stringResource(R.string.diagnostic_tunnel), result.tunnelVerified)
+                    result.pingMillis?.let { ping ->
+                        Text("Ping : $ping ms", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
     }
+}
+
+@Composable
+private fun DiagnosticRow(label: String, value: Boolean?) {
+    val symbol = when (value) {
+        true -> "✅"
+        false -> "❌"
+        null -> "…"
+    }
+    Text("$symbol  $label", style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable

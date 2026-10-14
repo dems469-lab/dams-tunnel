@@ -1,6 +1,7 @@
 package com.v2ray.ang.ui.main
 
 import android.content.Intent
+import android.app.KeyguardManager
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
@@ -55,6 +56,13 @@ import kotlinx.coroutines.withContext
 
 class MainActivity : HelperBaseComponentActivity() {
 
+    private var appUnlocked = false
+    private val appLockLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) appUnlocked = true else finish()
+    }
+
     private val mainViewModel: MainViewModel by viewModels {
         MainViewModel.Factory(application, MainRepository(application as AngApplication))
     }
@@ -100,6 +108,24 @@ class MainActivity : HelperBaseComponentActivity() {
         checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {}
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (!appUnlocked && MmkvManager.decodeSettingsBool(AppConfig.PREF_APP_LOCK, false)) {
+            val keyguard = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+            if (!keyguard.isDeviceSecure) {
+                toastError(R.string.app_lock_not_available)
+                appUnlocked = true
+                return
+            }
+            keyguard.createConfirmDeviceCredentialIntent(
+                getString(R.string.app_name),
+                getString(R.string.app_lock_prompt),
+            )?.let(appLockLauncher::launch) ?: finish()
+        } else {
+            appUnlocked = true
+        }
+    }
+
     @Composable
     override fun ScreenContent() {
         BackHandler { moveTaskToBack(false) }
@@ -120,6 +146,10 @@ class MainActivity : HelperBaseComponentActivity() {
                     is MainAction.EditServer -> editServer(action.guid, action.profile)
                     is MainAction.ShareClipboard -> shareToClipboard(action.guid)
                     is MainAction.ShareFullContent -> shareFullContentAsync(action.guid)
+                    MainAction.ShareDamsFile -> startActivity(
+                        Intent(this, BackupActivity::class.java)
+                            .putExtra(BackupActivity.EXTRA_OPEN_DAMS_EXPORT, true)
+                    )
                     else -> mainViewModel.onAction(action)
                 }
             },

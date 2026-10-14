@@ -11,6 +11,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 
 /**
@@ -35,6 +37,7 @@ class NetworkMonitor(
     private var upstream: Network? = null
     private var handoverJob: Job? = null
     private var registered = false
+    private val monitorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * Unfortunately registerDefaultNetworkCallback is going to return our VPN interface:
@@ -92,6 +95,7 @@ class NetworkMonitor(
     fun unregister() {
         handoverJob?.cancel()
         handoverJob = null
+        monitorScope.coroutineContext.cancelChildren()
         upstream = null
         if (!registered) return
         registered = false
@@ -105,7 +109,7 @@ class NetworkMonitor(
     private fun scheduleHandover(network: Network) {
         LogUtil.i(AppConfig.TAG, "NetworkMonitor: Upstream is now $network")
         handoverJob?.cancel()
-        handoverJob = CoroutineScope(Dispatchers.IO).launch {
+        handoverJob = monitorScope.launch {
             try {
                 delay(HANDOVER_DEBOUNCE_MS)
                 onHandover()

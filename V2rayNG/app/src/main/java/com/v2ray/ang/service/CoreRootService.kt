@@ -86,6 +86,7 @@ class CoreRootService : Service(), ServiceControl {
     }
 
     override fun stopService() {
+        CoreServiceManager.markUserStopped()
         stopSelf()
     }
 

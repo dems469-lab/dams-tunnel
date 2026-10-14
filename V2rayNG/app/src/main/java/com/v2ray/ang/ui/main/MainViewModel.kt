@@ -1,6 +1,8 @@
 package com.v2ray.ang.ui.main
 
 import android.app.Application
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -127,11 +129,18 @@ class MainViewModel(
 
     private fun handleServiceEvent(event: MainServiceEvent) {
         when (event) {
+            MainServiceEvent.StateConnecting -> _uiState.update {
+                it.copy(status = MainStatus.Connecting, isRunning = false)
+            }
+            MainServiceEvent.StateReconnecting -> _uiState.update {
+                it.copy(status = MainStatus.Reconnecting, isRunning = false)
+            }
             MainServiceEvent.StateRunning -> updateRunningState(true, clearTestingText = false)
             MainServiceEvent.StateNotRunning -> updateRunningState(false, clearTestingText = false)
             MainServiceEvent.StateStartSuccess -> {
                 toastSuccess(R.string.toast_services_success)
                 updateRunningState(true)
+                testCurrentServerRealPing()
             }
 
             is MainServiceEvent.StateStartFailure -> {
@@ -143,10 +152,34 @@ class MainViewModel(
                 updateRunningState(false)
             }
 
-            MainServiceEvent.StateStopSuccess -> updateRunningState(false)
+            MainServiceEvent.StateStopSuccess -> _uiState.update {
+                it.copy(
+                    isRunning = false,
+                    status = MainStatus.Disconnected,
+                    traffic = com.v2ray.ang.dto.TrafficSnapshot(),
+                    trafficHistory = emptyList(),
+                )
+            }
+            is MainServiceEvent.TrafficUpdate -> _uiState.update {
+                it.copy(
+                    traffic = event.snapshot,
+                    trafficHistory = (it.trafficHistory + event.snapshot).takeLast(30),
+                )
+            }
             is MainServiceEvent.MeasureDelayResult -> {
                 if (!uiState.value.isRunning || !testRequests.completeCurrent(event.requestId)) return
-                _uiState.update { it.copy(isTesting = testRequests.isTesting, status = MainStatus.ConnectionTest(event.result)) }
+                _uiState.update {
+                    it.copy(
+                        isTesting = testRequests.isTesting,
+                        status = MainStatus.ConnectionTest(event.result),
+                        connectionDelayMillis = event.result.delayMillis.takeIf { delay -> delay >= 0L },
+                        diagnostic = it.diagnostic?.copy(
+                            serverReachable = event.result.delayMillis >= 0L,
+                            tunnelVerified = event.result.delayMillis >= 0L,
+                            pingMillis = event.result.delayMillis.takeIf { delay -> delay >= 0L },
+                        ),
+                    )
+                }
             }
 
             is MainServiceEvent.MeasureConfigSuccess -> {
@@ -220,6 +253,8 @@ class MainViewModel(
 
     internal fun formatStatus(status: MainStatus): String = when (status) {
         MainStatus.Disconnected -> dataSource.getString(R.string.connection_not_connected)
+        MainStatus.Connecting -> dataSource.getString(R.string.connection_connecting)
+        MainStatus.Reconnecting -> dataSource.getString(R.string.connection_reconnecting)
         MainStatus.Connected -> dataSource.getString(R.string.connection_connected)
         MainStatus.Testing -> dataSource.getString(R.string.connection_test_testing)
         is MainStatus.TestProgress -> dataSource.getString(
@@ -888,8 +923,22 @@ class MainViewModel(
 
     fun testCurrentServerRealPing() {
         if (!uiState.value.isRunning) return
+        val connectivity = getApplication<Application>()
+            .getSystemService(ConnectivityManager::class.java)
+        val networkAvailable = connectivity?.activeNetwork?.let { network ->
+            connectivity.getNetworkCapabilities(network)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } == true
+        _uiState.update {
+            it.copy(
+                diagnostic = ConnectionDiagnostic(networkAvailable = networkAvailable),
+                isTesting = networkAvailable,
+                status = if (networkAvailable) MainStatus.Testing else MainStatus.ConnectionTest(
+                    ConnectionTestResult(-1L, getString(R.string.diagnostic_network_unavailable))
+                ),
+            )
+        }
+        if (!networkAvailable) return
         val requestId = testRequests.beginCurrent()
-        _uiState.update { it.copy(isTesting = true, status = MainStatus.Testing) }
         dataSource.testCurrentServerRealPing(requestId)
     }
 
@@ -929,6 +978,7 @@ class MainViewModel(
         _uiState.update { state ->
             state.copy(
                 isRunning = running,
+                connectionDelayMillis = if (running) state.connectionDelayMillis else null,
                 isTesting = testRequests.isTesting,
                 status = if (!clearTestingText && state.isRunning == running) state.status
                 else if (running) MainStatus.Connected else MainStatus.Disconnected

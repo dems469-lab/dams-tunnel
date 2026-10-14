@@ -74,6 +74,7 @@ class BackupActivity : HelperBaseComponentActivity() {
 
     companion object {
         const val EXTRA_DAMS_URI = "extra_dams_uri"
+        const val EXTRA_OPEN_DAMS_EXPORT = "extra_open_dams_export"
     }
 
     private val viewModel: BackupViewModel by viewModels()
@@ -150,6 +151,7 @@ class BackupActivity : HelperBaseComponentActivity() {
             },
             onShareClick = { viewModel.shareBackup(cacheDir, getString(R.string.app_name)) },
             onDamsExport = { password, expiry -> exportDams(password, expiry) },
+            openDamsExport = intent.getBooleanExtra(EXTRA_OPEN_DAMS_EXPORT, false),
             onRestoreOptionSelected = { location ->
                 when (location) {
                     BackupLocation.Local -> restoreViaLocal()
@@ -254,6 +256,7 @@ fun BackupScreen(
     onBackupOptionSelected: (BackupLocation) -> Unit,
     onShareClick: () -> Unit,
     onDamsExport: (String, Long?) -> Unit,
+    openDamsExport: Boolean = false,
     onRestoreOptionSelected: (BackupLocation) -> Unit,
     onCleanupProfiles: () -> Unit,
     onWebDavSave: (WebDavConfig) -> Unit,
@@ -265,7 +268,7 @@ fun BackupScreen(
     var showRestoreDialog by remember { mutableStateOf(false) }
     var showCleanupDialog by remember { mutableStateOf(false) }
     var showWebDavDialog by remember { mutableStateOf(false) }
-    var showDamsExportDialog by remember { mutableStateOf(false) }
+    var showDamsExportDialog by remember { mutableStateOf(openDamsExport) }
 
     val webDavSummary = currentWebDavConfig?.baseUrl
 

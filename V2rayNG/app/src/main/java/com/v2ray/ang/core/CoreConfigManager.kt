@@ -50,7 +50,6 @@ object CoreConfigManager {
                 guid = guid,
                 errorMessage = "Failed to get V2ray config: ${e.message ?: e.javaClass.simpleName}"
             )
-        }
     }
 
     /**
@@ -99,28 +98,7 @@ object CoreConfigManager {
         val json = JsonUtil.parseString(raw)?.takeIf { it.isJsonObject }?.asJsonObject ?: return result
 
         // Inject or remove traffic statistics configuration based on user preference
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_SPEED_ENABLED) == true) {
-            if (!json.has("stats")) {
-                json.add("stats", JsonObject())
-            }
-            if (!json.has("policy")) {
-                val policyObj = JsonObject()
-                val systemObj = JsonObject()
-                systemObj.addProperty("statsOutboundUplink", true)
-                systemObj.addProperty("statsOutboundDownlink", true)
-                policyObj.add("system", systemObj)
-                json.add("policy", policyObj)
-            }
-        } else {
-            json.remove("stats")
-            // Keep user-defined policy levels, only strip the stats-related system block
-            json.get("policy")?.takeIf { it.isJsonObject }?.asJsonObject?.let { policy ->
-                policy.remove("system")
-                if (policy.entrySet().isEmpty()) {
-                    json.remove("policy")
-                }
-            }
-        }
+        applyTrafficStatsPolicy(json)
 
         if (!needTun()) {
             return JsonUtil.toJsonPretty(json)?.let { ConfigResult(true, configContext.guid, it) } ?: result
@@ -163,6 +141,14 @@ object CoreConfigManager {
         }
 
         return JsonUtil.toJsonPretty(json)?.let { ConfigResult(true, configContext.guid, it) } ?: result
+    }
+
+    private fun applyTrafficStatsPolicy(json: JsonObject) {
+        if (!json.has("stats")) json.add("stats", JsonObject())
+        val policy = json.getAsJsonObject("policy") ?: JsonObject().also { json.add("policy", it) }
+        val system = policy.getAsJsonObject("system") ?: JsonObject().also { policy.add("system", it) }
+        system.addProperty("statsOutboundUplink", true)
+        system.addProperty("statsOutboundDownlink", true)
     }
 
     /**
@@ -728,10 +714,9 @@ object CoreConfigManager {
      * Remove speed-test runtime sections when the feature is disabled.
      */
     private fun applySpeedDisabled(v2rayConfig: V2rayConfig) {
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_SPEED_ENABLED) != true) {
-            v2rayConfig.stats = null
-            v2rayConfig.policy?.system = null
-        }
+        // Les compteurs sont nécessaires à l'accueil et à la notification.
+        // L'ancien réglage supprimait les statistiques du cœur et empêchait
+        // l'affichage des vitesses avec du trafic réel.
     }
 
     /*

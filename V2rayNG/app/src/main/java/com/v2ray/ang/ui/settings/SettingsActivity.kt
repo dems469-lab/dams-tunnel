@@ -5,6 +5,8 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.net.Uri
+import android.os.PowerManager
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -89,8 +91,25 @@ class SettingsActivity : BaseComponentActivity() {
             viewModel = viewModel,
             onBackClick = { finish() },
             onModeHelpClicked = { Utils.openUri(this, AppConfig.APP_WIKI_MODE) },
-            onSystemVpnSettingsClicked = ::openSystemVpnSettings
+            onSystemVpnSettingsClicked = ::openSystemVpnSettings,
+            onBatteryOptimizationClicked = ::requestBatteryOptimizationExemption
         )
+    }
+
+    private fun requestBatteryOptimizationExemption() {
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            powerManager.isIgnoringBatteryOptimizations(packageName)
+        ) return
+        try {
+            startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = Uri.parse("package:$packageName")
+            })
+        } catch (error: ActivityNotFoundException) {
+            reportSystemVpnSettingsFailure(error)
+        } catch (error: SecurityException) {
+            reportSystemVpnSettingsFailure(error)
+        }
     }
 }
 
@@ -100,7 +119,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBackClick: () -> Unit,
     onModeHelpClicked: () -> Unit,
-    onSystemVpnSettingsClicked: () -> Unit
+    onSystemVpnSettingsClicked: () -> Unit,
+    onBatteryOptimizationClicked: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -121,6 +141,8 @@ fun SettingsScreen(
     var vpnBypassLan by rememberMmkvString(AppConfig.PREF_VPN_BYPASS_LAN, AppConfig.DEFAULT_VPN_BYPASS_LAN)
     var vpnInterfaceAddress by rememberMmkvString(AppConfig.PREF_VPN_INTERFACE_ADDRESS_CONFIG_INDEX, "0")
     var vpnMtu by rememberMmkvString(AppConfig.PREF_VPN_MTU, "")
+    var killSwitch by rememberMmkvBool(AppConfig.PREF_KILL_SWITCH, false)
+    var appLock by rememberMmkvBool(AppConfig.PREF_APP_LOCK, false)
 
     var mux by rememberMmkvBool(AppConfig.PREF_MUX_ENABLED, false)
     var muxConcurrency by rememberMmkvString(AppConfig.PREF_MUX_CONCURRENCY, "8")
@@ -370,6 +392,13 @@ fun SettingsScreen(
                     enabled = isVpn,
                     keyboardNumber = true,
                     onValueChanged = { vpnMtu = it }
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.title_pref_kill_switch),
+                    summary = stringResource(R.string.summary_pref_kill_switch),
+                    checked = killSwitch,
+                    enabled = isVpn && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q,
+                    onCheckedChange = { killSwitch = it }
                 )
                 SettingsSwitchItem(
                     title = stringResource(R.string.title_pref_use_hev_tunnel),
@@ -651,6 +680,17 @@ fun SettingsScreen(
                         onClick = onSystemVpnSettingsClicked
                     )
                 }
+                SettingsMenuItem(
+                    title = stringResource(R.string.title_battery_optimization),
+                    subtitle = stringResource(R.string.summary_battery_optimization),
+                    onClick = onBatteryOptimizationClicked
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.title_app_lock),
+                    summary = stringResource(R.string.summary_app_lock),
+                    checked = appLock,
+                    onCheckedChange = { appLock = it }
+                )
                 SettingsEditItem(
                     title = stringResource(R.string.title_pref_delay_test_url),
                     value = delayTestUrl,

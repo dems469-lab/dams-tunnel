@@ -74,6 +74,7 @@ class CoreProxyOnlyService : Service(), ServiceControl {
      * Stops the service.
      */
     override fun stopService() {
+        CoreServiceManager.markUserStopped()
         stopSelf()
     }
 

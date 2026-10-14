@@ -3,10 +3,20 @@ package com.v2ray.ang.ui.main
 import com.v2ray.ang.dto.ConnectionTestResult
 import com.v2ray.ang.dto.GroupMapItem
 import com.v2ray.ang.dto.LocateTarget
+import com.v2ray.ang.dto.TrafficSnapshot
+
+data class ConnectionDiagnostic(
+    val networkAvailable: Boolean? = null,
+    val serverReachable: Boolean? = null,
+    val tunnelVerified: Boolean? = null,
+    val pingMillis: Long? = null,
+)
 
 /** Locale-neutral state formatted only when it reaches the main UI. */
 sealed interface MainStatus {
     data object Disconnected : MainStatus
+    data object Connecting : MainStatus
+    data object Reconnecting : MainStatus
     data object Connected : MainStatus
     data object Testing : MainStatus
     data class TestProgress(val progress: String) : MainStatus
@@ -23,6 +33,10 @@ data class MainUiState(
     val isRunning: Boolean = false,
     val isTesting: Boolean = false,
     val status: MainStatus = MainStatus.Disconnected,
+    val connectionDelayMillis: Long? = null,
+    val traffic: TrafficSnapshot = TrafficSnapshot(),
+    val trafficHistory: List<TrafficSnapshot> = emptyList(),
+    val diagnostic: ConnectionDiagnostic? = null,
     val locateTarget: LocateTarget? = null,
     val confirmRemove: Boolean = false,
     val doubleColumnDisplay: Boolean = false,
@@ -63,6 +77,7 @@ sealed interface MainAction {
     data class ShareQRCode(val guid: String) : MainAction
     data class ShareClipboard(val guid: String) : MainAction
     data class ShareFullContent(val guid: String) : MainAction
+    data object ShareDamsFile : MainAction
     data object DismissQRCodeDialog : MainAction
 
     data class ImportBatchConfig(val configText: String) : MainAction
