@@ -137,7 +137,7 @@
     <string name="title_dams_restore_attempts">Importer .dams — contrôle local limité : %1$d tentatives restantes</string>
     <string name="dams_password_incorrect">Mot de passe incorrect. Réessayez.</string>
     <string name="dams_attempts_exhausted">Limite locale de tentatives atteinte pour ce fichier.</string>
-    <string name="dams_restore_failed">Le mot de passe a été accepté, mais la restauration a échoué. Le fichier n'a pas été supprimé.</string>
+    <string name="dams_restore_failed">Le mot de passe a été accepté, mais la restauration a échoué. Le fichier d’origine reste intact.</string>
     <string name="dams_password_too_short">12 caractères minimum requis.</string>
     <string name="dams_password_strength_acceptable">Mot de passe acceptable.</string>
     <string name="dams_password_strength_strong">Mot de passe fort.</string>
