@@ -703,7 +703,7 @@
     <string name="ip_finder_number_required">Ce champ est obligatoire.</string>
     <string name="ip_finder_number_integer">Saisissez un entier composé uniquement de chiffres.</string>
     <string name="ip_finder_number_range">Valeur hors limite pour ce champ.</string>
-    <string name="ip_finder_select_profile_first">Choisissez une configuration sur l’écran d’accueil avant de lancer la recherche.</string>
+    <string name="ip_finder_select_profile_first">Choisissez une configuration sur l’écran d’accueil avant de lancer la recherche</string>
     <string name="ip_finder_vpn_permission_denied">Autorisation VPN refusée. La recherche n’a pas démarré.</string>
     <string name="ip_finder_vpn_disconnect_title">Déconnecter le VPN ?</string>
     <string name="ip_finder_vpn_disconnect_message">Le VPN doit être déconnecté avant de rechercher une nouvelle IP.</string>
@@ -726,5 +726,16 @@
     <string name="ip_finder_notification_running">Recherche en cours. Appuyez sur Arrêter pour interrompre.</string>
     <string name="ip_finder_foreground_service_failed">Impossible de démarrer la notification persistante. La recherche n’a pas démarré.</string>
     <string name="ip_finder_search_unexpected_failure">La recherche s’est arrêtée à cause d’une erreur inattendue.</string>
+    <string name="ip_finder_auto_connect_vpn">Connecter le VPN automatiquement quand l’IP est trouvée</string>
+    <string name="ip_finder_found_vpn_connected">Félicitations ! IP trouvée : %1$s (règle %2$s) à la tentative %3$d. VPN connecté.</string>
+    <string name="ip_finder_found_vpn_disconnected">Félicitations ! IP trouvée : %1$s (règle %2$s). VPN non connecté.</string>
+    <string name="ip_finder_vpn_connect_failed">IP trouvée : %1$s, mais le VPN n’a pas pu se connecter : %2$s</string>
+    <string name="ip_finder_vpn_start_rejected">Le service VPN n’a pas confirmé le démarrage.</string>
+    <string name="ip_finder_vpn_not_confirmed">La connexion VPN n’a pas été confirmée dans le délai de 20 secondes.</string>
+    <string name="ip_finder_search_preconditions_changed">Les conditions de recherche ont changé. Vérifiez l’assistant, le profil et le VPN.</string>
+    <string name="ip_finder_attempt_address_changed">#%1$d %2$s : l’adresse a changé, reprise de la recherche</string>
+    <string name="ip_finder_connect_vpn_retry">Connecter le VPN</string>
+    <string name="ip_finder_notification_found_channel">IP trouvée</string>
+    <string name="ip_finder_notification_found_title">Dams Tunnel — IP Finder</string>
 
 </resources>

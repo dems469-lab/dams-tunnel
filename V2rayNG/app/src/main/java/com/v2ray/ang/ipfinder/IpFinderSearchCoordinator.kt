@@ -52,7 +52,7 @@ class IpFinderSearchCoordinator(
     private val clock: IpFinderSearchClock = SystemIpFinderSearchClock,
     private val cycleTimeoutMillis: Long = CYCLE_TIMEOUT_MILLIS,
 ) {
-    suspend fun run(cycleCount: Int, pauseSeconds: Int): IpFinderSearchResult {
+    suspend fun run(cycleCount: Int, pauseSeconds: Int, firstAttempt: Int = 1): IpFinderSearchResult {
         if (port.isAirplaneModeEnabled()) return IpFinderSearchResult.Failed(IpFinderSearchFailure.AIRPLANE_ALREADY_ON)
         val parsed = IpRuleTextParser.parse(rulesText)
         if (parsed.inputError != null || parsed.validRules.isEmpty()) {
@@ -61,7 +61,7 @@ class IpFinderSearchCoordinator(
         val validRuleText = parsed.validRules.joinToString(";")
         var consecutiveNetworkFailures = 0
 
-        for (attempt in 1..cycleCount) {
+        for (attempt in firstAttempt..cycleCount) {
             onCycleStarted(attempt)
             val cycleResult = try {
                 clock.withTimeoutOrNull(cycleTimeoutMillis) { port.runCycle() }

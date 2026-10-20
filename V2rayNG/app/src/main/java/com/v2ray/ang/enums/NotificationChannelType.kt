@@ -26,5 +26,10 @@ enum class NotificationChannelType(
         channelId = "ip_finder_search_channel",
         channelNameRes = R.string.ip_finder_notification_channel,
         notificationId = 14
+    ),
+    IP_FINDER_FOUND(
+        channelId = "ip_finder_found_channel",
+        channelNameRes = R.string.ip_finder_notification_found_channel,
+        notificationId = 15
     )
 }

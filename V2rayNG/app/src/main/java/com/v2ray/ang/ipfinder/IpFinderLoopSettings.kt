@@ -5,17 +5,24 @@ interface IpFinderLoopSettingsStorage {
     fun write(key: String, value: String)
 }
 
-data class IpFinderLoopSettings(val cycles: String, val pauseSeconds: String)
+data class IpFinderLoopSettings(
+    val cycles: String,
+    val pauseSeconds: String,
+    val connectVpnAutomatically: Boolean,
+)
 
 class IpFinderLoopSettingsRepository(private val storage: IpFinderLoopSettingsStorage) {
     fun load(): IpFinderLoopSettings {
         val cycles = storage.read(CYCLES_KEY) ?: DEFAULT_CYCLES.also { storage.write(CYCLES_KEY, it) }
         val pause = storage.read(PAUSE_KEY) ?: DEFAULT_PAUSE.also { storage.write(PAUSE_KEY, it) }
-        return IpFinderLoopSettings(cycles, pause)
+        val connectAutomatically = storage.read(AUTO_CONNECT_KEY)?.toBooleanStrictOrNull()
+            ?: DEFAULT_AUTO_CONNECT.also { storage.write(AUTO_CONNECT_KEY, it.toString()) }
+        return IpFinderLoopSettings(cycles, pause, connectAutomatically)
     }
 
     fun saveCycles(value: String) = storage.write(CYCLES_KEY, value)
     fun savePause(value: String) = storage.write(PAUSE_KEY, value)
+    fun saveAutoConnect(value: Boolean) = storage.write(AUTO_CONNECT_KEY, value.toString())
     fun markSearchPending() = storage.write(SEARCH_PENDING_KEY, "true")
     fun clearSearchPending() = storage.write(SEARCH_PENDING_KEY, "false")
     fun isSearchPending(): Boolean = storage.read(SEARCH_PENDING_KEY) == "true"
@@ -25,6 +32,8 @@ class IpFinderLoopSettingsRepository(private val storage: IpFinderLoopSettingsSt
         const val DEFAULT_PAUSE = "5"
         const val CYCLES_KEY = "loop_cycles"
         const val PAUSE_KEY = "loop_pause_seconds"
+        const val AUTO_CONNECT_KEY = "auto_connect_vpn"
+        const val DEFAULT_AUTO_CONNECT = true
         const val SEARCH_PENDING_KEY = "search_in_progress"
     }
 }

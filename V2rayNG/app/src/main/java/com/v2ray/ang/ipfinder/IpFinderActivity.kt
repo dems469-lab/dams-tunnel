@@ -15,6 +15,8 @@ import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.provider.Settings
 import android.service.voice.VoiceInteractionService
 import android.widget.Toast
@@ -39,6 +41,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
@@ -60,10 +63,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.v2ray.ang.R
+import com.v2ray.ang.AppConfig
 import com.v2ray.ang.core.CoreServiceManager
 import com.v2ray.ang.core.LauncherManager
+import com.v2ray.ang.enums.PermissionType
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
+import com.v2ray.ang.helper.MessageHelper
+import com.v2ray.ang.helper.NotificationHelper
 import com.v2ray.ang.service.CoreVpnService
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import kotlinx.coroutines.CancellationException
@@ -85,11 +92,16 @@ class IpFinderActivity : BaseComponentActivity() {
     private lateinit var loopSettingsRepository: IpFinderLoopSettingsRepository
     private var cyclesText by mutableStateOf(IpFinderLoopSettingsRepository.DEFAULT_CYCLES)
     private var pauseText by mutableStateOf(IpFinderLoopSettingsRepository.DEFAULT_PAUSE)
+    private var autoConnectVpn by mutableStateOf(IpFinderLoopSettingsRepository.DEFAULT_AUTO_CONNECT)
     private var wifiActive by mutableStateOf(false)
     private var running by mutableStateOf(false)
     private var attempt by mutableStateOf(0)
     private var resultText by mutableStateOf<String?>(null)
     private var totalCycles by mutableStateOf(10)
+    private var vpnActuallyConnected by mutableStateOf(false)
+    private var vpnStartFailure: String? = null
+    private var retryVpnVisible by mutableStateOf(false)
+    private var retryAfterVpnPermission = false
     private var showDisconnectVpnConfirmation by mutableStateOf(false)
     private var showRestoreAirplaneConfirmation by mutableStateOf(false)
     private var activityResumed = false
@@ -103,9 +115,37 @@ class IpFinderActivity : BaseComponentActivity() {
             if (intent.action == IpFinderSearchService.ACTION_CANCEL_SEARCH) cycleJob?.cancel()
         }
     }
+    private var vpnStateReceiverRegistered = false
+    private val vpnStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.getIntExtra("key", 0)) {
+                AppConfig.MSG_STATE_START_SUCCESS -> {
+                    vpnActuallyConnected = true
+                    vpnStartFailure = null
+                }
+                AppConfig.MSG_STATE_CONNECTING, AppConfig.MSG_STATE_RECONNECTING -> {
+                    vpnActuallyConnected = false
+                }
+                AppConfig.MSG_STATE_START_FAILURE -> {
+                    vpnActuallyConnected = false
+                    vpnStartFailure = getString(R.string.ip_finder_vpn_start_rejected)
+                }
+                AppConfig.MSG_STATE_NOT_RUNNING, AppConfig.MSG_STATE_STOP_SUCCESS -> {
+                    vpnActuallyConnected = false
+                }
+            }
+        }
+    }
     private val vpnPermissionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) continueSearchPreflight()
-        else resultText = getString(R.string.ip_finder_vpn_permission_denied)
+        if (result.resultCode == Activity.RESULT_OK) {
+            if (retryAfterVpnPermission) {
+                retryAfterVpnPermission = false
+                retryVpnConnection()
+            } else continueSearchPreflight()
+        } else {
+            retryAfterVpnPermission = false
+            resultText = getString(R.string.ip_finder_vpn_permission_denied)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -117,12 +157,21 @@ class IpFinderActivity : BaseComponentActivity() {
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
         cancelReceiverRegistered = true
+        ContextCompat.registerReceiver(
+            this,
+            vpnStateReceiver,
+            IntentFilter(AppConfig.BROADCAST_ACTION_ACTIVITY),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        vpnStateReceiverRegistered = true
+        MessageHelper.sendMsg2Service(this, AppConfig.MSG_REGISTER_CLIENT, "")
         rulesRepository = IpFinderRulesRepository(AndroidIpRuleTextStorage(this))
         rulesText = rulesRepository.load()
         loopSettingsRepository = IpFinderLoopSettingsRepository(AndroidIpFinderLoopSettingsStorage(this))
         loopSettingsRepository.load().let { settings ->
             cyclesText = settings.cycles
             pauseText = settings.pauseSeconds
+            autoConnectVpn = settings.connectVpnAutomatically
         }
         IpFinderLoopNumberValidator.cycles(cyclesText).value?.let { totalCycles = it }
         IpFinderRecoveryStore.initialize(this)
@@ -151,6 +200,7 @@ class IpFinderActivity : BaseComponentActivity() {
 
     override fun onDestroy() {
         if (cancelReceiverRegistered) unregisterReceiver(searchCancelReceiver)
+        if (vpnStateReceiverRegistered) unregisterReceiver(vpnStateReceiver)
         super.onDestroy()
     }
 
@@ -337,26 +387,59 @@ class IpFinderActivity : BaseComponentActivity() {
 
     private fun requestSearchStart() {
         if (running) return
-        if (IpFinderRecoveryStore.isAirplaneModeEnabled(this)) {
-            resultText = getString(R.string.ip_finder_refuse_airplane_already_on)
-            return
-        }
         val guid = MmkvManager.getSelectServer()
-        if (guid.isNullOrBlank() || MmkvManager.decodeServerConfig(guid) == null) {
-            resultText = getString(R.string.ip_finder_select_profile_first)
-            return
-        }
-        if (SettingsManager.isVpnMode()) {
-            val permissionIntent = VpnService.prepare(this)
-            if (permissionIntent != null) {
-                vpnPermissionLauncher.launch(permissionIntent)
+        val profileExists = !guid.isNullOrBlank() && MmkvManager.decodeServerConfig(guid) != null
+        val permissionRequired = SettingsManager.isVpnMode()
+        val permissionIntent = if (permissionRequired) VpnService.prepare(this) else null
+        when (IpFinderPreflight.decide(
+            IpFinderPreflightInput(
+                airplaneModeEnabled = IpFinderRecoveryStore.isAirplaneModeEnabled(this),
+                selectedProfileExists = profileExists,
+                vpnPermissionRequired = permissionRequired,
+                vpnPermissionGranted = permissionIntent == null,
+                vpnServiceActive = false,
+            )
+        )) {
+            IpFinderPreflightDecision.AIRPLANE_MODE_ON -> {
+                resultText = getString(R.string.ip_finder_refuse_airplane_already_on)
                 return
             }
+            IpFinderPreflightDecision.PROFILE_REQUIRED -> {
+                resultText = getString(R.string.ip_finder_select_profile_first)
+                return
+            }
+            IpFinderPreflightDecision.REQUEST_VPN_PERMISSION -> {
+                if (permissionIntent != null) {
+                vpnPermissionLauncher.launch(permissionIntent)
+                return
+                }
+            }
+            else -> Unit
         }
         continueSearchPreflight()
     }
 
     private fun continueSearchPreflight() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {
+                requestLocalNetworkPermissionThenContinue()
+            }
+        } else {
+            requestLocalNetworkPermissionThenContinue()
+        }
+    }
+
+    private fun requestLocalNetworkPermissionThenContinue() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
+            checkAndRequestPermission(PermissionType.ACCESS_LOCAL_NETWORK) {
+                continueAfterPermissions()
+            }
+        } else {
+            continueAfterPermissions()
+        }
+    }
+
+    private fun continueAfterPermissions() {
         val selectedGuid = MmkvManager.getSelectServer()
         if (selectedGuid.isNullOrBlank() || MmkvManager.decodeServerConfig(selectedGuid) == null) {
             resultText = getString(R.string.ip_finder_select_profile_first)
@@ -391,7 +474,10 @@ class IpFinderActivity : BaseComponentActivity() {
         val cycles = IpFinderLoopNumberValidator.cycles(cyclesText).value ?: return
         val pause = IpFinderLoopNumberValidator.pauseSeconds(pauseText).value ?: return
         val parsed = IpRuleTextParser.parse(rulesText)
-        if (parsed.inputError != null || parsed.validRules.isEmpty() || !assistantActive || damsVpnActive) return
+        if (parsed.inputError != null || parsed.validRules.isEmpty() || !assistantActive || damsVpnActive) {
+            resultText = getString(R.string.ip_finder_search_preconditions_changed)
+            return
+        }
         try {
             ContextCompat.startForegroundService(this, Intent(this, IpFinderSearchService::class.java))
         } catch (_: Exception) {
@@ -400,6 +486,8 @@ class IpFinderActivity : BaseComponentActivity() {
         }
         attempt = 0
         totalCycles = cycles
+        retryVpnVisible = false
+        vpnStartFailure = null
         resultText = null
         timeline.clear()
         cycleStart = SystemClock.elapsedRealtime()
@@ -423,16 +511,62 @@ class IpFinderActivity : BaseComponentActivity() {
                         while (timeline.size > MAX_TIMELINE_LINES) timeline.removeAt(0)
                     }
                 )
-                when (val searchResult = coordinator.run(cycles, pause)) {
-                    is IpFinderSearchResult.Found -> resultText = getString(
-                        R.string.ip_finder_search_found,
-                        searchResult.address,
-                        searchResult.rule,
-                        searchResult.attempt
-                    )
-                    is IpFinderSearchResult.Exhausted -> resultText = getString(R.string.ip_finder_search_exhausted, searchResult.attempts)
-                    is IpFinderSearchResult.Failed -> resultText = getString(searchFailureText(searchResult.message))
-                    IpFinderSearchResult.Cancelled -> resultText = getString(R.string.ip_finder_event_cancelled)
+                var firstAttempt = 1
+                var finished = false
+                while (firstAttempt <= cycles && !finished) {
+                    when (val searchResult = coordinator.run(cycles, pause, firstAttempt)) {
+                is IpFinderSearchResult.Found -> {
+                            when (val found = IpFinderFoundActionCoordinator(ActivityFoundActionPort(), rulesText)
+                                .handle(searchResult.rule, autoConnectVpn)) {
+                                is IpFinderFoundActionResult.RetrySearch -> {
+                                    val line = getString(
+                                        R.string.ip_finder_attempt_address_changed,
+                                        searchResult.attempt,
+                                        found.address ?: "—"
+                                    )
+                                    addTimelineLine(line)
+                                    firstAttempt = searchResult.attempt + 1
+                                    if (firstAttempt <= cycles) delay(pause * 1_000L)
+                                    else resultText = getString(R.string.ip_finder_search_exhausted, cycles)
+                                }
+                                IpFinderFoundActionResult.ProfileRequired -> {
+                                    resultText = getString(R.string.ip_finder_select_profile_first)
+                                    finished = true
+                                }
+                                is IpFinderFoundActionResult.VpnFailed -> {
+                                    resultText = getString(R.string.ip_finder_vpn_connect_failed, found.address, found.cause)
+                                    retryVpnVisible = true
+                                    notifyIpFound(resultText.orEmpty())
+                                    addTimelineLine(resultText.orEmpty())
+                                    finished = true
+                                }
+                                is IpFinderFoundActionResult.Found -> {
+                                    resultText = getString(
+                                        if (found.vpnConnected) R.string.ip_finder_found_vpn_connected
+                                        else R.string.ip_finder_found_vpn_disconnected,
+                                        found.address,
+                                        found.rule,
+                                        searchResult.attempt
+                                    )
+                                    notifyIpFound(resultText.orEmpty())
+                                    addTimelineLine(resultText.orEmpty())
+                                    finished = true
+                                }
+                            }
+                        }
+                        is IpFinderSearchResult.Exhausted -> {
+                            resultText = getString(R.string.ip_finder_search_exhausted, searchResult.attempts)
+                            finished = true
+                        }
+                        is IpFinderSearchResult.Failed -> {
+                            resultText = getString(searchFailureText(searchResult.message))
+                            finished = true
+                        }
+                        IpFinderSearchResult.Cancelled -> {
+                            resultText = getString(R.string.ip_finder_event_cancelled)
+                            finished = true
+                        }
+                    }
                 }
             } catch (_: CancellationException) {
                 resultText = getString(R.string.ip_finder_event_cancelled)
@@ -461,6 +595,114 @@ class IpFinderActivity : BaseComponentActivity() {
         IpFinderSearchFailure.THREE_CONSECUTIVE_NETWORK_FAILURES -> R.string.ip_finder_three_network_failures
         IpFinderSearchFailure.AIRPLANE_RESTORE_FAILED -> R.string.ip_finder_airplane_restore_failed
         IpFinderSearchFailure.CYCLE_FAILED -> R.string.ip_finder_cycle_failed
+    }
+
+    private fun addTimelineLine(message: String) {
+        timeline.add((SystemClock.elapsedRealtime() - cycleStart) to message)
+        while (timeline.size > MAX_TIMELINE_LINES) timeline.removeAt(0)
+    }
+
+    private fun notifyIpFound(message: String) {
+        runCatching {
+            NotificationHelper.notify(
+                com.v2ray.ang.enums.NotificationChannelType.IP_FINDER_FOUND,
+                this,
+                getString(R.string.ip_finder_notification_found_title),
+                message
+            )
+        }
+        runCatching {
+            @Suppress("DEPRECATION")
+            val vibrator = getSystemService(Vibrator::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator?.vibrate(VibrationEffect.createOneShot(500L, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(500L)
+            }
+        }
+    }
+
+    private fun retryVpnConnection() {
+        if (running || !MmkvManager.getSelectServer().let { !it.isNullOrBlank() && MmkvManager.decodeServerConfig(it) != null }) {
+            resultText = getString(R.string.ip_finder_select_profile_first)
+            return
+        }
+        if (SettingsManager.isVpnMode()) {
+            VpnService.prepare(this)?.let { permissionIntent ->
+                retryAfterVpnPermission = true
+                vpnPermissionLauncher.launch(permissionIntent)
+                return
+            }
+        }
+        retryVpnVisible = false
+        lifecycleScope.launch {
+            if (damsVpnActive) {
+                LauncherManager.stopService(this@IpFinderActivity)
+                val stopped = withTimeoutOrNull(VPN_STOP_TIMEOUT_MILLIS) {
+                    while (true) {
+                        refreshState()
+                        if (!damsVpnActive) return@withTimeoutOrNull true
+                        delay(200)
+                    }
+                    @Suppress("UNREACHABLE_CODE") false
+                } ?: false
+                if (!stopped) {
+                    resultText = getString(R.string.ip_finder_vpn_disconnect_timeout)
+                    retryVpnVisible = true
+                    return@launch
+                }
+            }
+            try {
+                val port = ActivityFoundActionPort()
+                port.startVpn()
+                val outcome = port.awaitVpnConnected(IpFinderFoundActionCoordinator.VPN_CONNECT_TIMEOUT_MILLIS)
+                if (outcome is IpFinderVpnConnectionResult.Connected) {
+                    val foundAddress = currentCellularIp.orEmpty()
+                    val match = IpRuleMatcher.match(IpRuleTextParser.parse(rulesText).validRules.joinToString(";"), foundAddress)
+                    resultText = getString(
+                        R.string.ip_finder_found_vpn_connected,
+                        foundAddress,
+                        match.triggeringRule.orEmpty(),
+                        attempt
+                    )
+                    notifyIpFound(resultText.orEmpty())
+                    addTimelineLine(resultText.orEmpty())
+                } else {
+                    val cause = (outcome as? IpFinderVpnConnectionResult.Failed)?.cause.orEmpty()
+                    resultText = getString(R.string.ip_finder_vpn_connect_failed, currentCellularIp.orEmpty(), cause)
+                    retryVpnVisible = true
+                }
+            } catch (_: Exception) {
+                resultText = getString(R.string.ip_finder_vpn_connect_failed, currentCellularIp.orEmpty(), getString(R.string.ip_finder_vpn_start_rejected))
+                retryVpnVisible = true
+            }
+        }
+    }
+
+    private inner class ActivityFoundActionPort : IpFinderFoundActionPort {
+        override fun selectedProfileExists(): Boolean = MmkvManager.getSelectServer()
+            ?.let { MmkvManager.decodeServerConfig(it) != null } == true
+
+        override fun currentCellularAddress(): String? = AndroidIpFinderCyclePort(this@IpFinderActivity) {
+            IpFinderAirplaneRequest(false, false)
+        }.currentCellularAddress()
+
+        override suspend fun startVpn() {
+            vpnActuallyConnected = false
+            vpnStartFailure = null
+            LauncherManager.startService(this@IpFinderActivity)
+        }
+
+        override suspend fun awaitVpnConnected(timeoutMillis: Long): IpFinderVpnConnectionResult =
+            withTimeoutOrNull(timeoutMillis) {
+                while (true) {
+                    if (vpnActuallyConnected) return@withTimeoutOrNull IpFinderVpnConnectionResult.Connected
+                    vpnStartFailure?.let { return@withTimeoutOrNull IpFinderVpnConnectionResult.Failed(it) }
+                    delay(100)
+                }
+                @Suppress("UNREACHABLE_CODE") IpFinderVpnConnectionResult.Failed(getString(R.string.ip_finder_vpn_not_confirmed))
+            } ?: IpFinderVpnConnectionResult.Failed(getString(R.string.ip_finder_vpn_not_confirmed))
     }
 
     private inner class ActivitySearchPort : IpFinderSearchPort {
@@ -504,9 +746,11 @@ class IpFinderActivity : BaseComponentActivity() {
             totalCycles = totalCycles,
             cyclesText = cyclesText,
             pauseText = pauseText,
+            autoConnectVpn = autoConnectVpn,
             attempt = attempt,
             timeline = timeline.toList(),
             resultText = resultText,
+            retryVpnVisible = retryVpnVisible,
             showDisconnectVpnConfirmation = showDisconnectVpnConfirmation,
             showRestoreAirplaneConfirmation = showRestoreAirplaneConfirmation,
             onBack = { if (running) cycleJob?.cancel() else finish() },
@@ -519,6 +763,8 @@ class IpFinderActivity : BaseComponentActivity() {
             onPrefixRules = { rulesText = rulesRepository.prefixAndSave(rulesText) },
             onCyclesChanged = { value -> cyclesText = value; loopSettingsRepository.saveCycles(value) },
             onPauseChanged = { value -> pauseText = value; loopSettingsRepository.savePause(value) },
+            onAutoConnectVpnChanged = { value -> autoConnectVpn = value; loopSettingsRepository.saveAutoConnect(value) },
+            onRetryVpn = ::retryVpnConnection,
             onConfirmDisconnectVpn = ::disconnectVpnAndStartSearch,
             onCancelDisconnectVpn = { showDisconnectVpnConfirmation = false },
             onConfirmRestoreAirplane = {
@@ -555,9 +801,11 @@ private fun IpFinderSetupScreen(
     totalCycles: Int,
     cyclesText: String,
     pauseText: String,
+    autoConnectVpn: Boolean,
     attempt: Int,
     timeline: List<Pair<Long, String>>,
     resultText: String?,
+    retryVpnVisible: Boolean,
     showDisconnectVpnConfirmation: Boolean,
     showRestoreAirplaneConfirmation: Boolean,
     onBack: () -> Unit,
@@ -570,6 +818,8 @@ private fun IpFinderSetupScreen(
     onPrefixRules: () -> Unit,
     onCyclesChanged: (String) -> Unit,
     onPauseChanged: (String) -> Unit,
+    onAutoConnectVpnChanged: (Boolean) -> Unit,
+    onRetryVpn: () -> Unit,
     onConfirmDisconnectVpn: () -> Unit,
     onCancelDisconnectVpn: () -> Unit,
     onConfirmRestoreAirplane: () -> Unit,
@@ -677,6 +927,13 @@ private fun IpFinderSetupScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Checkbox(checked = autoConnectVpn, onCheckedChange = onAutoConnectVpnChanged)
+                Text(
+                    stringResource(R.string.ip_finder_auto_connect_vpn),
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
             Text(stringResource(R.string.ip_finder_attempt, attempt, totalCycles))
             if (running) Text(stringResource(R.string.ip_finder_screen_awake_warning), color = MaterialTheme.colorScheme.error)
             Button(onClick = onStart, enabled = !running && assistantActive &&
@@ -685,6 +942,11 @@ private fun IpFinderSetupScreen(
                 Text(stringResource(R.string.ip_finder_start_cycle))
             }
             resultText?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            if (retryVpnVisible) {
+                Button(onClick = onRetryVpn, enabled = !running, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.ip_finder_connect_vpn_retry))
+                }
+            }
             Text(stringResource(R.string.ip_finder_timeline), style = MaterialTheme.typography.titleMedium)
             timeline.forEach { (elapsed, textId) ->
                 Row(modifier = Modifier.fillMaxWidth()) {

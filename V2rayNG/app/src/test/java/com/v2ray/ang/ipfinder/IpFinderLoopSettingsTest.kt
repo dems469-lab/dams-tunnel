@@ -10,13 +10,15 @@ class IpFinderLoopSettingsTest {
     fun firstLoadPersistsDefaultsAndSubsequentLoadRestoresUserValues() {
         val storage = FakeStorage()
         val repository = IpFinderLoopSettingsRepository(storage)
-        assertEquals(IpFinderLoopSettings("10", "5"), repository.load())
+        assertEquals(IpFinderLoopSettings("10", "5", true), repository.load())
         assertEquals("10", storage.values[IpFinderLoopSettingsRepository.CYCLES_KEY])
         assertEquals("5", storage.values[IpFinderLoopSettingsRepository.PAUSE_KEY])
+        assertEquals("true", storage.values[IpFinderLoopSettingsRepository.AUTO_CONNECT_KEY])
 
         repository.saveCycles("1000")
         repository.savePause("120")
-        assertEquals(IpFinderLoopSettings("1000", "120"), IpFinderLoopSettingsRepository(storage).load())
+        repository.saveAutoConnect(false)
+        assertEquals(IpFinderLoopSettings("1000", "120", false), IpFinderLoopSettingsRepository(storage).load())
     }
 
     @Test
