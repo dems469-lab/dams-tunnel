@@ -34,12 +34,15 @@ class IpFinderRulesRepositoryTest {
     }
 
     @Test
-    fun defaultListMatchesTheRequestedAddressesWithContainsSemantics() {
+    fun defaultListUsesLiteralContainsSemantics() {
         val rules = IpFinderRulesRepository.DEFAULT_RULES
         assertTrue(IpRuleMatcher.match(rules, "10.204.5.5").matches)
         assertFalse(IpRuleMatcher.match(rules, "10.190.112.188").matches)
 
-        val containsMatch = IpRuleMatcher.match(rules, "10.177.1.1")
+        // "10.177.1.1" does not contain the literal substring "10.77".
+        assertFalse(IpRuleMatcher.match(rules, "10.177.1.1").matches)
+
+        val containsMatch = IpRuleMatcher.match(rules, "10.77.1.1")
         assertTrue(containsMatch.matches)
         assertEquals("10.77", containsMatch.triggeringRule)
     }
