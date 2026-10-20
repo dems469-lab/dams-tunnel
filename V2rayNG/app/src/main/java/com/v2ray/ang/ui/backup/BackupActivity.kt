@@ -475,6 +475,7 @@ private fun DamsExportDialog(
     var showDatePicker by remember { mutableStateOf(false) }
     var expiry by remember { mutableStateOf<Long?>(null) }
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = expiry)
+    val passwordStrength = DamsPasswordPolicy.strength(password)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.title_dams_export)) },
@@ -487,7 +488,6 @@ private fun DamsExportDialog(
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                 )
-                val passwordStrength = DamsPasswordPolicy.strength(password)
                 Text(
                     stringResource(
                         when (passwordStrength) {
