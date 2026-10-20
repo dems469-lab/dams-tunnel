@@ -64,6 +64,7 @@ import com.v2ray.ang.util.checkBackupFileSize
 import com.v2ray.ang.util.copyToLimited
 import com.v2ray.ang.util.getDeclaredFileSize
 import com.v2ray.ang.util.DamsPasswordPolicy
+import com.v2ray.ang.util.damsExpiryAtLocalEndOfDay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -469,7 +470,6 @@ private fun DamsExportDialog(
     onDismiss: () -> Unit,
     onExport: (String, Long?) -> Unit,
 ) {
-    val endOfSelectedDayMillis = 24L * 60L * 60L * 1000L
     var password by remember { mutableStateOf("") }
     var passwordConfirmation by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -528,10 +528,7 @@ private fun DamsExportDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    // DatePicker returns the beginning of the selected day.  A file
-                    // selected for today must remain valid for the whole day, not
-                    // expire immediately at midnight.
-                    expiry = datePickerState.selectedDateMillis?.plus(endOfSelectedDayMillis)
+                    expiry = datePickerState.selectedDateMillis?.let { damsExpiryAtLocalEndOfDay(it) }
                     showDatePicker = false
                 }) { Text(stringResource(R.string.action_ok)) }
             },
