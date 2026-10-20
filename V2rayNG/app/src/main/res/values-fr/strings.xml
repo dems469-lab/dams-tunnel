@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="ip_finder_assistant_label">Assistant de test IP Finder</string>
     <string name="app_name" translatable="false">Dams Tunnel</string>
     <string name="app_widget_name">Interrupteur</string>
     <string name="app_tile_name">Interrupteur</string>
