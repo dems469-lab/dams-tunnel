@@ -83,6 +83,15 @@
                 <action android:name="android.service.voice.VoiceInteractionSessionService" />
             </intent-filter>
         </service>
+        <service
+            android:name=".ipfinder.DamsRecognitionService"
+            android:exported="true"
+            android:label="@string/ip_finder_assistant_label"
+            android:permission="android.permission.BIND_SPEECH_RECOGNITION">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+            </intent-filter>
+        </service>
 
         <activity
             android:name=".ui.main.MainActivity"

@@ -2,16 +2,16 @@ package com.v2ray.ang.ipfinder
 
 import android.app.ActivityManager
 import android.app.role.RoleManager
-import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.service.voice.VoiceInteractionService
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -52,6 +52,9 @@ import java.util.UUID
 
 class IpFinderActivity : BaseComponentActivity() {
     private var assistantActive by mutableStateOf(false)
+    private var assistantServiceDeclared by mutableStateOf(false)
+    private var assistantServiceResolved by mutableStateOf(false)
+    private var currentAssistant by mutableStateOf("")
     private var damsVpnActive by mutableStateOf(false)
     private var currentCellularIp by mutableStateOf<String?>(null)
     private var wifiActive by mutableStateOf(false)
@@ -98,6 +101,19 @@ class IpFinderActivity : BaseComponentActivity() {
         } else {
             Settings.Secure.getString(contentResolver, "assistant")?.startsWith("$packageName/") == true
         }
+        val assistantComponent = ComponentName(this, DamsVoiceInteractionService::class.java)
+        assistantServiceDeclared = runCatching {
+            packageManager.getServiceInfo(assistantComponent, 0)
+            true
+        }.getOrDefault(false)
+        assistantServiceResolved = runCatching {
+            val resolved = packageManager.resolveService(
+                Intent(VoiceInteractionService.SERVICE_INTERFACE).setPackage(packageName),
+                PackageManager.MATCH_DEFAULT_ONLY
+            )?.serviceInfo
+            resolved?.name == assistantComponent.className && resolved.enabled
+        }.getOrDefault(false)
+        currentAssistant = getCurrentAssistantLabel()
         val runningServices = (getSystemService(ACTIVITY_SERVICE) as ActivityManager)
             .getRunningServices(Int.MAX_VALUE)
         damsVpnActive = CoreServiceManager.isRunning() || runningServices.any {
@@ -113,11 +129,36 @@ class IpFinderActivity : BaseComponentActivity() {
     }
 
     private fun openAssistantSettings() {
-        try {
+        val voiceSettingsOpened = runCatching {
+            startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
+        }.isSuccess
+        if (voiceSettingsOpened) return
+        val defaultSettingsOpened = runCatching {
             startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
-        } catch (_: ActivityNotFoundException) {
+        }.isSuccess
+        if (!defaultSettingsOpened) {
             Toast.makeText(this, R.string.ip_finder_assistant_settings_unavailable, Toast.LENGTH_LONG).show()
         }
+    }
+
+    private fun getCurrentAssistantLabel(): String {
+        val rolePackage = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            getSystemService(RoleManager::class.java)
+                ?.getRoleHolders(RoleManager.ROLE_ASSISTANT)
+                ?.firstOrNull()
+        } else null
+        val settingValue = Settings.Secure.getString(contentResolver, "voice_interaction_service")
+            ?: Settings.Secure.getString(contentResolver, "assistant")
+        val currentPackage = rolePackage
+            ?: ComponentName.unflattenFromString(settingValue)?.packageName
+            ?: settingValue?.substringBefore('/')?.takeIf { it.contains('.') }
+        return currentPackage?.let { assistantPackage ->
+            runCatching {
+                packageManager.getApplicationLabel(
+                    packageManager.getApplicationInfo(assistantPackage, 0)
+                ).toString()
+            }.getOrDefault(assistantPackage)
+        } ?: getString(R.string.ip_finder_no_current_assistant)
     }
 
     private suspend fun requestAirplaneMode(enabled: Boolean): IpFinderAirplaneRequest {
@@ -249,12 +290,11 @@ class IpFinderActivity : BaseComponentActivity() {
 
     @Composable
     override fun ScreenContent() {
-        val roleRequest = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            refreshState()
-            maybeRestorePending()
-        }
         IpFinderSetupScreen(
             assistantActive = assistantActive,
+            assistantServiceDeclared = assistantServiceDeclared,
+            assistantServiceResolved = assistantServiceResolved,
+            currentAssistant = currentAssistant,
             vpnActive = damsVpnActive,
             running = running,
             wifiActive = wifiActive,
@@ -263,14 +303,7 @@ class IpFinderActivity : BaseComponentActivity() {
             timeline = timeline.toList(),
             resultText = resultText,
             onBack = { if (running) cycleJob?.cancel() else finish() },
-            onEnableAssistant = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val roleManager = getSystemService(RoleManager::class.java)
-                    if (roleManager?.isRoleAvailable(RoleManager.ROLE_ASSISTANT) == true) {
-                        roleRequest.launch(roleManager.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT))
-                    } else openAssistantSettings()
-                } else openAssistantSettings()
-            },
+            onEnableAssistant = ::openAssistantSettings,
             onAssistantSettings = ::openAssistantSettings,
             onStart = ::startCycle,
             onStop = { if (running) cycleJob?.cancel() else finish() }
@@ -286,6 +319,9 @@ class IpFinderActivity : BaseComponentActivity() {
 @Composable
 private fun IpFinderSetupScreen(
     assistantActive: Boolean,
+    assistantServiceDeclared: Boolean,
+    assistantServiceResolved: Boolean,
+    currentAssistant: String,
     vpnActive: Boolean,
     running: Boolean,
     wifiActive: Boolean,
@@ -312,6 +348,11 @@ private fun IpFinderSetupScreen(
             TextButton(onClick = onBack) { Text(stringResource(R.string.ip_finder_back)) }
             Text(stringResource(R.string.ip_finder_test_entry), style = MaterialTheme.typography.headlineSmall)
             Text(stringResource(R.string.ip_finder_intro), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.ip_finder_diagnostic_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.ip_finder_diagnostic_declared, stringResource(if (assistantServiceDeclared) R.string.ip_finder_yes else R.string.ip_finder_no)))
+            Text(stringResource(R.string.ip_finder_diagnostic_resolved, stringResource(if (assistantServiceResolved) R.string.ip_finder_yes else R.string.ip_finder_no)))
+            Text(stringResource(R.string.ip_finder_diagnostic_role, stringResource(if (assistantActive) R.string.ip_finder_yes else R.string.ip_finder_no)))
+            Text(stringResource(R.string.ip_finder_diagnostic_current, currentAssistant))
             Text(stringResource(if (assistantActive) R.string.ip_finder_assistant_active else R.string.ip_finder_assistant_inactive))
             Button(onClick = onEnableAssistant, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.ip_finder_enable_assistant))

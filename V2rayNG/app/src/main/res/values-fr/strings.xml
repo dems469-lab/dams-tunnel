@@ -3,7 +3,15 @@
     <string name="ip_finder_assistant_label">Assistant de test IP Finder</string>
     <string name="ip_finder_drawer_entry">IP Finder (bêta)</string>
     <string name="ip_finder_test_entry">IP Finder (test)</string>
-    <string name="ip_finder_intro">Ce test effectue un seul cycle du mode avion pour vérifier l’adresse IP attribuée au réseau mobile. Le rôle d’assistant est demandé uniquement pour basculer le mode avion. Dams Tunnel ne lit jamais le contenu de l’écran. Pour revenir à votre assistant précédent, ouvrez les réglages des applications par défaut et sélectionnez-le.</string>
+    <string name="ip_finder_intro">Ce test effectue un seul cycle du mode avion pour vérifier l’adresse IP attribuée au réseau mobile. Android considère Dams Tunnel comme un assistant ; l’application ne lit jamais votre écran. Le rôle est demandé uniquement pour basculer le mode avion. Le service de reconnaissance déclaré ne capture pas d’audio et ne traite aucune dictée. Pour revenir à votre assistant précédent, ouvrez les réglages des applications par défaut et sélectionnez-le.</string>
+    <string name="ip_finder_diagnostic_title">Diagnostic de l’assistant</string>
+    <string name="ip_finder_diagnostic_declared">Service déclaré : %1$s</string>
+    <string name="ip_finder_diagnostic_resolved">Service résolu par Android : %1$s</string>
+    <string name="ip_finder_diagnostic_role">Rôle Assistant actif pour Dams Tunnel : %1$s</string>
+    <string name="ip_finder_diagnostic_current">Application assistante actuelle : %1$s</string>
+    <string name="ip_finder_yes">Oui</string>
+    <string name="ip_finder_no">Non</string>
+    <string name="ip_finder_no_current_assistant">Aucune détectée</string>
     <string name="ip_finder_assistant_active">Assistant Dams Tunnel actif</string>
     <string name="ip_finder_assistant_inactive">Assistant Dams Tunnel non activé</string>
     <string name="ip_finder_enable_assistant">Activer comme assistant</string>

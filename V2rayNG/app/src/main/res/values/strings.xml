@@ -4,7 +4,15 @@
     <string name="ip_finder_assistant_label">Assistant de test IP Finder</string>
     <string name="ip_finder_drawer_entry" translatable="false">IP Finder (bêta)</string>
     <string name="ip_finder_test_entry" translatable="false">IP Finder (test)</string>
-    <string name="ip_finder_intro" translatable="false">Ce test effectue un seul cycle du mode avion pour vérifier l’adresse IP attribuée au réseau mobile. Le rôle d’assistant est demandé uniquement pour basculer le mode avion. Dams Tunnel ne lit jamais le contenu de l’écran. Pour revenir à votre assistant précédent, ouvrez les réglages des applications par défaut et sélectionnez-le.</string>
+    <string name="ip_finder_intro" translatable="false">Ce test effectue un seul cycle du mode avion pour vérifier l’adresse IP attribuée au réseau mobile. Android considère Dams Tunnel comme un assistant ; l’application ne lit jamais votre écran. Le rôle est demandé uniquement pour basculer le mode avion. Le service de reconnaissance déclaré ne capture pas d’audio et ne traite aucune dictée. Pour revenir à votre assistant précédent, ouvrez les réglages des applications par défaut et sélectionnez-le.</string>
+    <string name="ip_finder_diagnostic_title" translatable="false">Diagnostic de l’assistant</string>
+    <string name="ip_finder_diagnostic_declared" translatable="false">Service déclaré : %1$s</string>
+    <string name="ip_finder_diagnostic_resolved" translatable="false">Service résolu par Android : %1$s</string>
+    <string name="ip_finder_diagnostic_role" translatable="false">Rôle Assistant actif pour Dams Tunnel : %1$s</string>
+    <string name="ip_finder_diagnostic_current" translatable="false">Application assistante actuelle : %1$s</string>
+    <string name="ip_finder_yes" translatable="false">Oui</string>
+    <string name="ip_finder_no" translatable="false">Non</string>
+    <string name="ip_finder_no_current_assistant" translatable="false">Aucune détectée</string>
     <string name="ip_finder_assistant_active" translatable="false">Assistant Dams Tunnel actif</string>
     <string name="ip_finder_assistant_inactive" translatable="false">Assistant Dams Tunnel non activé</string>
     <string name="ip_finder_enable_assistant" translatable="false">Activer comme assistant</string>
