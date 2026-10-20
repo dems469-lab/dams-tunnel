@@ -3,6 +3,7 @@ package com.v2ray.ang.ipfinder
 import android.app.Activity
 import android.app.ActivityManager
 import android.app.role.RoleManager
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.ComponentName
@@ -66,7 +67,6 @@ import com.v2ray.ang.R
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.core.CoreServiceManager
 import com.v2ray.ang.core.LauncherManager
-import com.v2ray.ang.enums.PermissionType
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.helper.MessageHelper
@@ -146,6 +146,14 @@ class IpFinderActivity : BaseComponentActivity() {
             retryAfterVpnPermission = false
             resultText = getString(R.string.ip_finder_vpn_permission_denied)
         }
+    }
+    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) requestLocalNetworkPermissionThenContinue()
+        else resultText = getString(R.string.toast_permission_denied_for, getString(R.string.permission_notification))
+    }
+    private val localNetworkPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) continueAfterPermissions()
+        else resultText = getString(R.string.toast_permission_denied_for, getString(R.string.permission_local_network))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -421,9 +429,9 @@ class IpFinderActivity : BaseComponentActivity() {
 
     private fun continueSearchPreflight() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {
-                requestLocalNetworkPermissionThenContinue()
-            }
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else requestLocalNetworkPermissionThenContinue()
         } else {
             requestLocalNetworkPermissionThenContinue()
         }
@@ -431,7 +439,9 @@ class IpFinderActivity : BaseComponentActivity() {
 
     private fun requestLocalNetworkPermissionThenContinue() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
-            checkAndRequestPermission(PermissionType.ACCESS_LOCAL_NETWORK) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_LOCAL_NETWORK) != PackageManager.PERMISSION_GRANTED) {
+                localNetworkPermissionLauncher.launch(Manifest.permission.ACCESS_LOCAL_NETWORK)
+            } else {
                 continueAfterPermissions()
             }
         } else {
