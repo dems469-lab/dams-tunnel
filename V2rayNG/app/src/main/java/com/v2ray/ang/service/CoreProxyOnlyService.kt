@@ -10,9 +10,18 @@ import com.v2ray.ang.core.CoreServiceManager
 import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.util.LogUtil
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.lang.ref.SoftReference
 
 class CoreProxyOnlyService : Service(), ServiceControl {
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var setupJob: Job? = null
+
     /**
      * Initializes the service.
      */
@@ -33,15 +42,16 @@ class CoreProxyOnlyService : Service(), ServiceControl {
         NotificationManager.ensureForeground()
         LogUtil.i(AppConfig.TAG, "StartCore-Proxy: Service command received")
 
-        if (CoreServiceManager.isRunning()) {
+        if (setupJob?.isActive == true || CoreServiceManager.isRunning()) {
             LogUtil.i(AppConfig.TAG, "StartCore-Proxy: Core is already running")
             return START_STICKY
         }
 
-        if (!CoreServiceManager.startCoreLoop(null)) {
-            LogUtil.e(AppConfig.TAG, "StartCore-Proxy: Failed to start core loop")
-            stopSelf()
-            return START_NOT_STICKY
+        setupJob = serviceScope.launch {
+            if (!CoreServiceManager.startCoreLoop(null)) {
+                LogUtil.e(AppConfig.TAG, "StartCore-Proxy: Failed to start core loop")
+                stopSelf()
+            }
         }
 
         return START_STICKY
@@ -52,7 +62,15 @@ class CoreProxyOnlyService : Service(), ServiceControl {
      */
     override fun onDestroy() {
         super.onDestroy()
-        CoreServiceManager.stopCoreLoop()
+        setupJob?.cancel()
+        serviceScope.launch {
+            setupJob?.join()
+            val stopped = runCatching { CoreServiceManager.stopCoreLoop() }
+                .onFailure { LogUtil.e(AppConfig.TAG, "StartCore-Proxy: core stop failed", it) }
+                .getOrDefault(false)
+            if (!stopped) LogUtil.e(AppConfig.TAG, "StartCore-Proxy: core stop timed out; cleanup remains pending")
+            serviceScope.cancel()
+        }
     }
 
     /**

@@ -24,6 +24,12 @@ import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.root.RootLanSharing
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.lang.ref.SoftReference
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -33,6 +39,9 @@ class CoreVpnService : VpnService(), ServiceControl {
     private var isRunning = false
     private var tun2SocksService: Tun2SocksControl? = null
     private val isStartingLock = AtomicBoolean(false)
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var startJob: Job? = null
+    private var stopJob: Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -53,25 +62,15 @@ class CoreVpnService : VpnService(), ServiceControl {
 //    }
 
     override fun onDestroy() {
-        super.onDestroy()
         LogUtil.i(AppConfig.TAG, "StartCore-VPN: Service destroyed")
-
-        // Ensure VPN interface is properly closed when the service is destroyed without
-        // going through stopAllService() (e.g. when killed unexpectedly). isRunning is
-        // set to false at the start of stopAllService(), so this guard prevents a double-close.
-        if (isRunning) {
-            try {
-                if (::mInterface.isInitialized) {
-                    mInterface.close()
-                    LogUtil.i(AppConfig.TAG, "StartCore-VPN: VPN interface closed in onDestroy")
-                }
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to close interface in onDestroy", e)
-            }
-        }
-
+        super.onDestroy()
         unlockStart()
-        NotificationManager.cancelNotification()
+        serviceScope.launch {
+            stopJob?.join()
+            if (CoreServiceManager.isRunning()) performStop(closeInterface = true, stopService = false)
+            if (!CoreServiceManager.isRunning()) NotificationManager.cancelNotification()
+            serviceScope.cancel()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -106,14 +105,20 @@ class CoreVpnService : VpnService(), ServiceControl {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Interface not initialized")
             return
         }
-        if (!CoreServiceManager.startCoreLoop(mInterface)) {
-            LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to start core loop")
-            stopAllService()
-            return
-        }
+        startJob = serviceScope.launch {
+            try {
+                if (!CoreServiceManager.startCoreLoop(mInterface)) {
+                    LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to start core loop")
+                    stopAllService()
+                    return@launch
+                }
 
-        // Start LAN sharing if enabled in settings
-        RootLanSharing.startClientSharing(this)
+                // Start LAN sharing if enabled in settings.
+                RootLanSharing.startClientSharing(this@CoreVpnService)
+            } finally {
+                unlockStart()
+            }
+        }
     }
 
     override fun stopService() {
@@ -327,46 +332,39 @@ class CoreVpnService : VpnService(), ServiceControl {
     }
 
     private fun stopAllService(isForced: Boolean = true) {
-//        val configName = defaultDPreference.getPrefString(PREF_CURR_CONFIG_GUID, "")
-//        val emptyInfo = VpnNetworkInfo()
-//        val info = loadVpnNetworkInfo(configName, emptyInfo)!! + (lastNetworkInfo ?: emptyInfo)
-//        saveVpnNetworkInfo(configName, info)
-        unlockStart()
-        isRunning = false
-
-        tun2SocksService?.stopTun2Socks()
-        tun2SocksService = null
-
-        RootLanSharing.stopClientSharing(this)
-
-        CoreServiceManager.stopCoreLoop()
-
-        if (isForced) {
-            //stopSelf has to be called ahead of mInterface.close(). otherwise v2ray core cannot be stooped
-            //It's strage but true.
-            //This can be verified by putting stopself() behind and call stopLoop and startLoop
-            //in a row for several times. You will find that later created v2ray core report port in use
-            //which means the first v2ray core somehow failed to stop and release the port.
-            stopSelf()
-
-            // Add a small delay to allow the async core stop operation to complete
-            // before closing the VPN interface, preventing a race condition that can
-            // leave the VPN icon in the status bar after stopping the service.
-            try {
-                Thread.sleep(100)
-            } catch (e: InterruptedException) {
-                LogUtil.w(AppConfig.TAG, "StartCore-VPN: Sleep interrupted", e)
-            }
-
-            try {
-                if (::mInterface.isInitialized) {
-                    mInterface.close()
-                    LogUtil.i(AppConfig.TAG, "StartCore-VPN: VPN interface closed")
-                }
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to close interface", e)
-            }
+        if (stopJob?.isActive == true) return
+        stopJob = serviceScope.launch {
+            performStop(closeInterface = isForced, stopService = isForced)
         }
+    }
+
+    private suspend fun performStop(closeInterface: Boolean, stopService: Boolean) {
+        RootLanSharing.stopClientSharing(this)
+        val stopped = runCatching {
+            CoreServiceManager.stopCoreLoop(onCoreStopped = {
+                // Keep the VPN descriptor alive until native stopLoop has returned.
+                tun2SocksService?.stopTun2Socks()
+                tun2SocksService = null
+                isRunning = false
+                if (closeInterface) {
+                    try {
+                        if (::mInterface.isInitialized) mInterface.close()
+                        LogUtil.i(AppConfig.TAG, "StartCore-VPN: VPN interface closed after core stop")
+                    } catch (e: Exception) {
+                        LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to close interface", e)
+                    }
+                }
+            })
+        }
+            .onFailure { LogUtil.e(AppConfig.TAG, "StartCore-VPN: Core stop failed", it) }
+            .getOrDefault(false)
+        if (!stopped) {
+            LogUtil.e(AppConfig.TAG, "StartCore-VPN: Core stop did not complete; keeping VPN resources open")
+            return
+        }
+
+        unlockStart()
+        if (stopService) stopSelf()
     }
 
     fun tryLockStart(): Boolean {

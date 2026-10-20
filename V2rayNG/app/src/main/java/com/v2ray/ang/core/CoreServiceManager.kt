@@ -51,6 +51,8 @@ import java.lang.ref.SoftReference
 
 object CoreServiceManager {
 
+    private val lifecycleGate = CoreLoopLifecycleGate()
+
     private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
     private val mMsgReceive = ReceiveMessageHandler()
     private var currentConfig: ProfileItem? = null
@@ -114,16 +116,16 @@ object CoreServiceManager {
      * `registerReceiver(Context, BroadcastReceiver, IntentFilter, int)`.
      * Starts the V2Ray core service.
      */
-    fun startCoreLoop(vpnInterface: ParcelFileDescriptor?): Boolean {
+    suspend fun startCoreLoop(vpnInterface: ParcelFileDescriptor?): Boolean = lifecycleGate.start {
         if (isRunning()) {
             LogUtil.w(AppConfig.TAG, "StartCore-Manager: Core already running")
-            return false
+            return@start false
         }
 
         val service = getService()
         if (service == null) {
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: Service is null")
-            return false
+            return@start false
         }
 
         try {
@@ -131,13 +133,15 @@ object CoreServiceManager {
             failoverAttempted = false
             connectionVerified = false
             doStartCoreLoop(service, vpnInterface)
-            return true
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: $message", e)
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
             NotificationManager.cancelNotification()
-            return false
+            false
         }
     }
 
@@ -343,7 +347,7 @@ object CoreServiceManager {
     }
 
     /** Essaie une autre configuration du groupe avant d'abandonner la connexion. */
-    private fun tryFailover(service: Service): Boolean {
+    private suspend fun tryFailover(service: Service): Boolean {
         val failed = currentConfig ?: return false
         val candidates = MmkvManager.decodeServerList(failed.subscriptionId)
             .asSequence()
@@ -407,7 +411,10 @@ object CoreServiceManager {
      * Unregisters broadcast receivers, stops notifications, and shuts down plugins.
      * @return True if the core was stopped successfully, false otherwise.
      */
-    fun stopCoreLoop(cancelConnectionChecks: Boolean = true): Boolean {
+    suspend fun stopCoreLoop(
+        cancelConnectionChecks: Boolean = true,
+        onCoreStopped: suspend () -> Unit = {},
+    ): Boolean = lifecycleGate.stop {
         connectionVerified = false
         if (cancelConnectionChecks) connectionTestScope.coroutineContext.cancelChildren()
         healthCheckJob?.cancel()
@@ -422,21 +429,24 @@ object CoreServiceManager {
         trafficStatsJob?.cancel()
         trafficStatsJob = null
         _trafficSnapshot.value = TrafficSnapshot()
-        val service = getService() ?: return false
+        val service = getService() ?: return@stop false
 
         networkMonitor?.unregister()
         networkMonitor = null
-        currentVpnInterface = null
-
         if (isRunning()) {
-            connectionTestScope.launch {
-                try {
-                    coreController.stopLoop()
-                } catch (e: Exception) {
-                    LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to stop V2Ray loop", e)
-                }
+            try {
+                // Native stopLoop is blocking; isolate it from Android's service thread.
+                // The lifecycle gate holds start/restart until this call actually returns.
+                withContext(Dispatchers.IO) { coreController.stopLoop() }
+            } catch (e: Exception) {
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to stop V2Ray loop", e)
+                throw e
             }
         }
+
+        if (isRunning()) error("Core loop still running after stopLoop returned")
+        currentVpnInterface = null
+        onCoreStopped()
 
         // Close existing browser dialer
         CoreNativeManager.reconcileBrowserDialer("")
@@ -453,8 +463,7 @@ object CoreServiceManager {
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to unregister receiver", e)
         }
-
-        return true
+        true
     }
 
     /**
@@ -483,12 +492,12 @@ object CoreServiceManager {
      *
      * @return True if the core is running again.
      */
-    private fun reloadCore(cancelConnectionChecks: Boolean = true): Boolean {
-        if (isReloading) return false
-        val service = getService() ?: return false
-        if (!isRunning()) return false
+    private suspend fun reloadCore(cancelConnectionChecks: Boolean = true): Boolean = lifecycleGate.start {
+        if (isReloading) return@start false
+        val service = getService() ?: return@start false
+        if (!isRunning()) return@start false
 
-        return try {
+        try {
             val tunFd = currentVpnInterface
 
             isReloading = true
@@ -503,11 +512,13 @@ object CoreServiceManager {
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
             NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_reconnecting), android.graphics.Color.rgb(245, 196, 81))
 
-            coreController.stopLoop()
+            withContext(Dispatchers.IO) { coreController.stopLoop() }
             launchCore(service, tunFd, isReload = true)
 
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload finished")
             true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to reload core: $message", e)

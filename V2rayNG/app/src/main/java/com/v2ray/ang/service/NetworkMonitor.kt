@@ -23,12 +23,12 @@ import kotlinx.coroutines.launch
  * connection. Deciding that a handover happened is what this class is for, acting on it is not.
  *
  * Only used from Android P and above, see CoreServiceManager.startNetworkMonitor().
- * [onHandover] is invoked on a background thread after the debounce window and may block.
+ * [onHandover] is invoked in the monitor's background scope after the debounce window.
  */
 class NetworkMonitor(
     private val connectivity: ConnectivityManager,
     private val onUnderlyingNetworksChanged: (Array<Network>?) -> Unit,
-    private val onHandover: () -> Unit,
+    private val onHandover: suspend () -> Unit,
 ) {
     private companion object {
         const val HANDOVER_DEBOUNCE_MS = 1000L

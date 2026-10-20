@@ -43,20 +43,19 @@ class CoreRootService : Service(), ServiceControl {
         NotificationManager.ensureForeground()
         LogUtil.i(AppConfig.TAG, "StartCore-Root: command received")
 
-        if (CoreServiceManager.isRunning()) {
+        if (setupJob?.isActive == true || CoreServiceManager.isRunning()) {
             LogUtil.i(AppConfig.TAG, "StartCore-Root: Core is already running")
             return START_STICKY
         }
 
         // Start the in-process core first (this also posts the foreground notification),
         // then install the root routing off the main thread.
-        if (!CoreServiceManager.startCoreLoop(null)) {
-            LogUtil.e(AppConfig.TAG, "StartCore-Root: core failed to start")
-            stopService()
-            return START_NOT_STICKY
-        }
-
         setupJob = serviceScope.launch {
+            if (!CoreServiceManager.startCoreLoop(null)) {
+                LogUtil.e(AppConfig.TAG, "StartCore-Root: core failed to start")
+                stopService()
+                return@launch
+            }
             if (!RootProxyManager.start(this@CoreRootService)) {
                 LogUtil.e(AppConfig.TAG, "StartCore-Root: failed to start root mode, stopping")
                 stopService()
@@ -71,11 +70,17 @@ class CoreRootService : Service(), ServiceControl {
         // Cancel setup before removing routes so a pending setup cannot install new rules
         // after teardown has begun. The setup scope belongs to this service instance.
         setupJob?.cancel()
-        serviceScope.cancel()
-        // Remove routing rules BEFORE stopping the core so traffic is never redirected
-        // to a dead listener. Synchronous on purpose — leaving rules behind breaks the net.
-        RootProxyManager.stop(this)
-        CoreServiceManager.stopCoreLoop()
+        serviceScope.launch {
+            setupJob?.join()
+            // Remove routing rules BEFORE stopping the core so traffic is never redirected
+            // to a dead listener.
+            RootProxyManager.stop(this@CoreRootService)
+            val stopped = runCatching { CoreServiceManager.stopCoreLoop() }
+                .onFailure { LogUtil.e(AppConfig.TAG, "StartCore-Root: core stop failed", it) }
+                .getOrDefault(false)
+            if (!stopped) LogUtil.e(AppConfig.TAG, "StartCore-Root: core stop timed out; cleanup remains pending")
+            serviceScope.cancel()
+        }
     }
 
     override fun getService(): Service = this
