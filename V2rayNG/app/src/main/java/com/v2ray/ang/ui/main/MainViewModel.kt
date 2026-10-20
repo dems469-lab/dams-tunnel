@@ -564,7 +564,7 @@ class MainViewModel(
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (e: Exception) {
-                    LogUtil.e(AppConfig.TAG, "Failed to import batch config", e)
+                    LogUtil.e(AppConfig.TAG, "Failed to import batch config (${e.javaClass.simpleName})")
                     toastError(R.string.toast_failure)
                 }
             }

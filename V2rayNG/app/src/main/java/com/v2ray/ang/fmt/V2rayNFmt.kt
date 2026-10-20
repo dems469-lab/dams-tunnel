@@ -42,7 +42,7 @@ object V2rayNFmt : FmtBase() {
     private fun parseShareItem(str: String): V2rayNShareItem? = try {
         JsonUtil.fromJson(Utils.decode(str.substringAfterLast('/')), V2rayNShareItem::class.java)
     } catch (e: Exception) {
-        LogUtil.e(AppConfig.TAG, "Failed to parse V2rayN share item", e)
+        LogUtil.e(AppConfig.TAG, "Failed to parse V2rayN share item (${e.javaClass.simpleName})")
         null
     }
 }

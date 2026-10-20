@@ -68,7 +68,7 @@ object AngConfigManager {
             Utils.setClipboard(context, conf)
 
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to share config to clipboard", e)
+            LogUtil.e(AppConfig.TAG, "Failed to share config to clipboard (${e.javaClass.simpleName})")
             return -1
         }
         return 0
@@ -89,7 +89,7 @@ object AngConfigManager {
             Utils.setClipboard(context, encodeDamsProfileLink(config))
             0
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to share Dams profile link", e)
+            LogUtil.e(AppConfig.TAG, "Failed to share Dams profile link (${e.javaClass.simpleName})")
             -1
         }
     }
@@ -117,7 +117,7 @@ object AngConfigManager {
             }
             return sb.lines().count() - 1
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to share non-custom configs to clipboard", e)
+            LogUtil.e(AppConfig.TAG, "Failed to share non-custom configs to clipboard (${e.javaClass.simpleName})")
             return -1
         }
     }
@@ -137,7 +137,7 @@ object AngConfigManager {
             return QRCodeDecoder.createQRCode(conf)
 
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to share config as QR code", e)
+            LogUtil.e(AppConfig.TAG, "Failed to share config as QR code (${e.javaClass.simpleName})")
             return null
         }
     }
@@ -159,7 +159,7 @@ object AngConfigManager {
                 return -1
             }
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to share full content to clipboard", e)
+            LogUtil.e(AppConfig.TAG, "Failed to share full content to clipboard (${e.javaClass.simpleName})")
             return -1
         }
         return 0
@@ -186,7 +186,7 @@ object AngConfigManager {
                 else -> {}
             }
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to share config for GUID: $guid", e)
+            LogUtil.e(AppConfig.TAG, "Failed to share config (${e.javaClass.simpleName})")
             return ""
         }
     }
@@ -312,7 +312,7 @@ object AngConfigManager {
                 }
             return count
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to parse batch subscription", e)
+            LogUtil.e(AppConfig.TAG, "Failed to parse batch subscription (${e.javaClass.simpleName})")
         }
         return 0
     }
@@ -365,7 +365,7 @@ object AngConfigManager {
         } catch (e: ProfileStorageException) {
             throw e
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to parse batch config", e)
+            LogUtil.e(AppConfig.TAG, "Failed to parse batch config (${e.javaClass.simpleName})")
         }
         return 0
     }
@@ -435,7 +435,7 @@ object AngConfigManager {
             } catch (e: ProfileStorageException) {
                 throw e
             } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "Failed to parse custom config server JSON array", e)
+                LogUtil.e(AppConfig.TAG, "Failed to parse custom config server JSON array (${e.javaClass.simpleName})")
             }
 
             try {
@@ -452,7 +452,7 @@ object AngConfigManager {
             } catch (e: ProfileStorageException) {
                 throw e
             } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "Failed to parse custom config server as single config", e)
+                LogUtil.e(AppConfig.TAG, "Failed to parse custom config server as single config (${e.javaClass.simpleName})")
             }
             return 0
         } else if (server.startsWith("[Interface]") && server.contains("[Peer]")) {
@@ -469,7 +469,7 @@ object AngConfigManager {
             } catch (e: ProfileStorageException) {
                 throw e
             } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "Failed to parse WireGuard config file", e)
+                LogUtil.e(AppConfig.TAG, "Failed to parse WireGuard config file (${e.javaClass.simpleName})")
             }
             return 0
         } else {
@@ -516,7 +516,7 @@ object AngConfigManager {
 
             return config
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to parse config", e)
+            LogUtil.e(AppConfig.TAG, "Failed to parse config (${e.javaClass.simpleName})")
             return null
         }
     }

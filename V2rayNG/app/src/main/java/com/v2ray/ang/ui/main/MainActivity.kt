@@ -270,7 +270,7 @@ class MainActivity : HelperBaseComponentActivity() {
             val text = Utils.getClipboard(this)
             mainViewModel.onAction(MainAction.ImportBatchConfig(text))
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to import config from clipboard", e)
+            LogUtil.e(AppConfig.TAG, "Failed to import config from clipboard (${e.javaClass.simpleName})")
         }
     }
 
@@ -294,7 +294,7 @@ class MainActivity : HelperBaseComponentActivity() {
                     mainViewModel.onAction(MainAction.ImportBatchConfig(reader.readText()))
                 }
             } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "Failed to read content from URI", e)
+                LogUtil.e(AppConfig.TAG, "Failed to read content from URI (${e.javaClass.simpleName})")
             }
         }
     }
