@@ -685,7 +685,7 @@
     <string name="ip_finder_rules_reset_confirm_title" translatable="false">Réinitialiser la liste ?</string>
     <string name="ip_finder_rules_reset_confirm_message" translatable="false">Le texte actuel sera remplacé par la liste par défaut.</string>
     <string name="ip_finder_rules_prefix_confirm_title" translatable="false">Préfixer les règles ?</string>
-    <string name="ip_finder_rules_prefix_confirm_message" translatable="false">Un ^ sera ajouté devant chaque règle sans symbole. Les règles déjà marquées resteront inchangées.</string>
+    <string name="ip_finder_rules_prefix_confirm_message" translatable="false">Un ^ sera ajouté devant chaque règle valide sans symbole. Les règles marquées et les fragments invalides resteront inchangés.</string>
     <string name="ip_finder_confirm" translatable="false">Confirmer</string>
     <string name="ip_finder_cancel" translatable="false">Annuler</string>
     <string name="ip_finder_rules_count" translatable="false">Règles actives : %1$d</string>
@@ -695,5 +695,8 @@
     <string name="ip_finder_rules_match_yes" translatable="false">Correspond à une règle : oui (règle %1$s)</string>
     <string name="ip_finder_rules_match_no" translatable="false">Aucune règle ne correspond</string>
     <string name="ip_finder_rules_match_no_ip" translatable="false">Correspondance impossible : aucune IP mobile disponible.</string>
+    <string name="ip_finder_rules_ignored_line" translatable="false">Ignorées : \"%1$s\" (ligne %2$d)</string>
+    <string name="ip_finder_rules_ignored_more" translatable="false">et %1$d autres</string>
+    <string name="ip_finder_rules_none_valid" translatable="false">Ajoutez au moins une règle IP valide pour lancer la recherche.</string>
 
 </resources>

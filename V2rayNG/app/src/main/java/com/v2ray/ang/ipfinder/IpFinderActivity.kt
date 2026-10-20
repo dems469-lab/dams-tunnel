@@ -275,13 +275,18 @@ class IpFinderActivity : BaseComponentActivity() {
     }
 
     private fun ruleVerdict(address: String): String {
-        val result = IpRuleMatcher.match(rulesText, address)
-        return when {
-            result.inputError == IpRuleInputError.TOO_MANY_RULES -> getString(R.string.ip_finder_rules_too_many)
-            result.inputError == IpRuleInputError.TEXT_TOO_LARGE -> getString(R.string.ip_finder_rules_too_large)
-            result.matches -> getString(R.string.ip_finder_rules_match_yes, result.triggeringRule.orEmpty())
-            else -> getString(R.string.ip_finder_rules_match_no)
+        val parsed = IpRuleTextParser.parse(rulesText)
+        if (parsed.inputError != null) {
+            return getString(if (parsed.inputError == IpRuleInputError.TOO_MANY_RULES) {
+                R.string.ip_finder_rules_too_many
+            } else {
+                R.string.ip_finder_rules_too_large
+            })
         }
+        if (parsed.validRules.isEmpty()) return getString(R.string.ip_finder_rules_none_valid)
+        val result = IpRuleMatcher.match(parsed.validRules.joinToString(";"), address)
+        return if (result.matches) getString(R.string.ip_finder_rules_match_yes, result.triggeringRule.orEmpty())
+        else getString(R.string.ip_finder_rules_match_no)
     }
 
     private suspend fun restoreAirplaneMode() {
@@ -370,7 +375,10 @@ private fun IpFinderSetupScreen(
 ) {
     var showResetConfirmation by remember { mutableStateOf(false) }
     var showPrefixConfirmation by remember { mutableStateOf(false) }
-    val rulesResult = IpRuleMatcher.match(rulesText, cellularIp.orEmpty())
+    val parsedRules = remember(rulesText) { IpRuleTextParser.parse(rulesText) }
+    val rulesResult = remember(parsedRules, cellularIp) {
+        IpRuleMatcher.match(parsedRules.validRules.joinToString(";"), cellularIp.orEmpty())
+    }
     Scaffold(
         modifier = Modifier.imePadding(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -428,18 +436,22 @@ private fun IpFinderSetupScreen(
                     Text(stringResource(R.string.ip_finder_rules_prefix))
                 }
             }
-            when (rulesResult.inputError) {
+            when (parsedRules.inputError) {
                 IpRuleInputError.TOO_MANY_RULES -> Text(stringResource(R.string.ip_finder_rules_too_many))
                 IpRuleInputError.TEXT_TOO_LARGE -> Text(stringResource(R.string.ip_finder_rules_too_large))
                 null -> {
                     Text(stringResource(R.string.ip_finder_rules_count, rulesResult.activeRuleCount))
-                    rulesResult.invalidRules.forEach { invalid ->
-                        Text(stringResource(R.string.ip_finder_rules_invalid_line, invalid.lineNumber, invalid.source))
+                    parsedRules.ignoredRules.take(MAX_VISIBLE_IGNORED_RULES).forEach { ignored ->
+                        Text(stringResource(R.string.ip_finder_rules_ignored_line, ignored.source, ignored.lineNumber))
                     }
+                    val remainingIgnored = parsedRules.ignoredRules.size - MAX_VISIBLE_IGNORED_RULES
+                    if (remainingIgnored > 0) Text(stringResource(R.string.ip_finder_rules_ignored_more, remainingIgnored))
+                    if (parsedRules.validRules.isEmpty()) Text(stringResource(R.string.ip_finder_rules_none_valid))
                 }
             }
             Text(stringResource(R.string.ip_finder_attempt, attempt))
-            Button(onClick = onStart, enabled = !running && assistantActive && !vpnActive, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onStart, enabled = !running && assistantActive && !vpnActive &&
+                parsedRules.inputError == null && parsedRules.validRules.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.ip_finder_start_cycle))
             }
             resultText?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
@@ -488,3 +500,5 @@ private fun IpFinderSetupScreen(
         )
     }
 }
+
+private const val MAX_VISIBLE_IGNORED_RULES = 5

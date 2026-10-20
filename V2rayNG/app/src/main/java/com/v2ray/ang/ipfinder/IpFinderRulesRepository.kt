@@ -14,37 +14,10 @@ class IpFinderRulesRepository(private val storage: IpRuleTextStorage) {
     fun reset(): String = DEFAULT_RULES.also(storage::write)
 
     fun prefixUnmarkedRules(value: String): String {
-        val output = StringBuilder(value.length + 32)
-        var tokenStart = 0
-        value.forEachIndexed { index, char ->
-            if (char == ',' || char == ';' || char == '\n' || char == '\r') {
-                appendPrefixedToken(output, value, tokenStart, index)
-                output.append(char)
-                tokenStart = index + 1
-            }
-        }
-        appendPrefixedToken(output, value, tokenStart, value.length)
-        return output.toString()
+        return IpRuleTextParser.prefixValidUnmarked(value)
     }
 
     fun prefixAndSave(value: String): String = prefixUnmarkedRules(value).also(storage::write)
-
-    private fun appendPrefixedToken(output: StringBuilder, value: String, start: Int, end: Int) {
-        var contentStart = start
-        var contentEnd = end
-        while (contentStart < contentEnd && value[contentStart].isWhitespace()) contentStart++
-        while (contentEnd > contentStart && value[contentEnd - 1].isWhitespace()) contentEnd--
-        output.append(value, start, contentStart)
-        if (contentStart == contentEnd) {
-            output.append(value, contentStart, end)
-            return
-        }
-        val token = value.substring(contentStart, contentEnd)
-        val alreadyMarked = token.startsWith('^') || token.startsWith('=') || token.endsWith('$')
-        if (!alreadyMarked) output.append('^')
-        output.append(token)
-        output.append(value, contentEnd, end)
-    }
 
     companion object {
         const val PREFERENCES_NAME = "ip_finder_rules"
