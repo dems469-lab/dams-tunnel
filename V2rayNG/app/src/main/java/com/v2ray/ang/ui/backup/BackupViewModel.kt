@@ -17,6 +17,7 @@ import com.v2ray.ang.util.DamsFileCodec
 import com.v2ray.ang.util.BackupFileSize
 import com.v2ray.ang.util.BackupFileTooLargeException
 import com.v2ray.ang.util.readBytesLimited
+import com.v2ray.ang.util.DamsRestoreAttemptPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,7 +47,7 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
     sealed interface BackupViewModelEvent : ViewModelEvent {
         data class ShareFile(val filePath: String) : BackupViewModelEvent
         data class ExportLocal(val cachePath: String, val targetUri: Uri) : BackupViewModelEvent
-        data class DamsRestoreFailed(val remainingAttempts: Int) : BackupViewModelEvent
+        data class DamsRestoreFailed(val remainingAttempts: Int, val incorrectPassword: Boolean) : BackupViewModelEvent
         object RestoreSuccess : BackupViewModelEvent
     }
 
@@ -179,8 +180,9 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                 _viewModelEvent.send(BackupViewModelEvent.RestoreSuccess)
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "Failed to restore Dams export", e)
-                val remaining = (attemptsRemaining - 1).coerceAtLeast(0)
-                _viewModelEvent.send(BackupViewModelEvent.DamsRestoreFailed(remaining))
+                val incorrectPassword = e is DamsFileCodec.IncorrectPasswordException
+                val remaining = DamsRestoreAttemptPolicy.remainingAfterFailure(attemptsRemaining, e)
+                _viewModelEvent.send(BackupViewModelEvent.DamsRestoreFailed(remaining, incorrectPassword))
             } finally {
                 damsFile.delete()
             }

@@ -594,4 +594,8 @@
     <string name="connection_connecting">دارنه وصل موشه…</string>
     <string name="connection_reconnecting">دارنه دوباره وصل موشه…</string>
 
+    <string name="title_dams_restore_attempts">وارد کردن .dams — حفاظت محلی محدود: %1$d تلاش مانده</string>
+    <string name="dams_password_incorrect">رمز اشتباهه. دوباره امتحان کن.</string><string name="dams_attempts_exhausted">حد تلاش محلی تموم شده.</string><string name="dams_restore_failed">رمز پذیرفته شد ولی بازگردانی شکست خورد. فایل پاک نشد.</string>
+    <string name="dams_password_too_short">حداقل ۱۲ نویسه لازمه.</string><string name="dams_password_strength_acceptable">رمز قابل قبوله.</string><string name="dams_password_strength_strong">رمز قویه.</string>
+    <string name="title_unencrypted_backup_warning">پشتیبان بدون رمزگذاری</string><string name="message_unencrypted_backup_warning">ZIP پروفایل‌ها و داده‌های حساس رو بدون رمزگذاری نگه می‌داره. فقط اگه می‌تونی امن نگهش داری ادامه بده.</string>
 </resources>

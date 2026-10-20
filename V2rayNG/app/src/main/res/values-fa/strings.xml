@@ -594,4 +594,8 @@
     <string name="connection_connecting">در حال اتصال…</string>
     <string name="connection_reconnecting">در حال اتصال مجدد…</string>
 
+    <string name="title_dams_restore_attempts">وارد کردن .dams — محافظت محلی محدود: %1$d تلاش باقی‌مانده</string>
+    <string name="dams_password_incorrect">گذرواژه نادرست است. دوباره تلاش کنید.</string><string name="dams_attempts_exhausted">محدودیت تلاش محلی به پایان رسیده است.</string><string name="dams_restore_failed">گذرواژه پذیرفته شد اما بازیابی ناموفق بود. فایل حذف نشد.</string>
+    <string name="dams_password_too_short">حداقل ۱۲ نویسه لازم است.</string><string name="dams_password_strength_acceptable">گذرواژه قابل قبول است.</string><string name="dams_password_strength_strong">گذرواژه قوی است.</string>
+    <string name="title_unencrypted_backup_warning">نسخه پشتیبان رمزگذاری‌نشده</string><string name="message_unencrypted_backup_warning">ZIP شامل پروفایل‌ها و داده‌های حساس بدون رمزگذاری خواهد بود. فقط در صورت امکان نگهداری امن ادامه دهید.</string>
 </resources>

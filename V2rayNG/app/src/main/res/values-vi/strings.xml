@@ -592,4 +592,8 @@
     <string name="connection_connecting">Đang kết nối…</string>
     <string name="connection_reconnecting">Đang kết nối lại…</string>
 
+    <string name="title_dams_restore_attempts">Nhập .dams — bảo vệ cục bộ có giới hạn: còn %1$d lần thử</string>
+    <string name="dams_password_incorrect">Mật khẩu không đúng. Hãy thử lại.</string><string name="dams_attempts_exhausted">Đã hết số lần thử cục bộ.</string><string name="dams_restore_failed">Mật khẩu được chấp nhận nhưng khôi phục thất bại. Tệp chưa bị xóa.</string>
+    <string name="dams_password_too_short">Cần ít nhất 12 ký tự.</string><string name="dams_password_strength_acceptable">Mật khẩu đạt yêu cầu.</string><string name="dams_password_strength_strong">Mật khẩu mạnh.</string>
+    <string name="title_unencrypted_backup_warning">Bản sao lưu chưa mã hóa</string><string name="message_unencrypted_backup_warning">ZIP chứa hồ sơ và dữ liệu nhạy cảm chưa được mã hóa. Chỉ tiếp tục nếu bạn có thể lưu trữ và chia sẻ an toàn.</string>
 </resources>

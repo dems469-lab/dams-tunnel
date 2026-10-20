@@ -63,6 +63,7 @@ import com.v2ray.ang.util.BackupFileTooLargeException
 import com.v2ray.ang.util.checkBackupFileSize
 import com.v2ray.ang.util.copyToLimited
 import com.v2ray.ang.util.getDeclaredFileSize
+import com.v2ray.ang.util.DamsPasswordPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -162,14 +163,18 @@ class BackupActivity : HelperBaseComponentActivity() {
                         }
 
                         is BackupViewModel.BackupViewModelEvent.DamsRestoreFailed -> {
-                            pendingDamsUri?.let {
+                            if (event.incorrectPassword) pendingDamsUri?.let {
                                 MmkvManager.encodeSettings(damsAttemptKey(it), event.remainingAttempts)
                             }
                             pendingDamsUri?.let { uri ->
-                                if (event.remainingAttempts > 0) {
+                                if (event.incorrectPassword && event.remainingAttempts == 0) {
+                                    toastError(R.string.dams_attempts_exhausted)
+                                } else if (event.incorrectPassword) {
+                                    toastError(R.string.dams_password_incorrect)
                                     showDamsImportDialog(uri, event.remainingAttempts)
                                 } else {
-                                    toastError(R.string.dams_file_invalid)
+                                    toastError(R.string.dams_restore_failed)
+                                    showDamsImportDialog(uri, event.remainingAttempts)
                                 }
                             }
                         }
@@ -330,6 +335,7 @@ fun BackupScreen(
     var showCleanupDialog by remember { mutableStateOf(false) }
     var showWebDavDialog by remember { mutableStateOf(false) }
     var showDamsExportDialog by remember { mutableStateOf(openDamsExport) }
+    var pendingPlaintextBackup by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val webDavSummary = currentWebDavConfig?.baseUrl
 
@@ -357,7 +363,7 @@ fun BackupScreen(
             SettingsMenuItem(
                 icon = painterResource(R.drawable.ic_share_24dp),
                 title = stringResource(R.string.title_configuration_share),
-                onClick = onShareClick
+                onClick = { pendingPlaintextBackup = onShareClick }
             )
             SettingsMenuItem(
                 icon = painterResource(R.drawable.ic_backup_24dp),
@@ -393,9 +399,28 @@ fun BackupScreen(
             optionText = { stringResource(it.labelRes) },
             onSelected = { location ->
                 showBackupDialog = false
-                onBackupOptionSelected(location)
+                pendingPlaintextBackup = { onBackupOptionSelected(location) }
             },
             onDismiss = { showBackupDialog = false }
+        )
+    }
+    if (pendingPlaintextBackup != null) {
+        AlertDialog(
+            onDismissRequest = { pendingPlaintextBackup = null },
+            title = { Text(stringResource(R.string.title_unencrypted_backup_warning)) },
+            text = { Text(stringResource(R.string.message_unencrypted_backup_warning)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val action = pendingPlaintextBackup
+                    pendingPlaintextBackup = null
+                    action?.invoke()
+                }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingPlaintextBackup = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
         )
     }
     if (showRestoreDialog) {
@@ -462,6 +487,16 @@ private fun DamsExportDialog(
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                 )
+                val passwordStrength = DamsPasswordPolicy.strength(password)
+                Text(
+                    stringResource(
+                        when (passwordStrength) {
+                            DamsPasswordPolicy.Strength.TOO_SHORT -> R.string.dams_password_too_short
+                            DamsPasswordPolicy.Strength.ACCEPTABLE -> R.string.dams_password_strength_acceptable
+                            DamsPasswordPolicy.Strength.STRONG -> R.string.dams_password_strength_strong
+                        }
+                    )
+                )
                 OutlinedTextField(
                     value = passwordConfirmation,
                     onValueChange = { passwordConfirmation = it },
@@ -480,7 +515,7 @@ private fun DamsExportDialog(
         },
         confirmButton = {
             Button(
-                enabled = password.isNotEmpty() && password == passwordConfirmation,
+                enabled = passwordStrength != DamsPasswordPolicy.Strength.TOO_SHORT && password == passwordConfirmation,
                 onClick = { onExport(password, expiry) }
             ) {
                 Text(stringResource(R.string.action_ok))

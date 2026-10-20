@@ -134,7 +134,15 @@
     <string name="title_dams_export">Exporter un fichier .dams protégé</string>
     <string name="title_dams_password">Mot de passe</string>
     <string name="title_dams_password_confirm">Confirmer le mot de passe</string>
-    <string name="title_dams_restore_attempts">Restaurer (.dams) — %1$d essais restants</string>
+    <string name="title_dams_restore_attempts">Import .dams — protection locale limitée : %1$d tentatives restantes</string>
+    <string name="dams_password_incorrect">Mot de passe incorrect. Réessayez.</string>
+    <string name="dams_attempts_exhausted">La limite locale de tentatives est atteinte.</string>
+    <string name="dams_restore_failed">Le mot de passe est accepté, mais la restauration a échoué. Le fichier n'a pas été supprimé.</string>
+    <string name="dams_password_too_short">12 caractères minimum requis.</string>
+    <string name="dams_password_strength_acceptable">Mot de passe acceptable.</string>
+    <string name="dams_password_strength_strong">Mot de passe fort.</string>
+    <string name="title_unencrypted_backup_warning">Sauvegarde non chiffrée</string>
+    <string name="message_unencrypted_backup_warning">Le ZIP contiendra des profils et données sensibles sans chiffrement. Continuez uniquement si vous pouvez le stocker et le partager en sécurité.</string>
     <string name="dams_password_mismatch">Les mots de passe ne correspondent pas.</string>
     <string name="title_dams_expiry">Expiration date (optional)</string>
     <string name="dams_no_expiry">Aucune expiration</string>

@@ -29,7 +29,7 @@ class DamsFileCodecTest {
             DamsFileCodec.ExportOptions("correct"),
         )
 
-        assertThrows(DamsFileCodec.InvalidFileException::class.java) {
+        assertThrows(DamsFileCodec.IncorrectPasswordException::class.java) {
             DamsFileCodec.decrypt(container, "incorrect")
         }
     }
@@ -71,6 +71,26 @@ class DamsFileCodecTest {
         assertThrows(BackupFileTooLargeException::class.java) {
             DamsFileCodec.decrypt(ByteArray(BackupFileSize.MAX_BYTES + 1), "long-enough-password")
         }
+    }
+
+    @Test
+    fun `export rejects passwords shorter than twelve characters`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            DamsFileCodec.encrypt(byteArrayOf(1), DamsFileCodec.ExportOptions("short-pass"))
+        }
+        assertTrue(DamsPasswordPolicy.strength("12345678901") == DamsPasswordPolicy.Strength.TOO_SHORT)
+        assertTrue(DamsPasswordPolicy.strength("123456789012") == DamsPasswordPolicy.Strength.ACCEPTABLE)
+        assertTrue(DamsPasswordPolicy.strength("SafePassword123456") == DamsPasswordPolicy.Strength.STRONG)
+    }
+
+    @Test
+    fun `failed restore after a valid password does not consume an attempt`() {
+        assertTrue(
+            DamsRestoreAttemptPolicy.remainingAfterFailure(4, IllegalStateException("restore failed")) == 4
+        )
+        assertTrue(
+            DamsRestoreAttemptPolicy.remainingAfterFailure(4, DamsFileCodec.IncorrectPasswordException()) == 3
+        )
     }
 
 }

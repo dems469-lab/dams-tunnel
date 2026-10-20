@@ -594,4 +594,8 @@
     <string name="connection_connecting">সংযোগ হচ্ছে…</string>
     <string name="connection_reconnecting">পুনরায় সংযোগ হচ্ছে…</string>
 
+    <string name="title_dams_restore_attempts">.dams আমদানি — সীমিত স্থানীয় সুরক্ষা: %1$dটি চেষ্টা বাকি</string>
+    <string name="dams_password_incorrect">পাসওয়ার্ড ভুল। আবার চেষ্টা করুন।</string><string name="dams_attempts_exhausted">স্থানীয় চেষ্টার সীমা শেষ হয়েছে।</string><string name="dams_restore_failed">পাসওয়ার্ড গ্রহণ করা হয়েছে, কিন্তু পুনরুদ্ধার ব্যর্থ হয়েছে। ফাইল মোছা হয়নি।</string>
+    <string name="dams_password_too_short">কমপক্ষে ১২টি অক্ষর প্রয়োজন।</string><string name="dams_password_strength_acceptable">গ্রহণযোগ্য পাসওয়ার্ড।</string><string name="dams_password_strength_strong">শক্তিশালী পাসওয়ার্ড।</string>
+    <string name="title_unencrypted_backup_warning">এনক্রিপশনবিহীন ব্যাকআপ</string><string name="message_unencrypted_backup_warning">ZIP ফাইলে প্রোফাইল ও সংবেদনশীল তথ্য এনক্রিপশন ছাড়াই থাকবে। নিরাপদে সংরক্ষণ ও শেয়ার করতে পারলেই এগিয়ে যান।</string>
 </resources>

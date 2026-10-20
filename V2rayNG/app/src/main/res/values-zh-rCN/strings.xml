@@ -592,4 +592,8 @@
     <string name="connection_connecting">正在连接…</string>
     <string name="connection_reconnecting">正在重新连接…</string>
 
+    <string name="title_dams_restore_attempts">导入 .dams — 本地限制保护：剩余 %1$d 次尝试</string>
+    <string name="dams_password_incorrect">密码错误，请重试。</string><string name="dams_attempts_exhausted">本地尝试次数已用完。</string><string name="dams_restore_failed">密码已通过，但恢复失败。文件未被删除。</string>
+    <string name="dams_password_too_short">至少需要 12 个字符。</string><string name="dams_password_strength_acceptable">密码强度可接受。</string><string name="dams_password_strength_strong">密码强度较强。</string>
+    <string name="title_unencrypted_backup_warning">未加密的备份</string><string name="message_unencrypted_backup_warning">ZIP 将包含未加密的配置和敏感数据。只有在可以安全存储和分享时才继续。</string>
 </resources>

@@ -595,4 +595,8 @@
     <string name="connection_connecting">Qoşulma…</string>
     <string name="connection_reconnecting">Yenidən qoşulma…</string>
 
+    <string name="title_dams_restore_attempts">.dams idxalı — məhdud yerli qoruma: %1$d cəhd qalıb</string>
+    <string name="dams_password_incorrect">Parol yanlışdır. Yenidən cəhd edin.</string><string name="dams_attempts_exhausted">Yerli cəhd limiti bitib.</string><string name="dams_restore_failed">Parol qəbul edildi, lakin bərpa alınmadı. Fayl silinməyib.</string>
+    <string name="dams_password_too_short">Ən azı 12 simvol tələb olunur.</string><string name="dams_password_strength_acceptable">Qəbul edilən parol.</string><string name="dams_password_strength_strong">Güclü parol.</string>
+    <string name="title_unencrypted_backup_warning">Şifrələnməmiş ehtiyat nüsxə</string><string name="message_unencrypted_backup_warning">ZIP faylında profillər və həssas məlumatlar şifrələnmədən saxlanacaq. Yalnız təhlükəsiz saxlaya və paylaşa bilirsinizsə davam edin.</string>
 </resources>

@@ -602,4 +602,8 @@
     <string name="connection_connecting">جارٍ الاتصال…</string>
     <string name="connection_reconnecting">جارٍ إعادة الاتصال…</string>
 
+    <string name="title_dams_restore_attempts">استيراد .dams — حماية محلية محدودة: %1$d محاولات متبقية</string>
+    <string name="dams_password_incorrect">كلمة المرور غير صحيحة. حاول مجددًا.</string><string name="dams_attempts_exhausted">تم بلوغ حد المحاولات المحلي.</string><string name="dams_restore_failed">تم قبول كلمة المرور لكن فشلت الاستعادة. لم يُحذف الملف.</string>
+    <string name="dams_password_too_short">يلزم 12 حرفًا على الأقل.</string><string name="dams_password_strength_acceptable">كلمة مرور مقبولة.</string><string name="dams_password_strength_strong">كلمة مرور قوية.</string>
+    <string name="title_unencrypted_backup_warning">نسخة احتياطية غير مشفرة</string><string name="message_unencrypted_backup_warning">سيحتوي ZIP على ملفات تعريف وبيانات حساسة دون تشفير. تابع فقط إذا أمكنك تخزينه ومشاركته بأمان.</string>
 </resources>

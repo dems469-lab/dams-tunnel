@@ -592,4 +592,8 @@
     <string name="connection_connecting">正在連線…</string>
     <string name="connection_reconnecting">正在重新連線…</string>
 
+    <string name="title_dams_restore_attempts">匯入 .dams — 本機限制保護：剩餘 %1$d 次嘗試</string>
+    <string name="dams_password_incorrect">密碼錯誤，請重試。</string><string name="dams_attempts_exhausted">本機嘗試次數已用完。</string><string name="dams_restore_failed">密碼已通過，但還原失敗。檔案未刪除。</string>
+    <string name="dams_password_too_short">至少需要 12 個字元。</string><string name="dams_password_strength_acceptable">密碼強度可接受。</string><string name="dams_password_strength_strong">密碼強度良好。</string>
+    <string name="title_unencrypted_backup_warning">未加密的備份</string><string name="message_unencrypted_backup_warning">ZIP 將包含未加密的設定檔與敏感資料。只有在能安全儲存及分享時才繼續。</string>
 </resources>

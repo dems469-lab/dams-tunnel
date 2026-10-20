@@ -5,6 +5,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.GeneralSecurityException
 import java.security.SecureRandom
+import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
@@ -24,11 +25,15 @@ object DamsFileCodec {
 
     data class ExportOptions(val password: String, val expiresAtEpochMillis: Long? = null)
 
-    class InvalidFileException(message: String, cause: Throwable? = null) : Exception(message, cause)
+    open class InvalidFileException(message: String, cause: Throwable? = null) : Exception(message, cause)
+    class IncorrectPasswordException(cause: Throwable? = null) :
+        InvalidFileException("Incorrect password or damaged authentication data", cause)
 
     fun encrypt(payload: ByteArray, options: ExportOptions, nowEpochMillis: Long = System.currentTimeMillis()): ByteArray {
         checkBackupFileSize(payload.size.toLong())
-        require(options.password.isNotEmpty()) { "A password is required for a .dams export" }
+        require(options.password.length >= DamsPasswordPolicy.MIN_LENGTH) {
+            "The .dams export password must contain at least ${DamsPasswordPolicy.MIN_LENGTH} characters"
+        }
         require(options.expiresAtEpochMillis == null || options.expiresAtEpochMillis > nowEpochMillis) {
             "The expiration date must be in the future"
         }
@@ -107,6 +112,8 @@ object DamsFileCodec {
             return ByteArray(payloadBuffer.remaining()).also(payloadBuffer::get)
         } catch (e: InvalidFileException) {
             throw e
+        } catch (e: AEADBadTagException) {
+            throw IncorrectPasswordException(e)
         } catch (e: GeneralSecurityException) {
             throw InvalidFileException("Incorrect password or corrupted .dams file", e)
         } catch (e: Exception) {
@@ -140,6 +147,8 @@ object DamsFileCodec {
             return cipher.doFinal(container.copyOfRange(headerSize, container.size))
         } catch (e: InvalidFileException) {
             throw e
+        } catch (e: AEADBadTagException) {
+            throw IncorrectPasswordException(e)
         } catch (e: GeneralSecurityException) {
             throw InvalidFileException("Incorrect password or corrupted .dams file", e)
         } catch (e: Exception) {

@@ -598,4 +598,8 @@
     <string name="connection_connecting">Подключение…</string>
     <string name="connection_reconnecting">Повторное подключение…</string>
 
+    <string name="title_dams_restore_attempts">Импорт .dams — ограниченная локальная защита: попыток осталось: %1$d</string>
+    <string name="dams_password_incorrect">Неверный пароль. Попробуйте ещё раз.</string><string name="dams_attempts_exhausted">Лимит локальных попыток исчерпан.</string><string name="dams_restore_failed">Пароль принят, но восстановление не удалось. Файл не удалён.</string>
+    <string name="dams_password_too_short">Минимум 12 символов.</string><string name="dams_password_strength_acceptable">Допустимый пароль.</string><string name="dams_password_strength_strong">Надёжный пароль.</string>
+    <string name="title_unencrypted_backup_warning">Незашифрованная резервная копия</string><string name="message_unencrypted_backup_warning">ZIP будет содержать профили и конфиденциальные данные без шифрования. Продолжайте, только если можете безопасно хранить и передавать файл.</string>
 </resources>
