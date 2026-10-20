@@ -26,7 +26,7 @@ class DamsFileCodecTest {
     fun `wrong password is rejected`() {
         val container = DamsFileCodec.encrypt(
             byteArrayOf(1, 2, 3),
-            DamsFileCodec.ExportOptions("correct"),
+            DamsFileCodec.ExportOptions("correct-password"),
         )
 
         assertThrows(DamsFileCodec.IncorrectPasswordException::class.java) {
@@ -39,12 +39,12 @@ class DamsFileCodecTest {
         val now = 2_000_000L
         val container = DamsFileCodec.encrypt(
             byteArrayOf(4, 5, 6),
-            DamsFileCodec.ExportOptions("correct", expiresAtEpochMillis = now + 1_000),
+            DamsFileCodec.ExportOptions("correct-password", expiresAtEpochMillis = now + 1_000),
             nowEpochMillis = now,
         )
 
         assertThrows(DamsFileCodec.InvalidFileException::class.java) {
-            DamsFileCodec.decrypt(container, "correct", nowEpochMillis = now + 1_001)
+            DamsFileCodec.decrypt(container, "correct-password", nowEpochMillis = now + 1_001)
         }
     }
 
@@ -52,11 +52,11 @@ class DamsFileCodecTest {
     fun `tampered file is rejected`() {
         val container = DamsFileCodec.encrypt(
             byteArrayOf(7, 8, 9),
-            DamsFileCodec.ExportOptions("correct"),
+            DamsFileCodec.ExportOptions("correct-password"),
         ).also { it[it.lastIndex] = (it.last().toInt() xor 0x01).toByte() }
 
         assertThrows(DamsFileCodec.InvalidFileException::class.java) {
-            DamsFileCodec.decrypt(container, "correct")
+            DamsFileCodec.decrypt(container, "correct-password")
         }
     }
 
