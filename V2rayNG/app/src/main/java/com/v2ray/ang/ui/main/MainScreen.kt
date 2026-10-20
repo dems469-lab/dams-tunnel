@@ -28,7 +28,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,7 +65,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -76,7 +74,6 @@ import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.R
 import com.v2ray.ang.extension.toSpeedString
 import com.v2ray.ang.ui.compose.QRCodeDialog
-import com.v2ray.ang.ui.compose.ThemeManager
 import com.v2ray.ang.ui.logcat.LogcatViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -248,7 +245,13 @@ fun MainScreen(
                 }
             },
             bottomBar = {
-                DamsNavigationBar(selected = selectedTab, onSelect = { selectedTab = it })
+                DamsNavigationBar(
+                    selected = selectedTab,
+                    onSelect = { tab ->
+                        if (tab == DamsTab.Settings) onNavigate(MainDestination.Settings)
+                        else selectedTab = tab
+                    },
+                )
             },
             floatingActionButton = {},
         ) { innerPadding ->
@@ -344,18 +347,14 @@ fun MainScreen(
                     logcatViewModel = logcatViewModel,
                 )
 
-                DamsTab.Plus -> PlusTabContent(
-                    contentPadding = innerPadding,
-                    onNavigate = onNavigate,
-                    onThemeModeChange = { onAction(MainAction.SetThemeMode(it)) },
-                )
+                DamsTab.Settings -> Unit
             }
         }
     }
 }
 
 private enum class DamsTab {
-    Home, Configs, Journal, Plus
+    Home, Configs, Journal, Settings
 }
 
 @Composable
@@ -365,7 +364,7 @@ private fun DamsNavigationBar(selected: DamsTab, onSelect: (DamsTab) -> Unit) {
             Triple(DamsTab.Home, R.drawable.ic_home_24dp, R.string.dams_tab_home),
             Triple(DamsTab.Configs, R.drawable.ic_subscriptions_24dp, R.string.dams_tab_configs),
             Triple(DamsTab.Journal, R.drawable.ic_logcat_24dp, R.string.dams_tab_journal),
-            Triple(DamsTab.Plus, R.drawable.ic_more_vert_24dp, R.string.dams_tab_plus),
+            Triple(DamsTab.Settings, R.drawable.ic_settings_24dp, R.string.title_settings),
         ).forEach { (tab, icon, label) ->
             NavigationBarItem(
                 selected = selected == tab,
@@ -711,65 +710,6 @@ private fun JournalTabContent(contentPadding: PaddingValues, logcatViewModel: Lo
             }
         }
     }
-}
-
-@Composable
-private fun PlusTabContent(
-    contentPadding: PaddingValues,
-    onNavigate: (MainDestination) -> Unit,
-    onThemeModeChange: (String) -> Unit,
-) {
-    val themeMode by ThemeManager.themeMode.collectAsStateWithLifecycle()
-    val entries = androidx.compose.ui.res.stringArrayResource(R.array.ui_mode_night).toList()
-    val themeModes = listOf("1", "2", "0")
-    Column(
-        modifier = Modifier.fillMaxSize().padding(contentPadding).verticalScroll(rememberScrollState()),
-    ) {
-        Text(
-            text = stringResource(R.string.title_ui_settings).uppercase(),
-            modifier = Modifier.padding(start = 18.dp, top = 12.dp, bottom = 8.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
-        )
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            themeModes.forEachIndexed { index, mode ->
-                val label = entries.getOrNull(listOf(1, 2, 0)[index]).orEmpty()
-                FilterChip(
-                    selected = themeMode == mode,
-                    onClick = { onThemeModeChange(mode) },
-                    modifier = Modifier.weight(1f),
-                    label = {
-                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
-                )
-            }
-        }
-        PlusDestinationRow(MainDestination.PerAppProxy, onNavigate)
-        PlusDestinationRow(MainDestination.Routing, onNavigate)
-        PlusDestinationRow(MainDestination.UserAssets, onNavigate)
-        PlusDestinationRow(MainDestination.Settings, onNavigate)
-        PlusDestinationRow(MainDestination.BackupRestore, onNavigate)
-        PlusDestinationRow(MainDestination.About, onNavigate)
-    }
-}
-
-@Composable
-private fun PlusDestinationRow(destination: MainDestination, onNavigate: (MainDestination) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) { onNavigate(destination) }.padding(horizontal = 20.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(destination.iconRes),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp),
-        )
-        Column(Modifier.padding(start = 16.dp)) {
-            Text(stringResource(destination.labelRes), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-        }
-    }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 }
 
 @Composable
