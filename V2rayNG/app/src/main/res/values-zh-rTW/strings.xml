@@ -295,7 +295,6 @@
     <string name="title_translators">翻譯貢獻者</string>
     <string name="title_tg_channel">Telegram 頻道</string>
 
-    <string name="title_pref_promotion">推廣</string>
 
     <string name="title_pref_auto_update_subscription">自動更新訂閱</string>
     <string name="summary_pref_auto_update_subscription">在背景依指定間隔自動更新訂閱。此功能可能因裝置而無法穩定運作。</string>

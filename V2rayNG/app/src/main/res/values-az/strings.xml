@@ -295,7 +295,6 @@
     <string name="title_translators">Tərcüməçilər</string>
     <string name="title_tg_channel">Telegram kanalı</string>
 
-    <string name="title_pref_promotion">Təşviqat</string>
 
     <string name="title_pref_auto_update_subscription">Abunəlikləri avtomatik yenilə</string>
     <string name="summary_pref_auto_update_subscription">Abunəliklərinizi arxa fonda təyin olunmuş intervallarla avtomatik yeniləyin. Cihazdan asılı olaraq bu funksiya həmişə işləməyə bilər</string>

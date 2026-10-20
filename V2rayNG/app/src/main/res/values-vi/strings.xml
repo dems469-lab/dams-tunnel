@@ -295,7 +295,6 @@
     <string name="title_translators">Người dịch</string>
     <string name="title_tg_channel">Kênh Telegram</string>
 
-    <string name="title_pref_promotion">Ưu đãi</string>
 
     <string name="title_pref_auto_update_subscription">Tự động cập nhật các gói đăng ký</string>
     <string name="summary_pref_auto_update_subscription">Tự động cập nhật các gói đăng ký của bạn ở trong nền với khoảng thời gian cố định. Tùy thiết bị, tính năng này có thể không luôn hoạt động đúng như mong đợi.</string>

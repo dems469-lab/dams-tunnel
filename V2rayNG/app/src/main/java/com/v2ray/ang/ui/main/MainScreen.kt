@@ -714,7 +714,6 @@ private fun PlusTabContent(
     Column(
         modifier = Modifier.fillMaxSize().padding(contentPadding).verticalScroll(rememberScrollState()),
     ) {
-        PlusDestinationRow(MainDestination.Promotion, onNavigate)
         Text(
             text = stringResource(R.string.title_ui_settings).uppercase(),
             modifier = Modifier.padding(start = 18.dp, top = 12.dp, bottom = 8.dp),
