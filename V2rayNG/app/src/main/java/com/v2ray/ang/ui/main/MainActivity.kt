@@ -213,6 +213,7 @@ class MainActivity : HelperBaseComponentActivity() {
             MainDestination.Subscriptions -> Intent(this, SubSettingActivity::class.java)
             MainDestination.PerAppProxy -> Intent(this, PerAppProxyActivity::class.java)
             MainDestination.Routing -> Intent(this, RoutingSettingActivity::class.java)
+            MainDestination.IpFinder -> Intent(this, IpFinderActivity::class.java)
             MainDestination.UserAssets -> Intent(this, UserAssetActivity::class.java)
             MainDestination.Settings -> Intent(this, SettingsActivity::class.java)
             MainDestination.Logcat -> Intent(this, LogcatActivity::class.java)

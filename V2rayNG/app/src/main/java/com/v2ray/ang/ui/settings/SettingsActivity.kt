@@ -92,8 +92,7 @@ class SettingsActivity : BaseComponentActivity() {
             onBackClick = { finish() },
             onModeHelpClicked = { Utils.openUri(this, AppConfig.APP_WIKI_MODE) },
             onSystemVpnSettingsClicked = ::openSystemVpnSettings,
-            onBatteryOptimizationClicked = ::requestBatteryOptimizationExemption,
-            onIpFinderClicked = { startActivity(Intent(this, com.v2ray.ang.ipfinder.IpFinderActivity::class.java)) }
+            onBatteryOptimizationClicked = ::requestBatteryOptimizationExemption
         )
     }
 
@@ -121,8 +120,7 @@ fun SettingsScreen(
     onBackClick: () -> Unit,
     onModeHelpClicked: () -> Unit,
     onSystemVpnSettingsClicked: () -> Unit,
-    onBatteryOptimizationClicked: () -> Unit,
-    onIpFinderClicked: () -> Unit
+    onBatteryOptimizationClicked: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -764,17 +762,6 @@ fun SettingsScreen(
                     }
                 )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            CollapsiblePreferenceGroupHeader(
-                title = stringResource(R.string.ip_finder_lab_section),
-                expanded = true,
-                onExpandedChange = {}
-            )
-            SettingsMenuItem(
-                title = stringResource(R.string.ip_finder_test_entry),
-                onClick = onIpFinderClicked
-            )
 
             Spacer(modifier = Modifier.height(24.dp))
             NavigationBarsSpacer()

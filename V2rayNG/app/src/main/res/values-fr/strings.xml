@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="ip_finder_assistant_label">Assistant de test IP Finder</string>
-    <string name="ip_finder_lab_section">Laboratoire (expérimental)</string>
+    <string name="ip_finder_drawer_entry">IP Finder (bêta)</string>
     <string name="ip_finder_test_entry">IP Finder (test)</string>
     <string name="ip_finder_intro">Ce test effectue un seul cycle du mode avion pour vérifier l’adresse IP attribuée au réseau mobile. Le rôle d’assistant est demandé uniquement pour basculer le mode avion. Dams Tunnel ne lit jamais le contenu de l’écran. Pour revenir à votre assistant précédent, ouvrez les réglages des applications par défaut et sélectionnez-le.</string>
     <string name="ip_finder_assistant_active">Assistant Dams Tunnel actif</string>
