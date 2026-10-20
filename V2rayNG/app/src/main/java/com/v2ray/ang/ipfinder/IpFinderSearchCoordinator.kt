@@ -2,7 +2,7 @@ package com.v2ray.ang.ipfinder
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeoutOrNull as coroutineWithTimeoutOrNull
 
 interface IpFinderSearchClock {
     suspend fun <T> withTimeoutOrNull(timeoutMillis: Long, block: suspend () -> T): T?
@@ -11,7 +11,7 @@ interface IpFinderSearchClock {
 
 object SystemIpFinderSearchClock : IpFinderSearchClock {
     override suspend fun <T> withTimeoutOrNull(timeoutMillis: Long, block: suspend () -> T): T? =
-        withTimeoutOrNull(timeoutMillis) { block() }
+        coroutineWithTimeoutOrNull(timeoutMillis) { block() }
 
     override suspend fun pause(milliseconds: Long) = delay(milliseconds)
 }
