@@ -20,13 +20,13 @@
     <string name="ip_finder_assistant_settings_unavailable" translatable="false">Impossible d’ouvrir les réglages des assistants sur cet appareil.</string>
     <string name="ip_finder_vpn_active" translatable="false">VPN Dams actif ou en cours : arrêtez-le avant le test.</string>
     <string name="ip_finder_vpn_inactive" translatable="false">VPN Dams inactif.</string>
-    <string name="ip_finder_start_cycle" translatable="false">Lancer un cycle de test</string>
+    <string name="ip_finder_start_cycle" translatable="false">Trouver des IP</string>
     <string name="ip_finder_cycle_pending" translatable="false">Un seul cycle sera exécuté à chaque lancement. L’adresse affichée provient exclusivement du réseau cellulaire.</string>
     <string name="ip_finder_back" translatable="false">Retour</string>
     <string name="ip_finder_wifi_active" translatable="false">Wi-Fi actif</string>
     <string name="ip_finder_wifi_inactive" translatable="false">Wi-Fi inactif</string>
     <string name="ip_finder_cellular_ip">IP mobile actuelle : %1$s</string>
-    <string name="ip_finder_attempt">Tentative : %1$d / 1</string>
+    <string name="ip_finder_attempt" translatable="false">Tentative %1$d / %2$d</string>
     <string name="ip_finder_timeline" translatable="false">Chronologie</string>
     <string name="ip_finder_stop" translatable="false">Arrêter</string>
     <string name="ip_finder_event_wifi">Wi-Fi actif : seule l’adresse cellulaire sera lue.</string>
@@ -703,5 +703,28 @@
     <string name="ip_finder_number_required" translatable="false">Ce champ est obligatoire.</string>
     <string name="ip_finder_number_integer" translatable="false">Saisissez un entier composé uniquement de chiffres.</string>
     <string name="ip_finder_number_range" translatable="false">Valeur hors limite pour ce champ.</string>
+    <string name="ip_finder_select_profile_first" translatable="false">Choisissez une configuration sur l’écran d’accueil avant de lancer la recherche.</string>
+    <string name="ip_finder_vpn_permission_denied" translatable="false">Autorisation VPN refusée. La recherche n’a pas démarré.</string>
+    <string name="ip_finder_vpn_disconnect_title" translatable="false">Déconnecter le VPN ?</string>
+    <string name="ip_finder_vpn_disconnect_message" translatable="false">Le VPN doit être déconnecté avant de rechercher une nouvelle IP.</string>
+    <string name="ip_finder_vpn_disconnect_timeout" translatable="false">Le VPN n’a pas pu être arrêté à temps. La recherche n’a pas démarré.</string>
+    <string name="ip_finder_refuse_airplane_already_on" translatable="false">Désactivez le mode avion avant de lancer la recherche.</string>
+    <string name="ip_finder_screen_awake_warning" translatable="false">Gardez cette page ouverte et l’écran allumé pendant la recherche. L’extinction manuelle peut interrompre le cycle.</string>
+    <string name="ip_finder_cycle_interrupted" translatable="false">Cycle interrompu</string>
+    <string name="ip_finder_recovery_prompt" translatable="false">Le mode avion semble encore actif. Voulez-vous demander sa désactivation ?</string>
+    <string name="ip_finder_restore_airplane" translatable="false">Désactiver le mode avion</string>
+    <string name="ip_finder_attempt_failed" translatable="false">Tentative %1$d : échec — %2$s</string>
+    <string name="ip_finder_attempt_match" translatable="false">#%1$d %2$s : correspond à %3$s</string>
+    <string name="ip_finder_attempt_no_match" translatable="false">#%1$d %2$s : aucune règle</string>
+    <string name="ip_finder_search_found" translatable="false">IP trouvée : %1$s (règle %2$s), tentative %3$d.</string>
+    <string name="ip_finder_search_exhausted" translatable="false">Aucune IP correspondante après %1$d tentatives.</string>
+    <string name="ip_finder_three_network_failures" translatable="false">Arrêt : trois cycles consécutifs sans réseau cellulaire utilisable.</string>
+    <string name="ip_finder_airplane_restore_failed" translatable="false">Arrêt : impossible de confirmer le retour du mode avion désactivé.</string>
+    <string name="ip_finder_cycle_failed" translatable="false">La demande de bascule du mode avion a échoué. Vérifiez l’assistant système et réessayez.</string>
+    <string name="ip_finder_notification_channel" translatable="false">Recherche IP</string>
+    <string name="ip_finder_notification_title" translatable="false">Dams Tunnel — IP Finder</string>
+    <string name="ip_finder_notification_running" translatable="false">Recherche en cours. Appuyez sur Arrêter pour interrompre.</string>
+    <string name="ip_finder_foreground_service_failed" translatable="false">Impossible de démarrer la notification persistante. La recherche n’a pas démarré.</string>
+    <string name="ip_finder_search_unexpected_failure" translatable="false">La recherche s’est arrêtée à cause d’une erreur inattendue.</string>
 
 </resources>

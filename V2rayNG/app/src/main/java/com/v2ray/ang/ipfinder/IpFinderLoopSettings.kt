@@ -16,13 +16,23 @@ class IpFinderLoopSettingsRepository(private val storage: IpFinderLoopSettingsSt
 
     fun saveCycles(value: String) = storage.write(CYCLES_KEY, value)
     fun savePause(value: String) = storage.write(PAUSE_KEY, value)
+    fun markSearchPending() = storage.write(SEARCH_PENDING_KEY, "true")
+    fun clearSearchPending() = storage.write(SEARCH_PENDING_KEY, "false")
+    fun isSearchPending(): Boolean = storage.read(SEARCH_PENDING_KEY) == "true"
 
     companion object {
         const val DEFAULT_CYCLES = "10"
         const val DEFAULT_PAUSE = "5"
         const val CYCLES_KEY = "loop_cycles"
         const val PAUSE_KEY = "loop_pause_seconds"
+        const val SEARCH_PENDING_KEY = "search_in_progress"
     }
+}
+
+/** Le marqueur de recherche ne peut être effacé que si aucune restauration n'est en attente. */
+object IpFinderSearchRecoveryPolicy {
+    fun canClearLoopMarker(recoveryPending: Boolean, airplaneModeEnabled: Boolean): Boolean =
+        !recoveryPending && !airplaneModeEnabled
 }
 
 enum class LoopNumberError { EMPTY, NOT_INTEGER, OUT_OF_RANGE }

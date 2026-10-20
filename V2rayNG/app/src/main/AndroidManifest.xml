@@ -92,6 +92,14 @@
                 <action android:name="android.speech.RecognitionService" />
             </intent-filter>
         </service>
+        <service
+            android:name=".ipfinder.IpFinderSearchService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="user-requested IP address search with recoverable airplane-mode toggles" />
+        </service>
 
         <activity
             android:name=".ui.main.MainActivity"

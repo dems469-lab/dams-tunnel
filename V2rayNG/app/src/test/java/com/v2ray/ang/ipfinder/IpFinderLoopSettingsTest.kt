@@ -35,6 +35,14 @@ class IpFinderLoopSettingsTest {
         assertTrue(IpFinderLoopNumberValidator.cycles("1").isValid)
     }
 
+    @Test
+    fun interruptedSearchMarkerIsRetainedUntilAirplaneRestoreIsConfirmed() {
+        assertFalse(IpFinderSearchRecoveryPolicy.canClearLoopMarker(true, true))
+        assertFalse(IpFinderSearchRecoveryPolicy.canClearLoopMarker(true, false))
+        assertFalse(IpFinderSearchRecoveryPolicy.canClearLoopMarker(false, true))
+        assertTrue(IpFinderSearchRecoveryPolicy.canClearLoopMarker(false, false))
+    }
+
     private class FakeStorage : IpFinderLoopSettingsStorage {
         val values = mutableMapOf<String, String>()
         override fun read(key: String): String? = values[key]

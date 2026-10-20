@@ -19,13 +19,13 @@
     <string name="ip_finder_assistant_settings_unavailable">Impossible d’ouvrir les réglages des assistants sur cet appareil.</string>
     <string name="ip_finder_vpn_active">VPN Dams actif ou en cours : arrêtez-le avant le test.</string>
     <string name="ip_finder_vpn_inactive">VPN Dams inactif.</string>
-    <string name="ip_finder_start_cycle">Lancer un cycle de test</string>
+    <string name="ip_finder_start_cycle">Trouver des IP</string>
     <string name="ip_finder_cycle_pending">Un seul cycle sera exécuté à chaque lancement. L’adresse affichée provient exclusivement du réseau cellulaire.</string>
     <string name="ip_finder_back">Retour</string>
     <string name="ip_finder_wifi_active">Wi-Fi actif</string>
     <string name="ip_finder_wifi_inactive">Wi-Fi inactif</string>
     <string name="ip_finder_cellular_ip">IP mobile actuelle : %1$s</string>
-    <string name="ip_finder_attempt">Tentative : %1$d / 1</string>
+    <string name="ip_finder_attempt">Tentative %1$d / %2$d</string>
     <string name="ip_finder_timeline">Chronologie</string>
     <string name="ip_finder_stop">Arrêter</string>
     <string name="ip_finder_event_wifi">Wi-Fi actif : seule l’adresse cellulaire sera lue.</string>
@@ -703,5 +703,28 @@
     <string name="ip_finder_number_required">Ce champ est obligatoire.</string>
     <string name="ip_finder_number_integer">Saisissez un entier composé uniquement de chiffres.</string>
     <string name="ip_finder_number_range">Valeur hors limite pour ce champ.</string>
+    <string name="ip_finder_select_profile_first">Choisissez une configuration sur l’écran d’accueil avant de lancer la recherche.</string>
+    <string name="ip_finder_vpn_permission_denied">Autorisation VPN refusée. La recherche n’a pas démarré.</string>
+    <string name="ip_finder_vpn_disconnect_title">Déconnecter le VPN ?</string>
+    <string name="ip_finder_vpn_disconnect_message">Le VPN doit être déconnecté avant de rechercher une nouvelle IP.</string>
+    <string name="ip_finder_vpn_disconnect_timeout">Le VPN n’a pas pu être arrêté à temps. La recherche n’a pas démarré.</string>
+    <string name="ip_finder_refuse_airplane_already_on">Désactivez le mode avion avant de lancer la recherche.</string>
+    <string name="ip_finder_screen_awake_warning">Gardez cette page ouverte et l’écran allumé pendant la recherche. L’extinction manuelle peut interrompre le cycle.</string>
+    <string name="ip_finder_cycle_interrupted">Cycle interrompu</string>
+    <string name="ip_finder_recovery_prompt">Le mode avion semble encore actif. Voulez-vous demander sa désactivation ?</string>
+    <string name="ip_finder_restore_airplane">Désactiver le mode avion</string>
+    <string name="ip_finder_attempt_failed">Tentative %1$d : échec — %2$s</string>
+    <string name="ip_finder_attempt_match">#%1$d %2$s : correspond à %3$s</string>
+    <string name="ip_finder_attempt_no_match">#%1$d %2$s : aucune règle</string>
+    <string name="ip_finder_search_found">IP trouvée : %1$s (règle %2$s), tentative %3$d.</string>
+    <string name="ip_finder_search_exhausted">Aucune IP correspondante après %1$d tentatives.</string>
+    <string name="ip_finder_three_network_failures">Arrêt : trois cycles consécutifs sans réseau cellulaire utilisable.</string>
+    <string name="ip_finder_airplane_restore_failed">Arrêt : impossible de confirmer le retour du mode avion désactivé.</string>
+    <string name="ip_finder_cycle_failed">La demande de bascule du mode avion a échoué. Vérifiez l’assistant système et réessayez.</string>
+    <string name="ip_finder_notification_channel">Recherche IP</string>
+    <string name="ip_finder_notification_title">Dams Tunnel — IP Finder</string>
+    <string name="ip_finder_notification_running">Recherche en cours. Appuyez sur Arrêter pour interrompre.</string>
+    <string name="ip_finder_foreground_service_failed">Impossible de démarrer la notification persistante. La recherche n’a pas démarré.</string>
+    <string name="ip_finder_search_unexpected_failure">La recherche s’est arrêtée à cause d’une erreur inattendue.</string>
 
 </resources>
