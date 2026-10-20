@@ -23,6 +23,26 @@ sealed interface MainStatus {
     data class ConnectionTest(val result: ConnectionTestResult) : MainStatus
 }
 
+internal fun isProtectedActiveProfileRemoval(
+    guid: String,
+    selectedGuid: String?,
+    status: MainStatus,
+): Boolean = guid == selectedGuid && status in setOf(
+    MainStatus.Connecting,
+    MainStatus.Reconnecting,
+    MainStatus.Connected,
+)
+
+internal fun selectedGuidAfterRemoval(
+    selectedGuid: String?,
+    removedGuid: String,
+    remainingGuids: List<String>,
+): String? = selectedGuid
+    ?.takeIf { it != removedGuid && it in remainingGuids }
+    ?: remainingGuids.firstOrNull()
+
+internal fun hasSelectedProfile(guid: String?): Boolean = !guid.isNullOrBlank()
+
 /**
  * Main UI state
  */

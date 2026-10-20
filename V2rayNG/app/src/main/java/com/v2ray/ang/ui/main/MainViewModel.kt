@@ -817,12 +817,25 @@ class MainViewModel(
     }
 
     fun removeServerAndRefresh(guid: String) {
-        if (guid == uiState.value.selectedGuid) {
-            toast(R.string.toast_action_not_allowed)
+        val currentState = uiState.value
+        if (isProtectedActiveProfileRemoval(guid, currentState.selectedGuid, currentState.status)) {
+            toast(R.string.toast_disconnect_before_delete)
             return
         }
         viewModelScope.launch(ioDispatcher) {
+            val latestState = uiState.value
+            if (isProtectedActiveProfileRemoval(guid, latestState.selectedGuid, latestState.status)) {
+                toast(R.string.toast_disconnect_before_delete)
+                return@launch
+            }
+            val selectedGuid = dataSource.getSelectServer()
             dataSource.removeServer(guid)
+            if (selectedGuid == guid) {
+                val remainingGuids = dataSource.getServerGuidList("")
+                val nextSelectedGuid = selectedGuidAfterRemoval(selectedGuid, guid, remainingGuids)
+                nextSelectedGuid?.let(dataSource::setSelectServer)
+                _uiState.update { it.copy(selectedGuid = nextSelectedGuid) }
+            }
             cacheMutex.withLock { groupDataCache.clear() }
             setupGroupTab(forceRefresh = true).join()
         }

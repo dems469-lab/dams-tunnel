@@ -225,8 +225,8 @@ class MainActivity : HelperBaseComponentActivity() {
     }
 
     private fun startV2Ray() {
-        if (mainViewModel.uiState.value.selectedGuid.isNullOrEmpty()) {
-            toast(R.string.title_file_chooser)
+        if (!hasSelectedProfile(mainViewModel.uiState.value.selectedGuid)) {
+            toast(R.string.toast_no_profile_selected)
             return
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN

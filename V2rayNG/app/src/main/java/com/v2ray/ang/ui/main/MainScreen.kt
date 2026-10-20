@@ -95,7 +95,6 @@ fun MainScreen(
     val displayText = mainViewModel.formatStatus(uiState.status)
     val selectedGuid = uiState.selectedGuid
     val doubleColumnDisplay = uiState.doubleColumnDisplay
-    val confirmRemove = uiState.confirmRemove
     val shareQRCodeBitmap = uiState.shareQRCodeBitmap
     val traffic = uiState.traffic
 
@@ -113,11 +112,7 @@ fun MainScreen(
 
     var shareTarget by remember { mutableStateOf<Triple<String, ProfileItem, Boolean>?>(null) }
     val removeServer: (String, String) -> Unit = { guid, profileName ->
-        if (confirmRemove) {
-            showRemoveConfirm = ServerDeleteTarget(guid, profileName)
-        } else {
-            onAction(MainAction.RemoveServer(guid))
-        }
+        showRemoveConfirm = ServerDeleteTarget(guid, profileName)
     }
 
     val pagerState = rememberPagerState(
