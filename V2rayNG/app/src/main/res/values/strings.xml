@@ -678,5 +678,19 @@
     <string name="tasker_blurb_stop">Stop %1$s</string>
     <string name="connection_test_empty_message">no details available</string>
     <string name="value_unknown">unknown</string>
+    <string name="ip_finder_rules_label" translatable="false">IP recherchées</string>
+    <string name="ip_finder_rules_help" translatable="false">^ commence par · $ se termine par · = exact · sans symbole : contient n’importe où dans l’adresse · séparez par ligne, virgule ou ;</string>
+    <string name="ip_finder_rules_reset" translatable="false">Réinitialiser la liste</string>
+    <string name="ip_finder_rules_prefix" translatable="false">Préfixer avec ^</string>
+    <string name="ip_finder_rules_reset_confirm_title" translatable="false">Réinitialiser la liste ?</string>
+    <string name="ip_finder_rules_reset_confirm_message" translatable="false">Le texte actuel sera remplacé par la liste par défaut.</string>
+    <string name="ip_finder_rules_prefix_confirm_title" translatable="false">Préfixer les règles ?</string>
+    <string name="ip_finder_rules_prefix_confirm_message" translatable="false">Un ^ sera ajouté devant chaque règle sans symbole. Les règles déjà marquées resteront inchangées.</string>
+    <string name="ip_finder_confirm" translatable="false">Confirmer</string>
+    <string name="ip_finder_cancel" translatable="false">Annuler</string>
+    <string name="ip_finder_rules_count" translatable="false">Règles actives : %1$d</string>
+    <string name="ip_finder_rules_invalid_line" translatable="false">Règle invalide à la ligne %1$d : %2$s (ignorée)</string>
+    <string name="ip_finder_rules_too_many" translatable="false">Limite dépassée : 1 000 règles maximum. Réduisez la liste.</string>
+    <string name="ip_finder_rules_too_large" translatable="false">Limite dépassée : le texte des règles ne peut pas dépasser 20 Ko.</string>
 
 </resources>

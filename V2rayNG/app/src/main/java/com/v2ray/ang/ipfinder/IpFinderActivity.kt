@@ -19,14 +19,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -35,9 +40,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -60,6 +68,8 @@ class IpFinderActivity : BaseComponentActivity() {
     private var currentAssistant by mutableStateOf("")
     private var damsVpnActive by mutableStateOf(false)
     private var currentCellularIp by mutableStateOf<String?>(null)
+    private var rulesText by mutableStateOf("")
+    private lateinit var rulesRepository: IpFinderRulesRepository
     private var wifiActive by mutableStateOf(false)
     private var running by mutableStateOf(false)
     private var attempt by mutableStateOf(0)
@@ -72,6 +82,8 @@ class IpFinderActivity : BaseComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        rulesRepository = IpFinderRulesRepository(AndroidIpRuleTextStorage(this))
+        rulesText = rulesRepository.load()
         IpFinderRecoveryStore.initialize(this)
         refreshState()
         lifecycleScope.launch {
@@ -296,6 +308,7 @@ class IpFinderActivity : BaseComponentActivity() {
             running = running,
             wifiActive = wifiActive,
             cellularIp = currentCellularIp,
+            rulesText = rulesText,
             attempt = attempt,
             timeline = timeline.toList(),
             resultText = resultText,
@@ -303,7 +316,10 @@ class IpFinderActivity : BaseComponentActivity() {
             onEnableAssistant = ::openAssistantSettings,
             onAssistantSettings = ::openAssistantSettings,
             onStart = ::startCycle,
-            onStop = { if (running) cycleJob?.cancel() else finish() }
+            onStop = { if (running) cycleJob?.cancel() else finish() },
+            onRulesChanged = { value -> rulesText = value; rulesRepository.save(value) },
+            onResetRules = { rulesText = rulesRepository.reset() },
+            onPrefixRules = { rulesText = rulesRepository.prefixAndSave(rulesText) }
         )
     }
 
@@ -323,6 +339,7 @@ private fun IpFinderSetupScreen(
     running: Boolean,
     wifiActive: Boolean,
     cellularIp: String?,
+    rulesText: String,
     attempt: Int,
     timeline: List<Pair<Long, String>>,
     resultText: String?,
@@ -330,9 +347,16 @@ private fun IpFinderSetupScreen(
     onEnableAssistant: () -> Unit,
     onAssistantSettings: () -> Unit,
     onStart: () -> Unit,
-    onStop: () -> Unit
+    onStop: () -> Unit,
+    onRulesChanged: (String) -> Unit,
+    onResetRules: () -> Unit,
+    onPrefixRules: () -> Unit
 ) {
+    var showResetConfirmation by remember { mutableStateOf(false) }
+    var showPrefixConfirmation by remember { mutableStateOf(false) }
+    val rulesResult = IpRuleMatcher.match(rulesText, cellularIp.orEmpty())
     Scaffold(
+        modifier = Modifier.imePadding(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
         Button(
@@ -365,6 +389,38 @@ private fun IpFinderSetupScreen(
             Text(stringResource(if (vpnActive) R.string.ip_finder_vpn_active else R.string.ip_finder_vpn_inactive))
             Text(stringResource(if (wifiActive) R.string.ip_finder_wifi_active else R.string.ip_finder_wifi_inactive))
             Text(stringResource(R.string.ip_finder_cellular_ip, cellularIp ?: "—"))
+            OutlinedTextField(
+                value = rulesText,
+                onValueChange = onRulesChanged,
+                label = { Text(stringResource(R.string.ip_finder_rules_label)) },
+                supportingText = { Text(stringResource(R.string.ip_finder_rules_help)) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 140.dp, max = 240.dp),
+                minLines = 5,
+                maxLines = 8,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.None,
+                    autoCorrect = false,
+                    keyboardType = KeyboardType.Text
+                )
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { showResetConfirmation = true }) {
+                    Text(stringResource(R.string.ip_finder_rules_reset))
+                }
+                TextButton(onClick = { showPrefixConfirmation = true }) {
+                    Text(stringResource(R.string.ip_finder_rules_prefix))
+                }
+            }
+            when (rulesResult.inputError) {
+                IpRuleInputError.TOO_MANY_RULES -> Text(stringResource(R.string.ip_finder_rules_too_many))
+                IpRuleInputError.TEXT_TOO_LARGE -> Text(stringResource(R.string.ip_finder_rules_too_large))
+                null -> {
+                    Text(stringResource(R.string.ip_finder_rules_count, rulesResult.activeRuleCount))
+                    rulesResult.invalidRules.forEach { invalid ->
+                        Text(stringResource(R.string.ip_finder_rules_invalid_line, invalid.lineNumber, invalid.source))
+                    }
+                }
+            }
             Text(stringResource(R.string.ip_finder_attempt, attempt))
             Button(onClick = onStart, enabled = !running && assistantActive && !vpnActive, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.ip_finder_start_cycle))
@@ -379,5 +435,39 @@ private fun IpFinderSetupScreen(
             }
             Spacer(Modifier.height(8.dp))
         }
+    }
+    if (showResetConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirmation = false },
+            title = { Text(stringResource(R.string.ip_finder_rules_reset_confirm_title)) },
+            text = { Text(stringResource(R.string.ip_finder_rules_reset_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = { onResetRules(); showResetConfirmation = false }) {
+                    Text(stringResource(R.string.ip_finder_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetConfirmation = false }) {
+                    Text(stringResource(R.string.ip_finder_cancel))
+                }
+            }
+        )
+    }
+    if (showPrefixConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showPrefixConfirmation = false },
+            title = { Text(stringResource(R.string.ip_finder_rules_prefix_confirm_title)) },
+            text = { Text(stringResource(R.string.ip_finder_rules_prefix_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = { onPrefixRules(); showPrefixConfirmation = false }) {
+                    Text(stringResource(R.string.ip_finder_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPrefixConfirmation = false }) {
+                    Text(stringResource(R.string.ip_finder_cancel))
+                }
+            }
+        )
     }
 }
