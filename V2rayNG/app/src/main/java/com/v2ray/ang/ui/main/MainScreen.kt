@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -239,7 +240,10 @@ fun MainScreen(
                         }
                     )
                 } else {
-                    DamsHeader(onMenuClick = { scope.launch { drawerState.open() } })
+                    DamsHeader(
+                        onMenuClick = { scope.launch { drawerState.open() } },
+                        includeStatusBarInsets = selectedTab == DamsTab.Home,
+                    )
                 }
             },
             bottomBar = {
@@ -372,10 +376,14 @@ private fun DamsNavigationBar(selected: DamsTab, onSelect: (DamsTab) -> Unit) {
 }
 
 @Composable
-private fun DamsHeader(onMenuClick: () -> Unit) {
+private fun DamsHeader(onMenuClick: () -> Unit, includeStatusBarInsets: Boolean) {
     Surface(color = MaterialTheme.colorScheme.background) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .let { if (includeStatusBarInsets) it.statusBarsPadding() else it }
+                .padding(horizontal = 16.dp)
+                .padding(top = 10.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Image(
@@ -397,7 +405,7 @@ private fun DamsHeader(onMenuClick: () -> Unit) {
                     style = MaterialTheme.typography.labelSmall,
                 )
             }
-            IconButton(onClick = onMenuClick) {
+            IconButton(onClick = onMenuClick, modifier = Modifier.size(48.dp)) {
                 Icon(
                     painter = painterResource(R.drawable.ic_menu_24dp),
                     contentDescription = stringResource(R.string.acc_open_menu),
