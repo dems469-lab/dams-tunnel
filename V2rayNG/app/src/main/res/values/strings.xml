@@ -2,6 +2,19 @@
 <resources>
     <string name="app_name" translatable="false">Dams Tunnel</string>
     <string name="ip_finder_assistant_label">Assistant de test IP Finder</string>
+    <string name="ip_finder_lab_section" translatable="false">Laboratoire (expérimental)</string>
+    <string name="ip_finder_test_entry" translatable="false">IP Finder (test)</string>
+    <string name="ip_finder_intro" translatable="false">Ce test effectue un seul cycle du mode avion pour vérifier l’adresse IP attribuée au réseau mobile. Le rôle d’assistant est demandé uniquement pour basculer le mode avion. Dams Tunnel ne lit jamais le contenu de l’écran. Pour revenir à votre assistant précédent, ouvrez les réglages des applications par défaut et sélectionnez-le.</string>
+    <string name="ip_finder_assistant_active" translatable="false">Assistant Dams Tunnel actif</string>
+    <string name="ip_finder_assistant_inactive" translatable="false">Assistant Dams Tunnel non activé</string>
+    <string name="ip_finder_enable_assistant" translatable="false">Activer comme assistant</string>
+    <string name="ip_finder_restore_assistant" translatable="false">Revenir à l’assistant précédent</string>
+    <string name="ip_finder_assistant_settings_unavailable" translatable="false">Impossible d’ouvrir les réglages des assistants sur cet appareil.</string>
+    <string name="ip_finder_vpn_active" translatable="false">VPN Dams actif ou en cours : arrêtez-le avant le test.</string>
+    <string name="ip_finder_vpn_inactive" translatable="false">VPN Dams inactif.</string>
+    <string name="ip_finder_start_cycle" translatable="false">Lancer un cycle de test</string>
+    <string name="ip_finder_cycle_pending" translatable="false">Le cycle unique sera disponible dans la prochaine étape.</string>
+    <string name="ip_finder_back" translatable="false">Retour</string>
     <string name="app_widget_name">Switch</string>
     <string name="app_tile_name">Switch</string>
     <string name="app_tile_first_use">Add a profile in the app before using this feature.</string>
