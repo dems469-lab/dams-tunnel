@@ -56,7 +56,7 @@
     <string name="ip_finder_recovery_already_off">Mode avion déjà désactivé ; indicateur de récupération effacé.</string>
     <string name="ip_finder_event_initial_address">Adresse cellulaire initiale indisponible.</string>
     <string name="ip_finder_event_final_address">Adresse cellulaire finale indisponible.</string>
-    <string name="ip_finder_cycle_success">Cycle terminé. Nouvelle adresse IP mobile : %1$s</string>
+    <string name="ip_finder_cycle_success">Cycle terminé. Nouvelle adresse IP mobile : %1$s\n%2$s</string>
     <string name="ip_finder_event_failure_recovery_storage">Impossible d’enregistrer l’état de récupération ; le mode avion n’a pas été modifié.</string>
     <string name="ip_finder_event_failure_foreground">L’application n’est pas revenue au premier plan après 30 secondes. Une désactivation du mode avion a été tentée ; vérifiez son état. La récupération reste mémorisée si elle n’a pas été confirmée.</string>
     <string name="app_name" translatable="false">Dams Tunnel</string>
@@ -692,5 +692,8 @@
     <string name="ip_finder_rules_invalid_line">Règle invalide à la ligne %1$d : %2$s (ignorée)</string>
     <string name="ip_finder_rules_too_many">Limite dépassée : 1 000 règles maximum. Réduisez la liste.</string>
     <string name="ip_finder_rules_too_large">Limite dépassée : le texte des règles ne peut pas dépasser 20 Ko.</string>
+    <string name="ip_finder_rules_match_yes">Correspond à une règle : oui (règle %1$s)</string>
+    <string name="ip_finder_rules_match_no">Aucune règle ne correspond</string>
+    <string name="ip_finder_rules_match_no_ip">Correspondance impossible : aucune IP mobile disponible.</string>
 
 </resources>

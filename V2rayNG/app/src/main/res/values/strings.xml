@@ -57,7 +57,7 @@
     <string name="ip_finder_recovery_already_off" translatable="false">Mode avion déjà désactivé ; indicateur de récupération effacé.</string>
     <string name="ip_finder_event_initial_address" translatable="false">Adresse cellulaire initiale indisponible.</string>
     <string name="ip_finder_event_final_address" translatable="false">Adresse cellulaire finale indisponible.</string>
-    <string name="ip_finder_cycle_success" translatable="false">Cycle terminé. Nouvelle adresse IP mobile : %1$s</string>
+    <string name="ip_finder_cycle_success" translatable="false">Cycle terminé. Nouvelle adresse IP mobile : %1$s\n%2$s</string>
     <string name="ip_finder_event_failure_recovery_storage" translatable="false">Impossible d’enregistrer l’état de récupération ; le mode avion n’a pas été modifié.</string>
     <string name="ip_finder_event_failure_foreground" translatable="false">L’application n’est pas revenue au premier plan après 30 secondes. Une désactivation du mode avion a été tentée ; vérifiez son état. La récupération reste mémorisée si elle n’a pas été confirmée.</string>
     <string name="app_widget_name">Switch</string>
@@ -692,5 +692,8 @@
     <string name="ip_finder_rules_invalid_line" translatable="false">Règle invalide à la ligne %1$d : %2$s (ignorée)</string>
     <string name="ip_finder_rules_too_many" translatable="false">Limite dépassée : 1 000 règles maximum. Réduisez la liste.</string>
     <string name="ip_finder_rules_too_large" translatable="false">Limite dépassée : le texte des règles ne peut pas dépasser 20 Ko.</string>
+    <string name="ip_finder_rules_match_yes" translatable="false">Correspond à une règle : oui (règle %1$s)</string>
+    <string name="ip_finder_rules_match_no" translatable="false">Aucune règle ne correspond</string>
+    <string name="ip_finder_rules_match_no_ip" translatable="false">Correspondance impossible : aucune IP mobile disponible.</string>
 
 </resources>

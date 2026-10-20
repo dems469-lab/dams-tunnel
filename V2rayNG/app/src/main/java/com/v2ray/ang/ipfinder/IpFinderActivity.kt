@@ -228,7 +228,11 @@ class IpFinderActivity : BaseComponentActivity() {
             )
             try {
                 when (val result = coordinator.runSingleCycle()) {
-                    is IpFinderCycleResult.Success -> resultText = getString(R.string.ip_finder_cycle_success, result.addressAfter)
+                    is IpFinderCycleResult.Success -> {
+                        val verdict = ruleVerdict(result.addressAfter)
+                        resultText = getString(R.string.ip_finder_cycle_success, result.addressAfter, verdict)
+                        timeline.add((android.os.SystemClock.elapsedRealtime() - cycleStart) to verdict)
+                    }
                     is IpFinderCycleResult.Failure -> resultText = getString(failureText(result.reason))
                     IpFinderCycleResult.Cancelled -> resultText = getString(R.string.ip_finder_event_cancelled)
                 }
@@ -270,6 +274,16 @@ class IpFinderActivity : BaseComponentActivity() {
         IpFinderCycleFailure.FOREGROUND_RETURN_TIMEOUT -> R.string.ip_finder_event_failure_foreground
     }
 
+    private fun ruleVerdict(address: String): String {
+        val result = IpRuleMatcher.match(rulesText, address)
+        return when {
+            result.inputError == IpRuleInputError.TOO_MANY_RULES -> getString(R.string.ip_finder_rules_too_many)
+            result.inputError == IpRuleInputError.TEXT_TOO_LARGE -> getString(R.string.ip_finder_rules_too_large)
+            result.matches -> getString(R.string.ip_finder_rules_match_yes, result.triggeringRule.orEmpty())
+            else -> getString(R.string.ip_finder_rules_match_no)
+        }
+    }
+
     private suspend fun restoreAirplaneMode() {
         if (!IpFinderRecoveryStore.isPending()) return
         if (!IpFinderRecoveryStore.isAirplaneModeEnabled(this)) {
@@ -308,6 +322,7 @@ class IpFinderActivity : BaseComponentActivity() {
             running = running,
             wifiActive = wifiActive,
             cellularIp = currentCellularIp,
+            cellularIpVerdict = currentCellularIp?.let(::ruleVerdict),
             rulesText = rulesText,
             attempt = attempt,
             timeline = timeline.toList(),
@@ -339,6 +354,7 @@ private fun IpFinderSetupScreen(
     running: Boolean,
     wifiActive: Boolean,
     cellularIp: String?,
+    cellularIpVerdict: String?,
     rulesText: String,
     attempt: Int,
     timeline: List<Pair<Long, String>>,
@@ -389,6 +405,7 @@ private fun IpFinderSetupScreen(
             Text(stringResource(if (vpnActive) R.string.ip_finder_vpn_active else R.string.ip_finder_vpn_inactive))
             Text(stringResource(if (wifiActive) R.string.ip_finder_wifi_active else R.string.ip_finder_wifi_inactive))
             Text(stringResource(R.string.ip_finder_cellular_ip, cellularIp ?: "—"))
+            Text(cellularIpVerdict ?: stringResource(R.string.ip_finder_rules_match_no_ip))
             OutlinedTextField(
                 value = rulesText,
                 onValueChange = onRulesChanged,

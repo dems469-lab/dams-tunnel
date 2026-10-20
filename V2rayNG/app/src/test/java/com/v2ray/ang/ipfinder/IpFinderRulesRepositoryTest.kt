@@ -1,6 +1,8 @@
 package com.v2ray.ang.ipfinder
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class IpFinderRulesRepositoryTest {
@@ -29,6 +31,25 @@ class IpFinderRulesRepositoryTest {
 
         assertEquals(33, defaultRules.split(';').size)
         assertEquals(32, parsed.activeRuleCount)
+    }
+
+    @Test
+    fun defaultListMatchesTheRequestedAddressesWithContainsSemantics() {
+        val rules = IpFinderRulesRepository.DEFAULT_RULES
+        assertTrue(IpRuleMatcher.match(rules, "10.204.5.5").matches)
+        assertFalse(IpRuleMatcher.match(rules, "10.190.112.188").matches)
+
+        val containsMatch = IpRuleMatcher.match(rules, "10.177.1.1")
+        assertTrue(containsMatch.matches)
+        assertEquals("10.77", containsMatch.triggeringRule)
+    }
+
+    @Test
+    fun prefixingDefaultRulesMakesTenDotOneHundredSeventySevenNotMatch() {
+        val repository = IpFinderRulesRepository(FakeIpRuleTextStorage())
+        val prefixed = repository.prefixUnmarkedRules(IpFinderRulesRepository.DEFAULT_RULES)
+
+        assertFalse(IpRuleMatcher.match(prefixed, "10.177.1.1").matches)
     }
 
     @Test
