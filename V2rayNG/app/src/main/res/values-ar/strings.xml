@@ -590,6 +590,7 @@
     <string name="dams_metric_unavailable">غير متاح</string>
     <string name="dams_server_group">مجموعة الخوادم</string>
     <string name="dams_file_invalid">ملف Dams غير صالح أو منتهي الصلاحية أو كلمة المرور غير صحيحة.</string>
+    <string name="backup_file_too_large">يتجاوز حجم الملف الحد المسموح به وهو 5 ميبي بايت.</string>
     <string name="title_dams_export">تصدير .dams محمي</string>
     <string name="title_dams_password">كلمة المرور</string>
     <string name="title_dams_password_confirm">تأكيد كلمة المرور</string>

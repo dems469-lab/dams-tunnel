@@ -580,6 +580,7 @@
     <string name="dams_metric_unavailable">Không khả dụng</string>
     <string name="dams_server_group">Nhóm máy chủ</string>
     <string name="dams_file_invalid">Tệp Dams không hợp lệ, đã hết hạn hoặc mật khẩu không đúng.</string>
+    <string name="backup_file_too_large">Kích thước tệp vượt quá giới hạn 5 MiB.</string>
     <string name="title_dams_export">Xuất .dams được bảo vệ</string>
     <string name="title_dams_password">Mật khẩu</string>
     <string name="title_dams_password_confirm">Xác nhận mật khẩu</string>

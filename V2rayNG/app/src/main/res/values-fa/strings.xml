@@ -582,6 +582,7 @@
     <string name="dams_metric_unavailable">در دسترس نیست</string>
     <string name="dams_server_group">گروه سرورها</string>
     <string name="dams_file_invalid">فایل Dams نامعتبر است، منقضی شده یا رمز عبور اشتباه است.</string>
+    <string name="backup_file_too_large">حجم فایل از محدودیت ۵ MiB بیشتر است.</string>
     <string name="title_dams_export">خروجی محافظت‌شده .dams</string>
     <string name="title_dams_password">رمز عبور</string>
     <string name="title_dams_password_confirm">تأیید رمز عبور</string>

@@ -1,6 +1,5 @@
 package com.v2ray.ang.util
 
-import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
@@ -28,6 +27,7 @@ object DamsFileCodec {
     class InvalidFileException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
     fun encrypt(payload: ByteArray, options: ExportOptions, nowEpochMillis: Long = System.currentTimeMillis()): ByteArray {
+        checkBackupFileSize(payload.size.toLong())
         require(options.password.isNotEmpty()) { "A password is required for a .dams export" }
         require(options.expiresAtEpochMillis == null || options.expiresAtEpochMillis > nowEpochMillis) {
             "The expiration date must be in the future"
@@ -55,13 +55,16 @@ object DamsFileCodec {
         cipher.init(Cipher.ENCRYPT_MODE, deriveKey(options.password, salt), GCMParameterSpec(tagBits, nonce))
         cipher.updateAAD(header)
         val ciphertext = cipher.doFinal(protectedPayload)
-        return ByteArrayOutputStream(header.size + ciphertext.size).apply {
+        val container = ByteArrayOutputStream(header.size + ciphertext.size).apply {
             write(header)
             write(ciphertext)
         }.toByteArray()
+        checkBackupFileSize(container.size.toLong())
+        return container
     }
 
     fun decrypt(container: ByteArray, password: String, nowEpochMillis: Long = System.currentTimeMillis()): ByteArray {
+        checkBackupFileSize(container.size.toLong())
         if (password.isEmpty()) throw InvalidFileException("A password is required")
         return when {
             container.size >= magic.size && container.copyOfRange(0, magic.size).contentEquals(magic) ->
@@ -79,9 +82,8 @@ object DamsFileCodec {
         if (container.size <= headerSize) throw InvalidFileException("Not a valid .dams file")
 
         try {
-            val input = ByteArrayInputStream(container)
             val header = ByteArray(headerSize)
-            check(input.read(header) == headerSize)
+            container.copyInto(header, endIndex = headerSize)
             val buffer = ByteBuffer.wrap(header)
             val actualMagic = ByteArray(magic.size)
             buffer.get(actualMagic)
@@ -94,7 +96,7 @@ object DamsFileCodec {
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
             cipher.init(Cipher.DECRYPT_MODE, deriveKey(password, salt), GCMParameterSpec(tagBits, nonce))
             cipher.updateAAD(header)
-            val protectedPayload = cipher.doFinal(input.readBytes())
+            val protectedPayload = cipher.doFinal(container.copyOfRange(headerSize, container.size))
             if (protectedPayload.size < Long.SIZE_BYTES * 2) throw InvalidFileException("Invalid .dams file")
             val payloadBuffer = ByteBuffer.wrap(protectedPayload)
             payloadBuffer.long // createdAt; available only after successful decryption
@@ -117,9 +119,8 @@ object DamsFileCodec {
         val headerSize = legacyMagic.size + Long.SIZE_BYTES + Long.SIZE_BYTES + saltSize + nonceSize
         if (container.size <= headerSize) throw InvalidFileException("Not a valid .dams file")
         try {
-            val input = ByteArrayInputStream(container)
             val header = ByteArray(headerSize)
-            check(input.read(header) == headerSize)
+            container.copyInto(header, endIndex = headerSize)
             val buffer = ByteBuffer.wrap(header)
             val actualMagic = ByteArray(legacyMagic.size)
             buffer.get(actualMagic)
@@ -136,7 +137,7 @@ object DamsFileCodec {
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
             cipher.init(Cipher.DECRYPT_MODE, deriveKey(password, salt), GCMParameterSpec(tagBits, nonce))
             cipher.updateAAD(header)
-            return cipher.doFinal(input.readBytes())
+            return cipher.doFinal(container.copyOfRange(headerSize, container.size))
         } catch (e: InvalidFileException) {
             throw e
         } catch (e: GeneralSecurityException) {

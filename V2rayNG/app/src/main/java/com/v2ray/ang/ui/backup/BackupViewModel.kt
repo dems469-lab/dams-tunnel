@@ -14,6 +14,9 @@ import com.v2ray.ang.ui.base.ViewModelEvent
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.ZipUtil
 import com.v2ray.ang.util.DamsFileCodec
+import com.v2ray.ang.util.BackupFileSize
+import com.v2ray.ang.util.BackupFileTooLargeException
+import com.v2ray.ang.util.readBytesLimited
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,22 +76,30 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
 
     fun shareBackup(cacheDir: File, appName: String) {
         launchLoading {
-            val ret = backupConfigurationToCache(cacheDir, appName)
-            if (ret.first) {
-                _viewModelEvent.send(BackupViewModelEvent.ShareFile(ret.second))
-            } else {
-                toastError(R.string.toast_failure)
+            try {
+                val ret = backupConfigurationToCache(cacheDir, appName)
+                if (ret.first) {
+                    _viewModelEvent.send(BackupViewModelEvent.ShareFile(ret.second))
+                } else {
+                    toastError(R.string.toast_failure)
+                }
+            } catch (e: BackupFileTooLargeException) {
+                toastError(R.string.backup_file_too_large)
             }
         }
     }
 
     fun prepareBackupForUri(cacheDir: File, appName: String, targetUri: Uri) {
         launchLoading {
-            val ret = backupConfigurationToCache(cacheDir, appName)
-            if (ret.first) {
-                _viewModelEvent.send(BackupViewModelEvent.ExportLocal(ret.second, targetUri))
-            } else {
-                toastError(R.string.toast_failure)
+            try {
+                val ret = backupConfigurationToCache(cacheDir, appName)
+                if (ret.first) {
+                    _viewModelEvent.send(BackupViewModelEvent.ExportLocal(ret.second, targetUri))
+                } else {
+                    toastError(R.string.toast_failure)
+                }
+            } catch (e: BackupFileTooLargeException) {
+                toastError(R.string.backup_file_too_large)
             }
         }
     }
@@ -109,7 +120,7 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                 }
                 val zipFile = File(ret.second)
                 withTemporaryFileCleanup(zipFile) {
-                    val zipBytes = zipFile.readBytes()
+                    val zipBytes = zipFile.inputStream().use { it.readBytesLimited() }
                     val damsBytes = DamsFileCodec.encrypt(
                         zipBytes,
                         DamsFileCodec.ExportOptions(password, expiresAtEpochMillis),
@@ -120,7 +131,7 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                 }
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "Failed to create Dams export", e)
-                toastError(R.string.toast_failure)
+                toastError(if (e is BackupFileTooLargeException) R.string.backup_file_too_large else R.string.toast_failure)
             }
         }
     }
@@ -137,6 +148,8 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                 } else {
                     toastError(R.string.toast_failure)
                 }
+            } catch (e: BackupFileTooLargeException) {
+                toastError(R.string.backup_file_too_large)
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "Failed to restore ZIP backup", e)
                 toastError(R.string.toast_failure)
@@ -154,7 +167,8 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
             try {
                 val zipFile = File(cacheDir, "restore_${System.currentTimeMillis()}.zip")
                 withTemporaryFileCleanup(zipFile) {
-                    zipFile.writeBytes(DamsFileCodec.decrypt(damsFile.readBytes(), password))
+                    val damsBytes = damsFile.inputStream().use { it.readBytesLimited() }
+                    zipFile.writeBytes(DamsFileCodec.decrypt(damsBytes, password))
                     val success = performRestore(cacheDir, zipFile)
                     if (!success) {
                         throw IllegalStateException("The .dams archive could not be restored")
@@ -206,7 +220,7 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                 }
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "WebDAV backup error", e)
-                toastError(R.string.toast_failure)
+                toastError(if (e is BackupFileTooLargeException) R.string.backup_file_too_large else R.string.toast_failure)
             } finally {
                 tempFile?.delete()
             }
@@ -239,7 +253,7 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                 }
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "WebDAV download error", e)
-                toastError(R.string.toast_failure)
+                toastError(if (e is BackupFileTooLargeException) R.string.backup_file_too_large else R.string.toast_failure)
             } finally {
                 target?.delete()
             }
@@ -261,6 +275,11 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
         }
 
         return if (ZipUtil.zipFromFolder(backupDir, outputZipFilePath)) {
+            val zipFile = File(outputZipFilePath)
+            if (zipFile.length() > BackupFileSize.MAX_BYTES) {
+                zipFile.delete()
+                throw BackupFileTooLargeException()
+            }
             Pair(true, outputZipFilePath)
         } else {
             Pair(false, "")
@@ -269,6 +288,7 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
 
     private suspend fun performRestore(cacheDir: File, zipFile: File): Boolean =
         withContext(Dispatchers.IO) {
+            if (zipFile.length() > BackupFileSize.MAX_BYTES) throw BackupFileTooLargeException()
             val backupDir = File(cacheDir, "restore_${System.nanoTime()}")
             try {
                 if (!ZipUtil.unzipToFolder(zipFile, backupDir.absolutePath)) {

@@ -3,6 +3,9 @@ package com.v2ray.ang.handler
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.dto.entities.WebDavConfig
 import com.v2ray.ang.util.LogUtil
+import com.v2ray.ang.util.BackupFileTooLargeException
+import com.v2ray.ang.util.checkBackupFileSize
+import com.v2ray.ang.util.copyToLimited
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Credentials
@@ -97,10 +100,12 @@ object WebDavManager {
                     return@withContext false
                 }
 
+                checkBackupFileSize(resp.body.contentLength().takeIf { it >= 0 })
+
                 resp.body.byteStream().use { input ->
                     destFile.parentFile?.mkdirs()
                     FileOutputStream(destFile).use { fos ->
-                        input.copyTo(fos)
+                        input.copyToLimited(fos)
                     }
                 }
 
@@ -108,6 +113,7 @@ object WebDavManager {
                 return@withContext true
             }
         } catch (e: Exception) {
+            if (e is BackupFileTooLargeException) throw e
             LogUtil.e(AppConfig.TAG, "WebDAV download failed", e)
             return@withContext false
         }

@@ -582,6 +582,7 @@
     <string name="dams_metric_unavailable">در دسترس نؽ</string>
     <string name="dams_server_group">گروه سرور</string>
     <string name="dams_file_invalid">فایل Dams نؽ درست یه، ورۊش اومده یا رمز غلطه.</string>
+    <string name="backup_file_too_large">حجم فایل از حد ۵ MiB بیشتره.</string>
     <string name="title_dams_export">ورۊ کردن .dams محافزت‌شده</string>
     <string name="title_dams_password">رمز</string>
     <string name="title_dams_password_confirm">تایید رمز</string>

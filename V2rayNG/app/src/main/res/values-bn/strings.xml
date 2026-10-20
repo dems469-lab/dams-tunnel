@@ -582,6 +582,7 @@
     <string name="dams_metric_unavailable">পাওয়া যাচ্ছে না</string>
     <string name="dams_server_group">সার্ভার গ্রুপ</string>
     <string name="dams_file_invalid">Dams ফাইলটি অবৈধ, মেয়াদ শেষ, অথবা পাসওয়ার্ড ভুল।</string>
+    <string name="backup_file_too_large">ফাইলের আকার ৫ MiB সীমা অতিক্রম করেছে।</string>
     <string name="title_dams_export">সুরক্ষিত .dams রপ্তানি</string>
     <string name="title_dams_password">পাসওয়ার্ড</string>
     <string name="title_dams_password_confirm">পাসওয়ার্ড নিশ্চিত করুন</string>

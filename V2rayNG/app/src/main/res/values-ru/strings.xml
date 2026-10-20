@@ -586,6 +586,7 @@
     <string name="dams_metric_unavailable">Недоступно</string>
     <string name="dams_server_group">Группа серверов</string>
     <string name="dams_file_invalid">Файл Dams недействителен, просрочен или пароль неверен.</string>
+    <string name="backup_file_too_large">Размер файла превышает ограничение 5 МиБ.</string>
     <string name="title_dams_export">Защищённый экспорт .dams</string>
     <string name="title_dams_password">Пароль</string>
     <string name="title_dams_password_confirm">Подтвердите пароль</string>

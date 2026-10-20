@@ -60,4 +60,17 @@ class DamsFileCodecTest {
         }
     }
 
+    @Test
+    fun `rejects payload and container larger than five MiB`() {
+        assertThrows(BackupFileTooLargeException::class.java) {
+            DamsFileCodec.encrypt(
+                ByteArray(BackupFileSize.MAX_BYTES + 1),
+                DamsFileCodec.ExportOptions("long-enough-password"),
+            )
+        }
+        assertThrows(BackupFileTooLargeException::class.java) {
+            DamsFileCodec.decrypt(ByteArray(BackupFileSize.MAX_BYTES + 1), "long-enough-password")
+        }
+    }
+
 }

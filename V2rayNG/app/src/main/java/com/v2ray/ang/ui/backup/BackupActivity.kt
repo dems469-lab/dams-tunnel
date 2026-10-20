@@ -59,6 +59,10 @@ import com.v2ray.ang.ui.compose.NavigationBarsSpacer
 import com.v2ray.ang.ui.compose.SelectListDialog
 import com.v2ray.ang.ui.compose.SettingsMenuItem
 import com.v2ray.ang.util.LogUtil
+import com.v2ray.ang.util.BackupFileTooLargeException
+import com.v2ray.ang.util.checkBackupFileSize
+import com.v2ray.ang.util.copyToLimited
+import com.v2ray.ang.util.getDeclaredFileSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -113,15 +117,19 @@ class BackupActivity : HelperBaseComponentActivity() {
                 lifecycleScope.launch(Dispatchers.IO) {
                     val file = File(cacheDir, "import_${System.currentTimeMillis()}.dams")
                     try {
-                        contentResolver.openInputStream(uri)?.use { input ->
-                            file.outputStream().use(input::copyTo)
-                        }
+                        checkBackupFileSize(contentResolver.getDeclaredFileSize(uri))
+                        val input = contentResolver.openInputStream(uri)
+                            ?: throw IllegalStateException("Unable to open selected file")
+                        input.use { source -> file.outputStream().use { source.copyToLimited(it) } }
                         viewModel.restoreDamsConfiguration(
                             cacheDir,
                             file,
                             password.text.toString(),
                             remainingAttempts,
                         )
+                    } catch (e: BackupFileTooLargeException) {
+                        file.delete()
+                        withContext(Dispatchers.Main) { toastError(R.string.backup_file_too_large) }
                     } catch (e: Exception) {
                         file.delete()
                         LogUtil.e(AppConfig.TAG, "Failed to read Dams import", e)
@@ -225,12 +233,16 @@ class BackupActivity : HelperBaseComponentActivity() {
 
     private fun handleExportLocal(cachePath: String, targetUri: Uri) {
         try {
+            checkBackupFileSize(File(cachePath).length())
             contentResolver.openOutputStream(targetUri)?.use { output ->
                 File(cachePath).inputStream().use { input ->
-                    input.copyTo(output)
+                    input.copyToLimited(output)
                 }
             }
             toastSuccess(R.string.toast_success)
+        } catch (e: BackupFileTooLargeException) {
+            File(cachePath).delete()
+            toastError(R.string.backup_file_too_large)
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to copy backup to Uri", e)
             toastError(R.string.toast_failure)
@@ -276,12 +288,18 @@ class BackupActivity : HelperBaseComponentActivity() {
             }
             val targetFile = File(cacheDir.absolutePath, "${System.currentTimeMillis()}.zip")
             try {
-                contentResolver.openInputStream(uri).use { input ->
+                checkBackupFileSize(contentResolver.getDeclaredFileSize(uri))
+                val input = contentResolver.openInputStream(uri)
+                    ?: throw IllegalStateException("Unable to open selected file")
+                input.use { source ->
                     targetFile.outputStream().use { fileOut ->
-                        input?.copyTo(fileOut)
+                        source.copyToLimited(fileOut)
                     }
                 }
                 viewModel.restoreConfiguration(cacheDir, targetFile)
+            } catch (e: BackupFileTooLargeException) {
+                targetFile.delete()
+                toastError(R.string.backup_file_too_large)
             } catch (e: Exception) {
                 targetFile.delete()
                 LogUtil.e(AppConfig.TAG, "Error during file restore", e)

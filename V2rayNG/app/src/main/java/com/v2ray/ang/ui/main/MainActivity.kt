@@ -44,6 +44,10 @@ import com.v2ray.ang.ui.server.ServerSocksActivity
 import com.v2ray.ang.ui.server.ServerTrojanActivity
 import com.v2ray.ang.ui.server.ServerVlessActivity
 import com.v2ray.ang.ui.server.ServerVmessActivity
+import com.v2ray.ang.util.BackupFileTooLargeException
+import com.v2ray.ang.util.checkBackupFileSize
+import com.v2ray.ang.util.getDeclaredFileSize
+import com.v2ray.ang.util.readBytesLimited
 import com.v2ray.ang.util.DamsFileCodec
 import com.v2ray.ang.ui.server.ServerWireguardActivity
 import com.v2ray.ang.ui.settings.SettingsActivity
@@ -278,6 +282,7 @@ class MainActivity : HelperBaseComponentActivity() {
         launchFileChooser { uri ->
             if (uri == null) return@launchFileChooser
             try {
+                checkBackupFileSize(contentResolver.getDeclaredFileSize(uri))
                 val header = contentResolver.openInputStream(uri)?.use { input ->
                     ByteArray(5).also { bytes -> input.read(bytes) }
                 }
@@ -290,9 +295,13 @@ class MainActivity : HelperBaseComponentActivity() {
                     )
                     return@launchFileChooser
                 }
-                contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
-                    mainViewModel.onAction(MainAction.ImportBatchConfig(reader.readText()))
+                contentResolver.openInputStream(uri)?.use { input ->
+                    mainViewModel.onAction(
+                        MainAction.ImportBatchConfig(input.readBytesLimited().toString(Charsets.UTF_8))
+                    )
                 }
+            } catch (e: BackupFileTooLargeException) {
+                toastError(R.string.backup_file_too_large)
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "Failed to read content from URI (${e.javaClass.simpleName})")
             }
