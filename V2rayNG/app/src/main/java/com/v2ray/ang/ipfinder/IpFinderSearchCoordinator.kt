@@ -20,6 +20,7 @@ interface IpFinderSearchPort {
     fun isAirplaneModeEnabled(): Boolean
     suspend fun runCycle(): IpFinderCycleResult
     fun currentCellularAddress(): String?
+    fun currentCellularAddresses(): List<String> = listOfNotNull(currentCellularAddress())
     suspend fun restoreAirplaneMode(): Boolean
 }
 
@@ -72,18 +73,22 @@ class IpFinderSearchCoordinator(
 
             when (cycleResult) {
                 is IpFinderCycleResult.Success -> {
-                    val address = port.currentCellularAddress()
-                    if (address.isNullOrBlank()) {
+                    val addresses = port.currentCellularAddresses().filter(String::isNotBlank)
+                    if (addresses.isEmpty()) {
                         consecutiveNetworkFailures++
                         onAttempt(IpFinderSearchAttempt(attempt, null, null, IpFinderCycleFailure.CELLULAR_RETURN_TIMEOUT))
                     } else {
                         consecutiveNetworkFailures = 0
-                        val match = IpRuleMatcher.match(validRuleText, address)
-                        if (match.matches) {
-                            onAttempt(IpFinderSearchAttempt(attempt, address, match.triggeringRule))
-                            return IpFinderSearchResult.Found(attempt, address, match.triggeringRule.orEmpty())
+                        val matchingAddress = addresses.firstNotNullOfOrNull { address ->
+                            val match = IpRuleMatcher.match(validRuleText, address)
+                            if (match.matches) address to match.triggeringRule else null
                         }
-                        onAttempt(IpFinderSearchAttempt(attempt, address, null))
+                        if (matchingAddress != null) {
+                            val (address, rule) = matchingAddress
+                            onAttempt(IpFinderSearchAttempt(attempt, address, rule))
+                            return IpFinderSearchResult.Found(attempt, address, rule.orEmpty())
+                        }
+                        onAttempt(IpFinderSearchAttempt(attempt, addresses.joinToString(" · "), null))
                     }
                 }
                 is IpFinderCycleResult.Failure -> {

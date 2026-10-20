@@ -25,6 +25,17 @@ class IpFinderSearchCoordinatorTest {
     }
 
     @Test
+    fun matchesAnyCellularAddressInsteadOfOnlyTheFirst() = runBlocking {
+        val port = FakeSearchPort(addresses = listOf("10.61.1.1"))
+        port.currentAddresses = listOf("2001:db8::1", "10.63.4.5")
+
+        assertEquals(
+            IpFinderSearchResult.Found(1, "10.63.4.5", "10.63"),
+            coordinator(port).run(1, 3)
+        )
+    }
+
+    @Test
     fun stopsAfterConfiguredAttemptsWithoutMatch() = runBlocking {
         val port = FakeSearchPort(addresses = listOf("10.61.1.1", "10.62.1.1", "10.64.1.1"))
         val clock = FakeClock()
@@ -89,6 +100,7 @@ class IpFinderSearchCoordinatorTest {
         private var currentAddress: String? = null
         var cycleCalls = 0
         var restored = false
+        var currentAddresses: List<String>? = null
 
         override fun isAirplaneModeEnabled() = airplaneOn
 
@@ -113,6 +125,7 @@ class IpFinderSearchCoordinatorTest {
         }
 
         override fun currentCellularAddress(): String? = currentAddress
+        override fun currentCellularAddresses(): List<String> = currentAddresses ?: listOfNotNull(currentAddress)
 
         override suspend fun restoreAirplaneMode(): Boolean {
             airplaneOn = false

@@ -36,6 +36,7 @@ sealed interface IpFinderVpnConnectionResult {
 interface IpFinderFoundActionPort {
     fun selectedProfileExists(): Boolean
     fun currentCellularAddress(): String?
+    fun currentCellularAddresses(): List<String> = listOfNotNull(currentCellularAddress())
     suspend fun startVpn()
     suspend fun awaitVpnConnected(timeoutMillis: Long): IpFinderVpnConnectionResult
 }
@@ -58,10 +59,11 @@ class IpFinderFoundActionCoordinator(
     ): IpFinderFoundActionResult {
         if (!port.selectedProfileExists()) return IpFinderFoundActionResult.ProfileRequired
 
-        val currentAddress = port.currentCellularAddress()
-        if (currentAddress.isNullOrBlank()) return IpFinderFoundActionResult.RetrySearch(currentAddress)
+        val currentAddresses = port.currentCellularAddresses()
+        val currentAddress = currentAddresses.firstOrNull { address ->
+            IpRuleMatcher.match(rulesText, address).matches
+        } ?: return IpFinderFoundActionResult.RetrySearch(currentAddresses.firstOrNull())
         val currentMatch = IpRuleMatcher.match(rulesText, currentAddress)
-        if (!currentMatch.matches) return IpFinderFoundActionResult.RetrySearch(currentAddress)
 
         if (!connectVpnAutomatically) {
             return IpFinderFoundActionResult.Found(

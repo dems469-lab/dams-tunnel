@@ -537,6 +537,7 @@ class IpFinderActivity : BaseComponentActivity() {
                                     finished = true
                                 }
                                 is IpFinderFoundActionResult.Found -> {
+                                    retryVpnVisible = !found.vpnConnected
                                     resultText = getString(
                                         if (found.vpnConnected) R.string.ip_finder_found_vpn_connected
                                         else R.string.ip_finder_found_vpn_disconnected,
@@ -683,6 +684,10 @@ class IpFinderActivity : BaseComponentActivity() {
             IpFinderAirplaneRequest(false, false)
         }.currentCellularAddress()
 
+        override fun currentCellularAddresses(): List<String> = AndroidIpFinderCyclePort(this@IpFinderActivity) {
+            IpFinderAirplaneRequest(false, false)
+        }.currentCellularAddresses()
+
         override suspend fun startVpn() {
             vpnActuallyConnected = false
             vpnStartFailure = null
@@ -705,6 +710,10 @@ class IpFinderActivity : BaseComponentActivity() {
         override fun currentCellularAddress(): String? = AndroidIpFinderCyclePort(this@IpFinderActivity) {
             IpFinderAirplaneRequest(false, false)
         }.currentCellularAddress()
+
+        override fun currentCellularAddresses(): List<String> = AndroidIpFinderCyclePort(this@IpFinderActivity) {
+            IpFinderAirplaneRequest(false, false)
+        }.currentCellularAddresses()
 
         override suspend fun runCycle(): IpFinderCycleResult = IpFinderCycleCoordinator(
             port = AndroidIpFinderCyclePort(this@IpFinderActivity, ::requestAirplaneMode),

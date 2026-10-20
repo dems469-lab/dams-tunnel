@@ -39,6 +39,18 @@ class IpFinderFoundActionCoordinatorTest {
     }
 
     @Test
+    fun finalValidationAcceptsMatchingAddressWhenItIsNotFirst() = runBlocking {
+        val port = FakeFoundPort("10.64.4.5", IpFinderVpnConnectionResult.Connected)
+        port.addresses = listOf("2001:db8::1", "10.63.4.5")
+
+        assertEquals(
+            IpFinderFoundActionResult.Found("10.63.4.5", "10.63", true),
+            coordinator(port).handle("10.63", true)
+        )
+        assertEquals(1, port.startCalls)
+    }
+
+    @Test
     fun reportsVpnConnectionFailureWithoutRetryingSearch() = runBlocking {
         val port = FakeFoundPort("10.63.4.5", IpFinderVpnConnectionResult.Failed("échec de vérification"))
         assertEquals(
@@ -94,9 +106,11 @@ class IpFinderFoundActionCoordinatorTest {
     ) : IpFinderFoundActionPort {
         var startCalls = 0
         var requestedTimeout: Long? = null
+        var addresses: List<String>? = null
 
         override fun selectedProfileExists() = hasProfile
         override fun currentCellularAddress() = address
+        override fun currentCellularAddresses() = addresses ?: listOfNotNull(address)
         override suspend fun startVpn() { startCalls++ }
         override suspend fun awaitVpnConnected(timeoutMillis: Long): IpFinderVpnConnectionResult {
             requestedTimeout = timeoutMillis

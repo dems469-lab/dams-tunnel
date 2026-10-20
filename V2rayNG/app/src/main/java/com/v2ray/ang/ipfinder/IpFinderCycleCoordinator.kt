@@ -45,10 +45,14 @@ data class IpFinderAirplaneRequest(
 interface IpFinderCyclePort {
     fun isWifiConnected(): Boolean
     fun currentCellularAddress(): String?
+    /** Toutes les adresses des interfaces cellulaires, sans adresse Wi-Fi ni VPN. */
+    fun currentCellularAddresses(): List<String> = listOfNotNull(currentCellularAddress())
     suspend fun requestAirplaneMode(enabled: Boolean): IpFinderAirplaneRequest
     suspend fun awaitAirplaneMode(enabled: Boolean, timeoutMillis: Long): Boolean
     suspend fun awaitCellularDisconnect(timeoutMillis: Long): Boolean
     suspend fun awaitCellularAddress(timeoutMillis: Long): String?
+    suspend fun awaitCellularAddresses(timeoutMillis: Long): List<String>? =
+        awaitCellularAddress(timeoutMillis)?.let(::listOf)
 }
 
 interface IpFinderRecoveryFlag {
