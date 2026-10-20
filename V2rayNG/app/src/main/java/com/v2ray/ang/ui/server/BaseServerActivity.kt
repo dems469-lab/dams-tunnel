@@ -70,7 +70,9 @@ abstract class BaseServerActivity : BaseComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val existingConfig = MmkvManager.decodeServerConfig(editGuid)
-        initialConfig = existingConfig ?: ProfileItem.create(serverConfigType)
+        initialConfig = existingConfig ?: ProfileItem.create(serverConfigType).apply {
+            insecure = false
+        }
     }
 
     @Composable
@@ -283,7 +285,10 @@ abstract class BaseServerActivity : BaseComponentActivity() {
                 SettingsSwitchItem(
                     title = stringResource(R.string.server_lab_allow_insecure),
                     checked = state.allowInsecure,
-                    onCheckedChange = { state.allowInsecure = it }
+                    onCheckedChange = {
+                        state.allowInsecure = it
+                        if (it) context.toast(R.string.toast_allow_insecure_warning)
+                    }
                 )
                 FormDropdownField(
                     stringResource(R.string.server_lab_stream_alpn),

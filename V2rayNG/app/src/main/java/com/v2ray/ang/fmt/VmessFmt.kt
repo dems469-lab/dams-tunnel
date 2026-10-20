@@ -85,7 +85,7 @@ object VmessFmt : FmtBase() {
         config.insecure = when (vmessQRCode.insecure) {
             "1" -> true
             "0" -> false
-            else -> true
+            else -> false
         }
         config.verifyPeerCertByName = vmessQRCode.vcn
         config.pinnedCA256 = vmessQRCode.pcs

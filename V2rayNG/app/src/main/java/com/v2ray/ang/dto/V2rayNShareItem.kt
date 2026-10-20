@@ -132,15 +132,14 @@ data class V2rayNShareItem(
             alpn = Alpn,
             fingerPrint = Fingerprint,
             // V2rayN exports this field as either a boolean string or a 1/0 flag.
-            // Boolean.toBoolean() treats "1" as false, which silently breaks
-            // legacy TLS profiles that depend on the compatibility mode.
+            // Missing or unrecognized values default to secure certificate verification.
             insecure = AllowInsecure?.trim()?.lowercase()?.let { value ->
                 when (value) {
                     "1", "true", "yes" -> true
                     "0", "false", "no" -> false
-                    else -> true
+                    else -> false
                 }
-            } ?: true,
+            } ?: false,
             echConfigList = EchConfigList,
             verifyPeerCertByName = VerifyPeerCertByName,
             pinnedCA256 = CertSha,

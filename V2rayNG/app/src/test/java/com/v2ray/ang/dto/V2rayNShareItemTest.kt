@@ -12,9 +12,9 @@ class V2rayNShareItemTest {
     }
 
     @Test
-    fun `missing or unknown allow insecure keeps compatibility default`() {
-        assertTrue(item(null).toProfileItem().insecure == true)
-        assertTrue(item("unexpected").toProfileItem().insecure == true)
+    fun `missing or unknown allow insecure defaults to certificate verification`() {
+        assertFalse(item(null).toProfileItem().insecure == true)
+        assertFalse(item("unexpected").toProfileItem().insecure == true)
     }
 
     private fun item(allowInsecure: String?): V2rayNShareItem = V2rayNShareItem(

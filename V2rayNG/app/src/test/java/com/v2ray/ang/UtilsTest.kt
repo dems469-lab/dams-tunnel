@@ -1,5 +1,6 @@
 package com.v2ray.ang
 
+import androidx.core.content.ContextCompat
 import com.v2ray.ang.util.Utils
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -12,6 +13,11 @@ import org.junit.jupiter.api.Test
  * See [testing documentation](http://d.android.com/tools/testing).
  */
 class UtilsTest {
+
+    @Test
+    fun internalDynamicReceiversAreNotExported() {
+        assertEquals(ContextCompat.RECEIVER_NOT_EXPORTED, Utils.receiverFlags())
+    }
 
     @Test
     fun test_parseInt() {

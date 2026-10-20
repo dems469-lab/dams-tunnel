@@ -3,14 +3,12 @@ package com.v2ray.ang.receiver
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.core.CoreServiceManager
-import com.v2ray.ang.core.LauncherManager
 
 class WidgetProvider : AppWidgetProvider() {
     /**
@@ -34,9 +32,9 @@ class WidgetProvider : AppWidgetProvider() {
      * @param appWidgetIds The appWidgetIds for which an update is needed.
      * @param isRunning Boolean indicating if the V2Ray service is running.
      */
-    private fun updateWidgetBackground(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray, isRunning: Boolean) {
+    internal fun updateWidgetBackground(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray, isRunning: Boolean) {
         val remoteViews = RemoteViews(context.packageName, R.layout.widget_switch)
-        val intent = Intent(context, WidgetProvider::class.java)
+        val intent = Intent(context, WidgetControlReceiver::class.java)
         intent.action = AppConfig.BROADCAST_ACTION_WIDGET_CLICK
         val pendingIntent = PendingIntent.getBroadcast(
             context,
@@ -58,39 +56,4 @@ class WidgetProvider : AppWidgetProvider() {
         }
     }
 
-    /**
-     * This method is called when the BroadcastReceiver is receiving an Intent broadcast.
-     * It handles widget click actions and updates the widget background based on the V2Ray service state.
-     *
-     * @param context The Context in which the receiver is running.
-     * @param intent The Intent being received.
-     */
-    override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        if (AppConfig.BROADCAST_ACTION_WIDGET_CLICK == intent.action) {
-            if (CoreServiceManager.isRunning()) {
-                LauncherManager.stopService(context)
-            } else {
-                LauncherManager.startServiceFromToggle(context)
-            }
-        } else if (AppConfig.BROADCAST_ACTION_ACTIVITY == intent.action) {
-            AppWidgetManager.getInstance(context)?.let { manager ->
-                when (intent.getIntExtra("key", 0)) {
-                    AppConfig.MSG_STATE_RUNNING, AppConfig.MSG_STATE_START_SUCCESS -> {
-                        updateWidgetBackground(
-                            context, manager, manager.getAppWidgetIds(ComponentName(context, WidgetProvider::class.java)),
-                            true
-                        )
-                    }
-
-                    AppConfig.MSG_STATE_NOT_RUNNING, AppConfig.MSG_STATE_START_FAILURE, AppConfig.MSG_STATE_STOP_SUCCESS -> {
-                        updateWidgetBackground(
-                            context, manager, manager.getAppWidgetIds(ComponentName(context, WidgetProvider::class.java)),
-                            false
-                        )
-                    }
-                }
-            }
-        }
-    }
 }

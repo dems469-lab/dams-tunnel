@@ -53,7 +53,7 @@ class ServerUiState(
     browserDialerMode: String = "",
     streamSecurity: String = "",
     sni: String = "",
-    allowInsecure: Boolean = true,
+    allowInsecure: Boolean = false,
     fingerPrint: String = "",
     alpn: String = "",
     publicKeyReality: String = "",
