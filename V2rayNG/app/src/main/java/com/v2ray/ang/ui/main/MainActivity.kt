@@ -9,6 +9,7 @@ import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.lifecycleScope
 import com.v2ray.ang.AngApplication
@@ -25,6 +26,8 @@ import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.handler.SettingsManager
+import com.v2ray.ang.ipfinder.IpFinderActivity
+import com.v2ray.ang.ipfinder.IpFinderRecoveryStore
 import com.v2ray.ang.ui.AboutActivity
 import com.v2ray.ang.ui.backup.BackupActivity
 import com.v2ray.ang.ui.base.HelperBaseComponentActivity
@@ -62,6 +65,7 @@ import kotlinx.coroutines.withContext
 class MainActivity : HelperBaseComponentActivity() {
 
     private var appUnlocked = false
+    private var recoveryPromptShown = false
     private val appLockLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -108,6 +112,7 @@ class MainActivity : HelperBaseComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        IpFinderRecoveryStore.initialize(this)
         mainViewModel.onAction(MainAction.Initialize)
 
         checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {}
@@ -130,6 +135,8 @@ class MainActivity : HelperBaseComponentActivity() {
             appUnlocked = true
         }
 
+        if (appUnlocked) offerIpFinderRecovery()
+
         if (SettingsChangeManager.consumeSetupGroupTab()) {
             mainViewModel.refreshUiSettings()
             mainViewModel.onAction(MainAction.RefreshGroups)
@@ -137,6 +144,24 @@ class MainActivity : HelperBaseComponentActivity() {
         if (SettingsChangeManager.consumeRestartService()) {
             LauncherManager.restartService(this)
         }
+    }
+
+    private fun offerIpFinderRecovery() {
+        if (recoveryPromptShown || !IpFinderRecoveryStore.isPending()) return
+        if (!IpFinderRecoveryStore.isAirplaneModeEnabled(this)) {
+            IpFinderRecoveryStore.clear()
+            return
+        }
+        recoveryPromptShown = true
+        AlertDialog.Builder(this)
+            .setTitle(R.string.ip_finder_recovery_title)
+            .setMessage(R.string.ip_finder_recovery_message)
+            .setPositiveButton(R.string.ip_finder_recovery_action) { _, _ ->
+                startActivity(Intent(this, IpFinderActivity::class.java)
+                    .putExtra(IpFinderActivity.EXTRA_RESTORE_PENDING, true))
+            }
+            .setNegativeButton(R.string.ip_finder_recovery_cancel, null)
+            .show()
     }
 
     @Composable

@@ -13,8 +13,44 @@
     <string name="ip_finder_vpn_active" translatable="false">VPN Dams actif ou en cours : arrêtez-le avant le test.</string>
     <string name="ip_finder_vpn_inactive" translatable="false">VPN Dams inactif.</string>
     <string name="ip_finder_start_cycle" translatable="false">Lancer un cycle de test</string>
-    <string name="ip_finder_cycle_pending" translatable="false">Le cycle unique sera disponible dans la prochaine étape.</string>
+    <string name="ip_finder_cycle_pending" translatable="false">Un seul cycle sera exécuté à chaque lancement. L’adresse affichée provient exclusivement du réseau cellulaire.</string>
     <string name="ip_finder_back" translatable="false">Retour</string>
+    <string name="ip_finder_wifi_active" translatable="false">Wi-Fi actif</string>
+    <string name="ip_finder_wifi_inactive" translatable="false">Wi-Fi inactif</string>
+    <string name="ip_finder_cellular_ip">IP mobile actuelle : %1$s</string>
+    <string name="ip_finder_attempt">Tentative : %1$d / 1</string>
+    <string name="ip_finder_timeline" translatable="false">Chronologie</string>
+    <string name="ip_finder_stop" translatable="false">Arrêter</string>
+    <string name="ip_finder_event_wifi">Wi-Fi actif : seule l’adresse cellulaire sera lue.</string>
+    <string name="ip_finder_event_before">Adresse IP cellulaire avant : %1$s</string>
+    <string name="ip_finder_event_request_on">Demande d’activation du mode avion envoyée.</string>
+    <string name="ip_finder_event_system_activity">Activité de commande Android détectée. Une boîte de confirmation distincte n’est pas détectable.</string>
+    <string name="ip_finder_event_system_activity_missing">Activité de commande Android non détectée. L’apparition d’une confirmation distincte n’est pas détectable.</string>
+    <string name="ip_finder_event_airplane_on">Mode avion réellement activé.</string>
+    <string name="ip_finder_event_cellular_lost">Réseau cellulaire perdu.</string>
+    <string name="ip_finder_event_request_off">Demande de désactivation du mode avion envoyée.</string>
+    <string name="ip_finder_event_airplane_off">Mode avion réellement désactivé.</string>
+    <string name="ip_finder_event_cellular_back">Réseau cellulaire revenu.</string>
+    <string name="ip_finder_event_after">Adresse IP cellulaire obtenue : %1$s</string>
+    <string name="ip_finder_event_restore_failed">Restauration non confirmée. L’indicateur de récupération est conservé pour le prochain lancement.</string>
+    <string name="ip_finder_event_cancelled">Cycle arrêté. Restauration du mode avion demandée.</string>
+    <string name="ip_finder_event_failure_no_ip">Aucune adresse IP cellulaire disponible avant le test.</string>
+    <string name="ip_finder_event_failure_request">Le système n’a pas accepté la demande de basculement.</string>
+    <string name="ip_finder_event_failure_airplane_on">Délai dépassé en attendant l’activation du mode avion.</string>
+    <string name="ip_finder_event_failure_cellular">Le réseau cellulaire ne s’est pas déconnecté dans le délai prévu.</string>
+    <string name="ip_finder_event_failure_airplane_off">Délai dépassé en attendant la désactivation du mode avion.</string>
+    <string name="ip_finder_event_failure_cellular_back">Le réseau cellulaire n’est pas revenu dans les 45 secondes.</string>
+    <string name="ip_finder_recovery_title" translatable="false">Récupération du mode avion</string>
+    <string name="ip_finder_recovery_message" translatable="false">Le test précédent a peut-être été interrompu alors que le mode avion était activé. Voulez-vous ouvrir IP Finder pour demander sa désactivation ?</string>
+    <string name="ip_finder_recovery_action" translatable="false">Ouvrir IP Finder</string>
+    <string name="ip_finder_recovery_cancel" translatable="false">Plus tard</string>
+    <string name="ip_finder_recovery_role_needed" translatable="false">Pour restaurer automatiquement le mode avion, activez Dams Tunnel comme assistant puis revenez ici.</string>
+    <string name="ip_finder_recovery_done" translatable="false">Mode avion désactivé et indicateur de récupération effacé.</string>
+    <string name="ip_finder_recovery_already_off" translatable="false">Mode avion déjà désactivé ; indicateur de récupération effacé.</string>
+    <string name="ip_finder_event_initial_address" translatable="false">Adresse cellulaire initiale indisponible.</string>
+    <string name="ip_finder_event_final_address" translatable="false">Adresse cellulaire finale indisponible.</string>
+    <string name="ip_finder_cycle_success" translatable="false">Cycle terminé. Nouvelle adresse IP mobile : %1$s</string>
+    <string name="ip_finder_event_failure_recovery_storage" translatable="false">Impossible d’enregistrer l’état de récupération ; le mode avion n’a pas été modifié.</string>
     <string name="app_widget_name">Switch</string>
     <string name="app_tile_name">Switch</string>
     <string name="app_tile_first_use">Add a profile in the app before using this feature.</string>
