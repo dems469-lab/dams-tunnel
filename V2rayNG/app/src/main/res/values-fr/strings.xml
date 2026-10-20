@@ -153,7 +153,7 @@
     <string name="toast_malformed_json">Invalid configuration.</string>
     <string name="server_lab_request_host6">Host (SNI) (optional)</string>
     <string name="toast_action_not_allowed">Action non autorisée</string>
-    <string name="toast_disconnect_before_delete">Déconnectez-vous d'abord avant de supprimer ce profil</string>
+    <string name="toast_disconnect_before_delete">Déconnectez-vous d\'abord avant de supprimer ce profil</string>
     <string name="toast_no_profile_selected">Aucun profil sélectionné</string>
     <string name="server_obfs_password">Obfs password</string>
     <string name="server_lab_port_hop">Port hopping (overrides the port)</string>
