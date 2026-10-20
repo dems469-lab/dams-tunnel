@@ -23,7 +23,7 @@
     <string name="notification_action_more">Tap for more</string>
     <string name="toast_services_start">Starting service</string>
     <string name="toast_services_stop">Stopping service</string>
-    <string name="toast_services_success">Service started successfully</string>
+    <string name="toast_services_success">Service démarré avec succès</string>
     <string name="toast_services_failure">Failed to start service</string>
 
     <!--ServerActivity-->
@@ -433,13 +433,13 @@
     <string name="connection_test_pending">Check connectivity</string>
     <string name="connection_test_testing">Testing…</string>
     <string name="connection_test_testing_count">Testing %d configs…</string>
-    <string name="connection_test_available">Connection succeeded in %1$s</string>
+    <string name="connection_test_available">Connexion réussie en %1$s</string>
     <string name="server_test_delay_value">%1$d ms</string>
     <string name="connection_test_error">Connection test failed: %s</string>
     <string name="connection_test_fail">Internet unavailable</string>
     <string name="connection_test_error_status_code">Error code: #%d</string>
     <string name="connection_connected">Connecté ✅</string>
-    <string name="connection_not_connected">Not connected</string>
+    <string name="connection_not_connected">Non connecté</string>
     <string name="connection_connecting">Connexion en cours…</string>
     <string name="connection_reconnecting">Reconnexion en cours…</string>
     <string name="title_pref_kill_switch">Blocage anti-fuite</string>
@@ -496,15 +496,15 @@
 
     <!-- BackupActivity -->
     <string name="title_configuration_backup_restore">Sauvegarde et restauration</string>
-    <string name="title_configuration_backup">Backup config</string>
-    <string name="title_configuration_restore">Restore config</string>
-    <string name="title_profile_storage_cleanup">Repair profile storage</string>
-    <string name="summary_profile_storage_cleanup">Remove unused profile data</string>
+    <string name="title_configuration_backup">Sauvegarder la configuration</string>
+    <string name="title_configuration_restore">Restaurer la configuration</string>
+    <string name="title_profile_storage_cleanup">Réparer le stockage des profils</string>
+    <string name="summary_profile_storage_cleanup">Supprimer les données de profil inutilisées</string>
     <string name="message_profile_storage_cleanup">Delete profile data that is no longer used by any group? Selected profiles and data that cannot be safely classified will be kept.</string>
     <string name="toast_profile_storage_cleanup">Unused profiles removed: %1$d</string>
     <string name="toast_profile_storage_cleanup_skipped">Profile storage could not be safely classified. Nothing was removed.</string>
-    <string name="title_configuration_share">Share config</string>
-    <string name="title_webdav_config_setting">WebDAV Settings</string>
+    <string name="title_configuration_share">Partager la configuration</string>
+    <string name="title_webdav_config_setting">Paramètres WebDAV</string>
     <string name="title_webdav_config_setting_unknown">Please configure WebDAV first.</string>
     <string name="title_webdav_url">WebDAV server URL</string>
     <string name="title_webdav_user">Username</string>
@@ -512,8 +512,8 @@
     <string name="title_webdav_remote_path">Remote directory (optional)</string>
 
     <string name="share_method_qrcode">QR code</string>
-    <string name="share_method_clipboard">Copy profile link</string>
-    <string name="share_method_full_content">Copy full configuration</string>
+    <string name="share_method_clipboard">Copier le lien du profil</string>
+    <string name="share_method_full_content">Copier la configuration complète</string>
     <string name="share_method_dams_file">Partager un fichier .dams protégé</string>
     <string name="action_edit">Edit</string>
     <string name="action_delete">Supprimer</string>
