@@ -2,7 +2,6 @@ package com.v2ray.ang.handler
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.util.Base64
 import android.text.TextUtils
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.core.CoreConfigManager
@@ -230,10 +229,7 @@ object AngConfigManager {
     }
 
     internal fun encodeDamsProfileLink(config: String): String {
-        val encoded = Base64.encodeToString(
-            config.toByteArray(Charsets.UTF_8),
-            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
-        )
+        val encoded = encodeBase64Url(config.toByteArray(Charsets.UTF_8))
         return "dams://$encoded"
     }
 
@@ -252,8 +248,46 @@ object AngConfigManager {
         }
         if (encoded.isEmpty()) return null
         return runCatching {
-            Base64.decode(encoded, Base64.URL_SAFE or Base64.NO_WRAP).toString(Charsets.UTF_8)
+            decodeBase64Url(encoded).toString(Charsets.UTF_8)
         }.getOrNull()
+    }
+
+    /** Small JVM-safe Base64URL codec so link parsing is unit-testable without Android stubs. */
+    private fun encodeBase64Url(input: ByteArray): String {
+        val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+        return buildString((input.size * 4 + 2) / 3) {
+            var index = 0
+            while (index < input.size) {
+                val first = input[index++].toInt() and 0xff
+                val hasSecond = index < input.size
+                val second = if (hasSecond) input[index++].toInt() and 0xff else 0
+                val hasThird = index < input.size
+                val third = if (hasThird) input[index++].toInt() and 0xff else 0
+                append(alphabet[first ushr 2])
+                append(alphabet[((first and 0x03) shl 4) or (second ushr 4)])
+                if (hasSecond) append(alphabet[((second and 0x0f) shl 2) or (third ushr 6)])
+                if (hasThird) append(alphabet[third and 0x3f])
+            }
+        }
+    }
+
+    private fun decodeBase64Url(value: String): ByteArray {
+        val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+        val output = java.io.ByteArrayOutputStream(value.length * 3 / 4)
+        var accumulator = 0
+        var bits = 0
+        value.trimEnd('=').forEach { char ->
+            val digit = alphabet.indexOf(char)
+            require(digit >= 0) { "Invalid Base64URL character" }
+            accumulator = (accumulator shl 6) or digit
+            bits += 6
+            if (bits >= 8) {
+                bits -= 8
+                output.write((accumulator ushr bits) and 0xff)
+            }
+        }
+        require(bits < 6) { "Invalid Base64URL length" }
+        return output.toByteArray()
     }
 
     /**
