@@ -122,11 +122,11 @@ class IpFinderActivity : BaseComponentActivity() {
 
     private suspend fun requestAirplaneMode(enabled: Boolean): IpFinderAirplaneRequest {
         if (!assistantActive) return IpFinderAirplaneRequest(false, false)
-        val resumed = withTimeoutOrNull(15_000) {
+        val resumed = withTimeoutOrNull(FOREGROUND_RETURN_TIMEOUT_MILLIS) {
             while (!activityResumed) delay(100)
             true
         } ?: false
-        if (!resumed) return IpFinderAirplaneRequest(false, false)
+        if (!resumed) return IpFinderAirplaneRequest(false, false, foregroundTimeout = true)
         val requestId = UUID.randomUUID().toString()
         val preferences = getSharedPreferences(IpFinderVoiceContract.PREFS, MODE_PRIVATE)
         preferences.edit().remove("$requestId:dispatch").remove("$requestId:task_started").apply()
@@ -206,6 +206,7 @@ class IpFinderActivity : BaseComponentActivity() {
         IpFinderCycleEvent.FINAL_ADDRESS -> getString(R.string.ip_finder_event_after,
             AndroidIpFinderCyclePort(this) { IpFinderAirplaneRequest(false, false) }.currentCellularAddress() ?: "—")
         IpFinderCycleEvent.RESTORE_FAILED -> getString(R.string.ip_finder_event_restore_failed)
+        IpFinderCycleEvent.FOREGROUND_RETURN_TIMEOUT -> getString(R.string.ip_finder_event_failure_foreground)
     }
 
     private fun failureText(reason: IpFinderCycleFailure): Int = when (reason) {
@@ -216,6 +217,7 @@ class IpFinderActivity : BaseComponentActivity() {
         IpFinderCycleFailure.AIRPLANE_OFF_TIMEOUT -> R.string.ip_finder_event_failure_airplane_off
         IpFinderCycleFailure.CELLULAR_RETURN_TIMEOUT -> R.string.ip_finder_event_failure_cellular_back
         IpFinderCycleFailure.RECOVERY_STORAGE_FAILURE -> R.string.ip_finder_event_failure_recovery_storage
+        IpFinderCycleFailure.FOREGROUND_RETURN_TIMEOUT -> R.string.ip_finder_event_failure_foreground
     }
 
     private suspend fun restoreAirplaneMode() {
@@ -277,6 +279,7 @@ class IpFinderActivity : BaseComponentActivity() {
 
     companion object {
         const val EXTRA_RESTORE_PENDING = "com.v2ray.ang.ipfinder.RESTORE_PENDING"
+        private const val FOREGROUND_RETURN_TIMEOUT_MILLIS = 30_000L
     }
 }
 

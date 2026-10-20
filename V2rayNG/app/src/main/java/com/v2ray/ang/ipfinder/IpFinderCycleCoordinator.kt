@@ -15,7 +15,8 @@ enum class IpFinderCycleEvent {
     AIRPLANE_OFF_CONFIRMED,
     CELLULAR_RETURNED,
     FINAL_ADDRESS,
-    RESTORE_FAILED
+    RESTORE_FAILED,
+    FOREGROUND_RETURN_TIMEOUT
 }
 
 enum class IpFinderCycleFailure {
@@ -25,7 +26,8 @@ enum class IpFinderCycleFailure {
     CELLULAR_DID_NOT_DISCONNECT,
     AIRPLANE_OFF_TIMEOUT,
     CELLULAR_RETURN_TIMEOUT,
-    RECOVERY_STORAGE_FAILURE
+    RECOVERY_STORAGE_FAILURE,
+    FOREGROUND_RETURN_TIMEOUT
 }
 
 sealed interface IpFinderCycleResult {
@@ -34,7 +36,11 @@ sealed interface IpFinderCycleResult {
     data object Cancelled : IpFinderCycleResult
 }
 
-data class IpFinderAirplaneRequest(val accepted: Boolean, val systemActivityDetected: Boolean)
+data class IpFinderAirplaneRequest(
+    val accepted: Boolean,
+    val systemActivityDetected: Boolean,
+    val foregroundTimeout: Boolean = false
+)
 
 interface IpFinderCyclePort {
     fun isWifiConnected(): Boolean
@@ -71,6 +77,10 @@ class IpFinderCycleCoordinator(
             }
             onEvent(IpFinderCycleEvent.AIRPLANE_ON_REQUESTED)
             val airplaneOnRequest = port.requestAirplaneMode(true)
+            if (airplaneOnRequest.foregroundTimeout) {
+                onEvent(IpFinderCycleEvent.FOREGROUND_RETURN_TIMEOUT)
+                return IpFinderCycleResult.Failure(IpFinderCycleFailure.FOREGROUND_RETURN_TIMEOUT)
+            }
             if (!airplaneOnRequest.accepted) {
                 return IpFinderCycleResult.Failure(IpFinderCycleFailure.ASSISTANT_REQUEST_REJECTED)
             }
@@ -90,6 +100,10 @@ class IpFinderCycleCoordinator(
 
             onEvent(IpFinderCycleEvent.AIRPLANE_OFF_REQUESTED)
             val airplaneOffRequest = port.requestAirplaneMode(false)
+            if (airplaneOffRequest.foregroundTimeout) {
+                onEvent(IpFinderCycleEvent.FOREGROUND_RETURN_TIMEOUT)
+                return IpFinderCycleResult.Failure(IpFinderCycleFailure.FOREGROUND_RETURN_TIMEOUT)
+            }
             if (!airplaneOffRequest.accepted) {
                 return IpFinderCycleResult.Failure(IpFinderCycleFailure.ASSISTANT_REQUEST_REJECTED)
             }
