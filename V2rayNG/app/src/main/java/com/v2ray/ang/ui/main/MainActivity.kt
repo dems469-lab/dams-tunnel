@@ -125,6 +125,14 @@ class MainActivity : HelperBaseComponentActivity() {
         } else {
             appUnlocked = true
         }
+
+        if (SettingsChangeManager.consumeSetupGroupTab()) {
+            mainViewModel.refreshUiSettings()
+            mainViewModel.onAction(MainAction.RefreshGroups)
+        }
+        if (SettingsChangeManager.consumeRestartService()) {
+            LauncherManager.restartService(this)
+        }
     }
 
     @Composable

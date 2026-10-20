@@ -148,6 +148,7 @@ class BackupActivity : HelperBaseComponentActivity() {
                             pendingDamsUri?.let { MmkvManager.encodeSettings(damsAttemptKey(it), DAMS_MAX_ATTEMPTS) }
                             pendingDamsUri = null
                             SettingsManager.initApp(this@BackupActivity)
+                            finish()
                         }
 
                         is BackupViewModel.BackupViewModelEvent.DamsRestoreFailed -> {
