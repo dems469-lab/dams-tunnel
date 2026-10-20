@@ -698,5 +698,10 @@
     <string name="ip_finder_rules_ignored_line">Ignorées : \"%1$s\" (ligne %2$d)</string>
     <string name="ip_finder_rules_ignored_more">et %1$d autres</string>
     <string name="ip_finder_rules_none_valid">Ajoutez au moins une règle IP valide pour lancer la recherche.</string>
+    <string name="ip_finder_cycles_label">Nombre de cycles</string>
+    <string name="ip_finder_pause_label">Pause entre cycles (secondes)</string>
+    <string name="ip_finder_number_required">Ce champ est obligatoire.</string>
+    <string name="ip_finder_number_integer">Saisissez un entier composé uniquement de chiffres.</string>
+    <string name="ip_finder_number_range">Valeur hors limite pour ce champ.</string>
 
 </resources>

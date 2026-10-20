@@ -70,6 +70,9 @@ class IpFinderActivity : BaseComponentActivity() {
     private var currentCellularIp by mutableStateOf<String?>(null)
     private var rulesText by mutableStateOf("")
     private lateinit var rulesRepository: IpFinderRulesRepository
+    private lateinit var loopSettingsRepository: IpFinderLoopSettingsRepository
+    private var cyclesText by mutableStateOf(IpFinderLoopSettingsRepository.DEFAULT_CYCLES)
+    private var pauseText by mutableStateOf(IpFinderLoopSettingsRepository.DEFAULT_PAUSE)
     private var wifiActive by mutableStateOf(false)
     private var running by mutableStateOf(false)
     private var attempt by mutableStateOf(0)
@@ -84,6 +87,11 @@ class IpFinderActivity : BaseComponentActivity() {
         super.onCreate(savedInstanceState)
         rulesRepository = IpFinderRulesRepository(AndroidIpRuleTextStorage(this))
         rulesText = rulesRepository.load()
+        loopSettingsRepository = IpFinderLoopSettingsRepository(AndroidIpFinderLoopSettingsStorage(this))
+        loopSettingsRepository.load().let { settings ->
+            cyclesText = settings.cycles
+            pauseText = settings.pauseSeconds
+        }
         IpFinderRecoveryStore.initialize(this)
         refreshState()
         lifecycleScope.launch {
@@ -329,6 +337,8 @@ class IpFinderActivity : BaseComponentActivity() {
             cellularIp = currentCellularIp,
             cellularIpVerdict = currentCellularIp?.let(::ruleVerdict),
             rulesText = rulesText,
+            cyclesText = cyclesText,
+            pauseText = pauseText,
             attempt = attempt,
             timeline = timeline.toList(),
             resultText = resultText,
@@ -339,7 +349,9 @@ class IpFinderActivity : BaseComponentActivity() {
             onStop = { if (running) cycleJob?.cancel() else finish() },
             onRulesChanged = { value -> rulesText = value; rulesRepository.save(value) },
             onResetRules = { rulesText = rulesRepository.reset() },
-            onPrefixRules = { rulesText = rulesRepository.prefixAndSave(rulesText) }
+            onPrefixRules = { rulesText = rulesRepository.prefixAndSave(rulesText) },
+            onCyclesChanged = { value -> cyclesText = value; loopSettingsRepository.saveCycles(value) },
+            onPauseChanged = { value -> pauseText = value; loopSettingsRepository.savePause(value) }
         )
     }
 
@@ -361,6 +373,8 @@ private fun IpFinderSetupScreen(
     cellularIp: String?,
     cellularIpVerdict: String?,
     rulesText: String,
+    cyclesText: String,
+    pauseText: String,
     attempt: Int,
     timeline: List<Pair<Long, String>>,
     resultText: String?,
@@ -371,7 +385,9 @@ private fun IpFinderSetupScreen(
     onStop: () -> Unit,
     onRulesChanged: (String) -> Unit,
     onResetRules: () -> Unit,
-    onPrefixRules: () -> Unit
+    onPrefixRules: () -> Unit,
+    onCyclesChanged: (String) -> Unit,
+    onPauseChanged: (String) -> Unit
 ) {
     var showResetConfirmation by remember { mutableStateOf(false) }
     var showPrefixConfirmation by remember { mutableStateOf(false) }
@@ -379,6 +395,8 @@ private fun IpFinderSetupScreen(
     val rulesResult = remember(parsedRules, cellularIp) {
         IpRuleMatcher.match(parsedRules.validRules.joinToString(";"), cellularIp.orEmpty())
     }
+    val cyclesValidation = IpFinderLoopNumberValidator.cycles(cyclesText)
+    val pauseValidation = IpFinderLoopNumberValidator.pauseSeconds(pauseText)
     Scaffold(
         modifier = Modifier.imePadding(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -449,9 +467,34 @@ private fun IpFinderSetupScreen(
                     if (parsedRules.validRules.isEmpty()) Text(stringResource(R.string.ip_finder_rules_none_valid))
                 }
             }
+            OutlinedTextField(
+                value = cyclesText,
+                onValueChange = onCyclesChanged,
+                label = { Text(stringResource(R.string.ip_finder_cycles_label)) },
+                isError = !cyclesValidation.isValid,
+                supportingText = {
+                    cyclesValidation.error?.let { Text(stringResource(loopNumberErrorText(it))) }
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = pauseText,
+                onValueChange = onPauseChanged,
+                label = { Text(stringResource(R.string.ip_finder_pause_label)) },
+                isError = !pauseValidation.isValid,
+                supportingText = {
+                    pauseValidation.error?.let { Text(stringResource(loopNumberErrorText(it))) }
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
             Text(stringResource(R.string.ip_finder_attempt, attempt))
             Button(onClick = onStart, enabled = !running && assistantActive && !vpnActive &&
-                parsedRules.inputError == null && parsedRules.validRules.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
+                parsedRules.inputError == null && parsedRules.validRules.isNotEmpty() &&
+                cyclesValidation.isValid && pauseValidation.isValid, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.ip_finder_start_cycle))
             }
             resultText?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
@@ -502,3 +545,10 @@ private fun IpFinderSetupScreen(
 }
 
 private const val MAX_VISIBLE_IGNORED_RULES = 5
+
+@androidx.annotation.StringRes
+private fun loopNumberErrorText(error: LoopNumberError): Int = when (error) {
+    LoopNumberError.EMPTY -> R.string.ip_finder_number_required
+    LoopNumberError.NOT_INTEGER -> R.string.ip_finder_number_integer
+    LoopNumberError.OUT_OF_RANGE -> R.string.ip_finder_number_range
+}
