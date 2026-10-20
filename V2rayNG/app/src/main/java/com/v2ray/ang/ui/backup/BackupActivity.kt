@@ -66,6 +66,7 @@ import com.v2ray.ang.util.getDeclaredFileSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
