@@ -36,6 +36,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.AppConfig.VPN
 import com.v2ray.ang.R
+import com.v2ray.ang.enums.Language
 import com.v2ray.ang.extension.toastError
 import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.MmkvManager
@@ -183,7 +184,10 @@ fun SettingsScreen(
     var groupAllDisplay by rememberMmkvBool(AppConfig.PREF_GROUP_ALL_DISPLAY, false)
     var language by remember {
         mutableStateOf(
-            MmkvManager.decodeSettingsString(AppConfig.PREF_LANGUAGE, "auto") ?: "auto"
+            Language.fromCode(
+                MmkvManager.decodeSettingsString(AppConfig.PREF_LANGUAGE, Language.AUTO.code)
+                    ?: Language.AUTO.code
+            ).code
         )
     }
     var uiModeNight by rememberMmkvString(AppConfig.PREF_UI_MODE_NIGHT, "0")

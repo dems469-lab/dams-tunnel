@@ -155,15 +155,6 @@ android {
         generateLocaleConfig = true
         localeFilters += listOf(
             "en",
-            "zh-rCN",
-            "zh-rTW",
-            "vi",
-            "ru",
-            "fa",
-            "ar",
-            "az",
-            "bn",
-            "bqi-rIR",
             "fr"
         )
     }
