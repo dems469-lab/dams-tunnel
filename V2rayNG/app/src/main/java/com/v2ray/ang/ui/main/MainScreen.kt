@@ -241,7 +241,6 @@ fun MainScreen(
                 } else {
                     DamsHeader(
                         onMenuClick = { scope.launch { drawerState.open() } },
-                        includeStatusBarInsets = selectedTab == DamsTab.Home,
                     )
                 }
             },
@@ -378,12 +377,12 @@ private fun DamsNavigationBar(selected: DamsTab, onSelect: (DamsTab) -> Unit) {
 }
 
 @Composable
-private fun DamsHeader(onMenuClick: () -> Unit, includeStatusBarInsets: Boolean) {
+private fun DamsHeader(onMenuClick: () -> Unit) {
     Surface(color = MaterialTheme.colorScheme.background) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .let { if (includeStatusBarInsets) it.statusBarsPadding() else it }
+                .statusBarsPadding()
                 .padding(horizontal = 16.dp)
                 .padding(top = 10.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -699,15 +698,28 @@ private fun JournalTabContent(contentPadding: PaddingValues, logcatViewModel: Lo
                 Icon(painterResource(R.drawable.ic_delete_24dp), contentDescription = stringResource(R.string.acc_clear_log))
             }
         }
-        LazyColumn(Modifier.fillMaxSize()) {
-            items(items = logEntries, key = { it.key }) { entry ->
+        if (logEntries.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
                 Text(
-                    text = entry.text,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    text = stringResource(R.string.dams_journal_empty),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
+        } else {
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(items = logEntries, key = { it.key }) { entry ->
+                    Text(
+                        text = entry.text,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                }
             }
         }
     }
