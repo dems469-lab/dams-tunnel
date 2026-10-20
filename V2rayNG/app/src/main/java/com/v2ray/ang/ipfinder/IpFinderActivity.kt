@@ -124,7 +124,7 @@ class IpFinderActivity : BaseComponentActivity() {
         assistantServiceResolved = runCatching {
             val resolved = packageManager.resolveService(
                 Intent(VoiceInteractionService.SERVICE_INTERFACE).setPackage(packageName),
-                PackageManager.MATCH_DEFAULT_ONLY
+                0
             )?.serviceInfo
             resolved?.name == assistantComponent.className && resolved.enabled
         }.getOrDefault(false)

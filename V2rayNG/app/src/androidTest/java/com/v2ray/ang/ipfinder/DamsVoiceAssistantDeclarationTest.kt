@@ -25,7 +25,7 @@ class DamsVoiceAssistantDeclarationTest {
         assertEquals("android.permission.BIND_VOICE_INTERACTION", serviceInfo.permission)
         val resolved = context.packageManager.resolveService(
             Intent(VoiceInteractionService.SERVICE_INTERFACE).setPackage(context.packageName),
-            PackageManager.MATCH_DEFAULT_ONLY
+            0
         )?.serviceInfo
         assertNotNull(resolved)
         assertEquals(component.className, resolved?.name)
