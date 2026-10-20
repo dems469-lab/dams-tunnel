@@ -38,9 +38,32 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Release signing is configured only when the CI-provided credentials exist.
+    // The APK workflow validates all four GitHub secrets before invoking Gradle.
+    val releaseStoreFile = providers.environmentVariable("KEYSTORE_PATH").orNull
+    val releaseStorePassword = providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+    val releaseKeyAlias = providers.environmentVariable("KEY_ALIAS").orNull
+    val releaseKeyPassword = providers.environmentVariable("KEY_PASSWORD").orNull
+    val hasReleaseSigningCredentials =
+        listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword)
+            .all { !it.isNullOrBlank() }
+    if (hasReleaseSigningCredentials) {
+        signingConfigs {
+            create("githubRelease") {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigningCredentials) {
+                signingConfig = signingConfigs.getByName("githubRelease")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

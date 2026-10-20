@@ -17,6 +17,21 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Validate release signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for secret_name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -z "${!secret_name:-}" ]]; then
+              echo "::error title=Signature de publication non configurée::Le secret GitHub $secret_name est absent ou vide. Suivez .github/KEYSTORE_SETUP.md, puis relancez le workflow."
+              exit 1
+            fi
+          done
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -45,9 +60,24 @@ jobs:
             17387858d760b6a24b7dc3805eaf8554fe5041f5356945e637fdcbe3cea455fa
           cp -r libs V2rayNG/app/
 
-      - name: Build debug APK
+      - name: Build signed release APKs
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         working-directory: V2rayNG
-        run: ./gradlew assemblePlaystoreDebug
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/dams-release.jks"
+          trap 'shred -u "$keystore" 2>/dev/null || rm -f "$keystore"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          if ! keytool -list -keystore "$keystore" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null 2>&1; then
+            echo "::error title=Keystore invalide::Le keystore, son mot de passe ou l'alias ne peut pas être validé. Vérifiez les secrets GitHub."
+            exit 1
+          fi
+          export KEYSTORE_PATH="$keystore"
+          ./gradlew assemblePlaystoreRelease
 
       - name: Verify APK contents
         run: |
@@ -77,6 +107,6 @@ jobs:
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: dams-debug-apks
+          name: dams-release-apks
           path: V2rayNG/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
