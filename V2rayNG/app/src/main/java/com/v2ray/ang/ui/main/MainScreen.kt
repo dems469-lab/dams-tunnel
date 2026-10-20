@@ -584,6 +584,7 @@ private fun DamsDashboard(
         }
         if (isRunning && trafficHistory.size > 1) {
             val graphColor = MaterialTheme.colorScheme.secondary
+            val uploadGraphColor = MaterialTheme.colorScheme.primary
             Card(
                 modifier = Modifier.fillMaxWidth().height(96.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -613,7 +614,7 @@ private fun DamsDashboard(
                     )
                     drawPath(
                         uplinkPath,
-                        MaterialTheme.colorScheme.primary,
+                        uploadGraphColor,
                         style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f),
                     )
                 }
