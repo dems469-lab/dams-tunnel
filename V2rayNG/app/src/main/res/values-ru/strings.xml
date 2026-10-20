@@ -205,6 +205,8 @@
 
     <string name="title_pref_speed_enabled">Показывать скорость</string>
     <string name="summary_pref_speed_enabled">Показывать текущую скорость в уведомлении.\nЗначок указывает, какой трафик преобладает: через прокси или напрямую.</string>
+    <string name="title_pref_diagnostic_traffic_stats">Диагностика статистики трафика</string>
+    <string name="summary_pref_diagnostic_traffic_stats">Показывает в журнале первые три исходных показания статистики Xray. Адреса серверов и данные профилей не включаются.</string>
 
     <string name="title_pref_sniffing_enabled">Анализировать трафик (sniffing)</string>
     <string name="summary_pref_sniffing_enabled">Определять домены назначения в трафике (по умолчанию включено)</string>

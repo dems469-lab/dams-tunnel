@@ -238,6 +238,8 @@
 
     <string name="title_pref_speed_enabled">Enable speed display</string>
     <string name="summary_pref_speed_enabled">Show current speeds in the notification.\nThe icon indicates whether proxy or direct traffic is dominant.</string>
+    <string name="title_pref_diagnostic_traffic_stats">Traffic statistics diagnostics</string>
+    <string name="summary_pref_diagnostic_traffic_stats">Show the first three raw Xray traffic-stat reads in Journal. No server address or profile data is included.</string>
 
     <string name="title_pref_sniffing_enabled">Enable Sniffing</string>
     <string name="summary_pref_sniffing_enabled">Detect destination domains from traffic (enabled by default).</string>

@@ -205,6 +205,8 @@
 
     <string name="title_pref_speed_enabled">启用速度显示</string>
     <string name="summary_pref_speed_enabled">在通知中显示当前速度。\n图标指示代理流量或直连流量哪一方占主导。</string>
+    <string name="title_pref_diagnostic_traffic_stats">流量统计诊断</string>
+    <string name="summary_pref_diagnostic_traffic_stats">在日志中显示 Xray 流量统计的前三次原始读取结果。不包含服务器地址或配置资料。</string>
 
     <string name="title_pref_sniffing_enabled">启用流量探测 (Sniffing)</string>
     <string name="summary_pref_sniffing_enabled">从流量中探测目标域名（默认启用）。</string>

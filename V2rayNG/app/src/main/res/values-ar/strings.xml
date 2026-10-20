@@ -205,6 +205,8 @@
 
     <string name="title_pref_speed_enabled">تمكين عرض السرعة</string>
     <string name="summary_pref_speed_enabled">عرض سرعات الاتصال الحالية في الإشعار.\nتوضح الأيقونة ما إذا كانت حركة الوكيل أم الحركة المباشرة هي الغالبة.</string>
+    <string name="title_pref_diagnostic_traffic_stats">تشخيص إحصاءات الحركة</string>
+    <string name="summary_pref_diagnostic_traffic_stats">عرض أول ثلاث قراءات خام لإحصاءات Xray في السجل، دون عناوين الخوادم أو بيانات الملفات الشخصية.</string>
 
     <string name="title_pref_sniffing_enabled">تفعيل اكتشاف نطاقات الوجهة (Sniffing)</string>
     <string name="summary_pref_sniffing_enabled">اكتشاف نطاقات الوجهة من حركة المرور (مفعّل افتراضيًا).</string>

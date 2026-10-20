@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.viewModelScope
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
+import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.ui.base.BaseViewModel
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.LogRedactor
@@ -34,9 +35,12 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
         launchLoading {
             try {
                 val allText = withContext(Dispatchers.IO) {
-                    val args = arrayOf(
-                        "logcat", "-d", "-v", "time", "-s",
-                        "GoLog,${AppConfig.ANG_PACKAGE},AndroidRuntime,System.err"
+                    val args = buildLogcatCommandArguments(
+                        AppConfig.ANG_PACKAGE,
+                        includeTrafficStatsDiagnostics = MmkvManager.decodeSettingsBool(
+                            AppConfig.PREF_DIAGNOSTIC_TRAFFIC_STATS,
+                            false,
+                        ),
                     )
                     Runtime.getRuntime().exec(args).inputStream.bufferedReader().use { it.readLines() }.reversed()
                 }
@@ -83,6 +87,12 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
             logsetsAll.filter { it.contains(currentFilter) }
         }
     }
+}
+
+internal fun buildLogcatCommandArguments(packageName: String, includeTrafficStatsDiagnostics: Boolean): Array<String> {
+    val filters = mutableListOf("GoLog:V", "$packageName:V", "AndroidRuntime:E", "System.err:W")
+    if (includeTrafficStatsDiagnostics) filters += "DamsTrafficStats:D"
+    return arrayOf("logcat", "-d", "-v", "time", "-s", *filters.toTypedArray())
 }
 
 data class LogcatEntry(val key: String, val text: String)

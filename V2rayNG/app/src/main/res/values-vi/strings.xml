@@ -205,6 +205,8 @@
 
     <string name="title_pref_speed_enabled">Hiển thị tốc độ mạng</string>
     <string name="summary_pref_speed_enabled">Hiển thị tốc độ hiện tại trong thông báo.\nBiểu tượng cho biết lưu lượng proxy hay trực tiếp đang chiếm ưu thế.</string>
+    <string name="title_pref_diagnostic_traffic_stats">Chẩn đoán thống kê lưu lượng</string>
+    <string name="summary_pref_diagnostic_traffic_stats">Hiển thị ba lần đọc thô đầu tiên của thống kê lưu lượng Xray trong Nhật ký. Không bao gồm địa chỉ máy chủ hay dữ liệu hồ sơ.</string>
 
     <string name="title_pref_sniffing_enabled">Bật Sniffing</string>
     <string name="summary_pref_sniffing_enabled">Phát hiện tên miền đích từ lưu lượng truy cập (bật theo mặc định).</string>

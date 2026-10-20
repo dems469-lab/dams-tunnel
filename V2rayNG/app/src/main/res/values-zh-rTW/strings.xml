@@ -205,6 +205,8 @@
 
     <string name="title_pref_speed_enabled">啟用速度顯示</string>
     <string name="summary_pref_speed_enabled">在通知中顯示目前速度。\n圖示會指出代理流量或直接連線流量何者較多。</string>
+    <string name="title_pref_diagnostic_traffic_stats">流量統計診斷</string>
+    <string name="summary_pref_diagnostic_traffic_stats">在日誌中顯示 Xray 流量統計的前三次原始讀取結果。不包含伺服器位址或設定檔資料。</string>
 
     <string name="title_pref_sniffing_enabled">啟用流量探測 (Sniffing)</string>
     <string name="summary_pref_sniffing_enabled">從流量中探測目標網域（預設啟用）。</string>

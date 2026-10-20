@@ -205,6 +205,8 @@
 
     <string name="title_pref_speed_enabled">Sürət göstəricisini aktivləşdir</string>
     <string name="summary_pref_speed_enabled">Cari sürəti bildiriş panelində göstərin.\nİkona proksi və ya birbaşa trafikin üstünlük təşkil etdiyini bildirir.</string>
+    <string name="title_pref_diagnostic_traffic_stats">Trafik statistikası diaqnostikası</string>
+    <string name="summary_pref_diagnostic_traffic_stats">İlk üç xam Xray trafik statistikası oxunuşunu jurnalda göstərir. Server ünvanı və profil məlumatı daxil edilmir.</string>
 
     <string name="title_pref_sniffing_enabled">Dinləməni aktivləşdir</string>
     <string name="summary_pref_sniffing_enabled">Trafikdən hədəf domenləri təyin edin (standart olaraq aktivdir).</string>

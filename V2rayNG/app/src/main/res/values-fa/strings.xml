@@ -205,6 +205,8 @@
 
     <string name="title_pref_speed_enabled">فعال کردن نمایش سرعت</string>
     <string name="summary_pref_speed_enabled">نمایش سرعت‌های فعلی در اعلان.\nنماد نشان می‌دهد ترافیک پروکسی بیشتر است یا ترافیک مستقیم.</string>
+    <string name="title_pref_diagnostic_traffic_stats">عیب‌یابی آمار ترافیک</string>
+    <string name="summary_pref_diagnostic_traffic_stats">سه خواندن خام نخست آمار ترافیک Xray را در گزارش نشان می‌دهد. نشانی سرور یا داده‌های نمایه نمایش داده نمی‌شود.</string>
 
     <string name="title_pref_sniffing_enabled">فعال‌سازی تشخیص دامنهٔ مقصد در ترافیک (Sniffing)</string>
     <string name="summary_pref_sniffing_enabled">شناسایی دامنه‌های مقصد از ترافیک (به‌طور پیش‌فرض فعال است).</string>

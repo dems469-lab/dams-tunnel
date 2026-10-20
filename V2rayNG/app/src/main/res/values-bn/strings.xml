@@ -205,6 +205,8 @@
 
     <string name="title_pref_speed_enabled">গতি প্রদর্শন সক্রিয় করুন</string>
     <string name="summary_pref_speed_enabled">বিজ্ঞপ্তিতে বর্তমান সংযোগের গতি দেখান।\nআইকনটি প্রক্সি বা সরাসরি ট্রাফিকের মধ্যে কোনটি বেশি তা দেখায়।</string>
+    <string name="title_pref_diagnostic_traffic_stats">ট্রাফিক পরিসংখ্যান নির্ণয়</string>
+    <string name="summary_pref_diagnostic_traffic_stats">জার্নালে Xray ট্রাফিক পরিসংখ্যানের প্রথম তিনটি কাঁচা পাঠ দেখায়। সার্ভারের ঠিকানা বা প্রোফাইলের তথ্য থাকে না।</string>
 
     <string name="title_pref_sniffing_enabled">ট্রাফিকের গন্তব্য ডোমেইন শনাক্তকরণ চালু করুন (Sniffing)</string>
     <string name="summary_pref_sniffing_enabled">ট্রাফিক থেকে গন্তব্য ডোমেইন শনাক্ত করুন (ডিফল্টভাবে চালু)।</string>

@@ -372,7 +372,15 @@ object CoreServiceManager {
             while (isRunning()) {
                 delay(1000L)
                 val now = System.currentTimeMillis()
-                val diagnosticRead = (++trafficStatsDiagnosticRead).takeIf { it <= 3 }
+                val diagnosticEnabled = BuildConfig.DEBUG || MmkvManager.decodeSettingsBool(
+                    AppConfig.PREF_DIAGNOSTIC_TRAFFIC_STATS,
+                    false,
+                )
+                val diagnosticRead = if (diagnosticEnabled && trafficStatsDiagnosticRead < 3) {
+                    ++trafficStatsDiagnosticRead
+                } else {
+                    null
+                }
                 val stats = queryAllOutboundTrafficStats(diagnosticRead)
                 // QueryAllOutboundTrafficStats reads and resets Xray's counters.
                 // Device-wide counters include unrelated apps and must not be
