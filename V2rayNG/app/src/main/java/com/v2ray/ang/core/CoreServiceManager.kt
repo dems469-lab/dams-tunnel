@@ -9,8 +9,10 @@ import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.contracts.IDialerService
 import com.v2ray.ang.contracts.ServiceControl
 import com.v2ray.ang.dto.ConnectionTestResult
@@ -58,6 +60,7 @@ object CoreServiceManager {
     private val _trafficSnapshot = MutableStateFlow(TrafficSnapshot())
     val trafficSnapshot: StateFlow<TrafficSnapshot> = _trafficSnapshot.asStateFlow()
     private var trafficStatsJob: kotlinx.coroutines.Job? = null
+    private var trafficStatsDiagnosticRead = 0
     private var connectionVerificationJob: kotlinx.coroutines.Job? = null
     private var delayMeasurementJob: kotlinx.coroutines.Job? = null
     private var healthCheckJob: kotlinx.coroutines.Job? = null
@@ -363,12 +366,14 @@ object CoreServiceManager {
 
     private fun startTrafficStats(service: Service) {
         trafficStatsJob?.cancel()
+        trafficStatsDiagnosticRead = 0
         trafficStatsJob = connectionTestScope.launch {
             var previousTime = System.currentTimeMillis()
             while (isRunning()) {
                 delay(1000L)
                 val now = System.currentTimeMillis()
-                val stats = queryAllOutboundTrafficStats()
+                val diagnosticRead = (++trafficStatsDiagnosticRead).takeIf { it <= 3 }
+                val stats = queryAllOutboundTrafficStats(diagnosticRead)
                 // QueryAllOutboundTrafficStats reads and resets Xray's counters.
                 // Device-wide counters include unrelated apps and must not be
                 // presented as tunnel traffic.
@@ -510,20 +515,33 @@ object CoreServiceManager {
      * Reads and resets counters through the stable API exported by the pinned
      * libv2ray AAR. The newer QueryAll helper is not present in the CI artifact.
      */
-    fun queryAllOutboundTrafficStats(): List<OutboundTrafficStat> {
+    fun queryAllOutboundTrafficStats(diagnosticRead: Int? = null): List<OutboundTrafficStat> {
         if (!isRunning()) return emptyList()
-        return runCatching {
+        return try {
             val tags = linkedSetOf(AppConfig.TAG_PROXY, AppConfig.TAG_DIRECT)
             val values = mutableListOf<OutboundTrafficStat>()
             tags.forEach { tag ->
                 values += OutboundTrafficStat(tag, AppConfig.UPLINK, coreController.queryStats(tag, AppConfig.UPLINK))
                 values += OutboundTrafficStat(tag, AppConfig.DOWNLINK, coreController.queryStats(tag, AppConfig.DOWNLINK))
             }
+            if (BuildConfig.DEBUG && diagnosticRead != null) {
+                Log.d(
+                    TRAFFIC_STATS_DIAGNOSTIC_TAG,
+                    "read=$diagnosticRead queriedTags=${tags.joinToString()} raw=${values.joinToString { "${it.tag}/${it.direction}=${it.value}" }}",
+                )
+            }
             values
-        }.onFailure {
-            LogUtil.w(AppConfig.TAG, "StartCore-Manager: failed to query traffic statistics", it)
-        }.getOrDefault(emptyList())
+        } catch (error: Exception) {
+            if (BuildConfig.DEBUG && diagnosticRead != null) {
+                // N'écrit que le type d'exception : le message natif peut contenir des données sensibles.
+                Log.d(TRAFFIC_STATS_DIAGNOSTIC_TAG, "read=$diagnosticRead query failed: ${error.javaClass.simpleName}")
+            }
+            LogUtil.w(AppConfig.TAG, "StartCore-Manager: failed to query traffic statistics", error)
+            emptyList()
+        }
     }
+
+    private const val TRAFFIC_STATS_DIAGNOSTIC_TAG = "DamsTrafficStats"
 
     /**
      * Measures the connection delay for the current V2Ray configuration.
