@@ -86,6 +86,7 @@ class BackupActivity : HelperBaseComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         observeViewModel()
+        viewModel.cleanupOldBackupTempFiles(cacheDir)
         (intent.getStringExtra(EXTRA_DAMS_URI)?.let { Uri.parse(it) } ?: intent.data)?.let {
             showDamsImportDialog(it)
         }

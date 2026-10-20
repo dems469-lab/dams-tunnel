@@ -28,6 +28,18 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
     private val _webDavConfig = MutableStateFlow(MmkvManager.decodeWebDavConfig())
     val webDavConfig: StateFlow<WebDavConfig?> = _webDavConfig.asStateFlow()
 
+    fun cleanupOldBackupTempFiles(cacheDir: File) {
+        launchLoading {
+            withContext(Dispatchers.IO) {
+                deleteExpiredBackupTempFiles(
+                    cacheDir,
+                    System.currentTimeMillis(),
+                    BACKUP_TEMP_MAX_AGE_MILLIS,
+                )
+            }
+        }
+    }
+
     sealed interface BackupViewModelEvent : ViewModelEvent {
         data class ShareFile(val filePath: String) : BackupViewModelEvent
         data class ExportLocal(val cachePath: String, val targetUri: Uri) : BackupViewModelEvent
@@ -95,15 +107,17 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                     toastError(R.string.toast_failure)
                     return@launchLoading
                 }
-                val zipBytes = File(ret.second).readBytes()
-                val damsBytes = DamsFileCodec.encrypt(
-                    zipBytes,
-                    DamsFileCodec.ExportOptions(password, expiresAtEpochMillis),
-                )
-                val damsPath = File(cacheDir, "${appName}_${System.currentTimeMillis()}.dams")
-                damsPath.writeBytes(damsBytes)
-                File(ret.second).delete()
-                _viewModelEvent.send(BackupViewModelEvent.ExportLocal(damsPath.absolutePath, targetUri))
+                val zipFile = File(ret.second)
+                withTemporaryFileCleanup(zipFile) {
+                    val zipBytes = zipFile.readBytes()
+                    val damsBytes = DamsFileCodec.encrypt(
+                        zipBytes,
+                        DamsFileCodec.ExportOptions(password, expiresAtEpochMillis),
+                    )
+                    val damsPath = File(cacheDir, "${appName}_${System.currentTimeMillis()}.dams")
+                    damsPath.writeBytes(damsBytes)
+                    _viewModelEvent.send(BackupViewModelEvent.ExportLocal(damsPath.absolutePath, targetUri))
+                }
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "Failed to create Dams export", e)
                 toastError(R.string.toast_failure)
@@ -132,11 +146,12 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
         launchLoading {
             try {
                 val zipFile = File(cacheDir, "restore_${System.currentTimeMillis()}.zip")
-                zipFile.writeBytes(DamsFileCodec.decrypt(damsFile.readBytes(), password))
-                val success = performRestore(cacheDir, zipFile)
-                zipFile.delete()
-                if (!success) {
-                    throw IllegalStateException("The .dams archive could not be restored")
+                withTemporaryFileCleanup(zipFile) {
+                    zipFile.writeBytes(DamsFileCodec.decrypt(damsFile.readBytes(), password))
+                    val success = performRestore(cacheDir, zipFile)
+                    if (!success) {
+                        throw IllegalStateException("The .dams archive could not be restored")
+                    }
                 }
                 damsFile.delete()
                 toastSuccess(R.string.toast_success)
@@ -261,4 +276,8 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                 backupDir.deleteRecursively()
             }
         }
+
+    private companion object {
+        const val BACKUP_TEMP_MAX_AGE_MILLIS = 24L * 60 * 60 * 1000
+    }
 }
