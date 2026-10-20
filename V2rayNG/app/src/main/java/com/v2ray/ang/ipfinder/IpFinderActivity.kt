@@ -142,15 +142,9 @@ class IpFinderActivity : BaseComponentActivity() {
     }
 
     private fun getCurrentAssistantLabel(): String {
-        val rolePackage = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            getSystemService(RoleManager::class.java)
-                ?.getRoleHolders(RoleManager.ROLE_ASSISTANT)
-                ?.firstOrNull()
-        } else null
         val settingValue = Settings.Secure.getString(contentResolver, "voice_interaction_service")
             ?: Settings.Secure.getString(contentResolver, "assistant")
-        val currentPackage = rolePackage
-            ?: ComponentName.unflattenFromString(settingValue)?.packageName
+        val currentPackage = ComponentName.unflattenFromString(settingValue)?.packageName
             ?: settingValue?.substringBefore('/')?.takeIf { it.contains('.') }
         return currentPackage?.let { assistantPackage ->
             runCatching {
