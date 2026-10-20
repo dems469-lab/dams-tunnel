@@ -230,11 +230,12 @@ class BackupActivity : HelperBaseComponentActivity() {
                     input.copyTo(output)
                 }
             }
-            File(cachePath).delete()
             toastSuccess(R.string.toast_success)
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to copy backup to Uri", e)
             toastError(R.string.toast_failure)
+        } finally {
+            File(cachePath).delete()
         }
     }
 
@@ -273,9 +274,8 @@ class BackupActivity : HelperBaseComponentActivity() {
             if (uri == null) {
                 return@launchFileChooser
             }
+            val targetFile = File(cacheDir.absolutePath, "${System.currentTimeMillis()}.zip")
             try {
-                val targetFile =
-                    File(cacheDir.absolutePath, "${System.currentTimeMillis()}.zip")
                 contentResolver.openInputStream(uri).use { input ->
                     targetFile.outputStream().use { fileOut ->
                         input?.copyTo(fileOut)
@@ -283,6 +283,7 @@ class BackupActivity : HelperBaseComponentActivity() {
                 }
                 viewModel.restoreConfiguration(cacheDir, targetFile)
             } catch (e: Exception) {
+                targetFile.delete()
                 LogUtil.e(AppConfig.TAG, "Error during file restore", e)
                 toastError(R.string.toast_failure)
             }

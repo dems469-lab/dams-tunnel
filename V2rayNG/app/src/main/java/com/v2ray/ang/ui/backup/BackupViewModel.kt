@@ -127,11 +127,18 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
 
     fun restoreConfiguration(cacheDir: File, zipFile: File) {
         launchLoading {
-            val success = performRestore(cacheDir, zipFile)
-            if (success) {
-                toastSuccess(R.string.toast_success)
-                _viewModelEvent.send(BackupViewModelEvent.RestoreSuccess)
-            } else {
+            try {
+                val success = withTemporaryFileCleanup(zipFile) {
+                    performRestore(cacheDir, zipFile)
+                }
+                if (success) {
+                    toastSuccess(R.string.toast_success)
+                    _viewModelEvent.send(BackupViewModelEvent.RestoreSuccess)
+                } else {
+                    toastError(R.string.toast_failure)
+                }
+            } catch (e: Exception) {
+                LogUtil.e(AppConfig.TAG, "Failed to restore ZIP backup", e)
                 toastError(R.string.toast_failure)
             }
         }
