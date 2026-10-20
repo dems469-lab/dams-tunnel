@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -434,7 +435,9 @@ private fun DamsDashboard(
     val serverSummary = if (selectedServerAddress.isNullOrBlank()) {
         stringResource(R.string.dams_select_server_prompt)
     } else {
-        listOfNotNull(selectedServerAddress, protocolName).joinToString(" · ")
+        // The target address is sensitive metadata.  It must not be exposed on the
+        // dashboard or accidentally captured in a screenshot.
+        stringResource(R.string.dams_connection_details_hidden)
     }
     Column(
         modifier = Modifier
@@ -535,7 +538,11 @@ private fun DamsDashboard(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = selectedServerName ?: groupName ?: stringResource(R.string.dams_no_server_selected),
+                        text = if (selectedServerAddress.isNullOrBlank()) {
+                            selectedServerName ?: groupName ?: stringResource(R.string.dams_no_server_selected)
+                        } else {
+                            stringResource(R.string.dams_active_configuration)
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -553,27 +560,27 @@ private fun DamsDashboard(
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            DashboardMetric(
-                modifier = Modifier.weight(1f),
-                title = stringResource(R.string.dams_metric_latency),
-                value = when {
-                    delayMillis == null || delayMillis == 0L -> "—"
-                    delayMillis < 0 -> stringResource(R.string.dams_metric_unavailable)
-                    else -> "$delayMillis ms"
-                },
-                onClick = onTestConnection,
-            )
-            DashboardMetric(
-                modifier = Modifier.weight(1f),
-                title = stringResource(R.string.dams_metric_download),
-                value = if (isRunning) downloadBytesPerSecond.toSpeedString() else "—",
-            )
-            DashboardMetric(
-                modifier = Modifier.weight(1f),
-                title = stringResource(R.string.dams_metric_upload),
-                value = if (isRunning) uploadBytesPerSecond.toSpeedString() else "—",
-            )
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val latency = when {
+                delayMillis == null || delayMillis == 0L -> "—"
+                delayMillis < 0 -> stringResource(R.string.dams_metric_unavailable)
+                else -> "$delayMillis ms"
+            }
+            if (maxWidth < 360.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_latency), latency, onTestConnection)
+                        DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_download), if (isRunning) downloadBytesPerSecond.toSpeedString() else "—")
+                    }
+                    DashboardMetric(Modifier.fillMaxWidth(), stringResource(R.string.dams_metric_upload), if (isRunning) uploadBytesPerSecond.toSpeedString() else "—")
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_latency), latency, onTestConnection)
+                    DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_download), if (isRunning) downloadBytesPerSecond.toSpeedString() else "—")
+                    DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_upload), if (isRunning) uploadBytesPerSecond.toSpeedString() else "—")
+                }
+            }
         }
         if (isRunning && trafficHistory.size > 1) {
             val graphColor = MaterialTheme.colorScheme.secondary
@@ -585,16 +592,29 @@ private fun DamsDashboard(
                 Canvas(Modifier.fillMaxSize().padding(12.dp)) {
                     val max = trafficHistory.maxOf { maxOf(it.uplinkBytesPerSecond, it.downlinkBytesPerSecond) }
                         .coerceAtLeast(1L).toFloat()
-                    val path = Path()
+                    val downlinkPath = Path()
+                    val uplinkPath = Path()
                     trafficHistory.forEachIndexed { index, point ->
                         val x = size.width * index / (trafficHistory.size - 1).toFloat()
-                        val y = size.height * (1f - point.downlinkBytesPerSecond / max)
-                        if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                        val downlinkY = size.height * (1f - point.downlinkBytesPerSecond / max)
+                        val uplinkY = size.height * (1f - point.uplinkBytesPerSecond / max)
+                        if (index == 0) {
+                            downlinkPath.moveTo(x, downlinkY)
+                            uplinkPath.moveTo(x, uplinkY)
+                        } else {
+                            downlinkPath.lineTo(x, downlinkY)
+                            uplinkPath.lineTo(x, uplinkY)
+                        }
                     }
                     drawPath(
-                        path,
+                        downlinkPath,
                         graphColor,
                         style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f),
+                    )
+                    drawPath(
+                        uplinkPath,
+                        MaterialTheme.colorScheme.primary,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f),
                     )
                 }
             }

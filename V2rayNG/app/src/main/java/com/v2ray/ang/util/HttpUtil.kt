@@ -167,7 +167,8 @@ object HttpUtil {
 
             val headersMap = JsonUtil.parseHeadersToMap(request.requestHeaders)
             for ((key, value) in headersMap) {
-                LogUtil.d(AppConfig.TAG, "Adding custom header: $key = $value")
+                // Header values may contain subscription credentials or tokens.
+                LogUtil.d(AppConfig.TAG, "Adding custom HTTP header: $key")
                 try {
                     requestBuilder.header(key, value)
                 } catch (_: IllegalArgumentException) {
@@ -286,7 +287,7 @@ object HttpUtil {
         return try {
             client.newCall(requestBuilder.build()).execute().use { response ->
                 if (!response.isSuccessful) {
-                    LogUtil.w(AppConfig.TAG, "Failed to download file, code=${response.code}, url=$url")
+                    LogUtil.w(AppConfig.TAG, "Failed to download file, code=${response.code}")
                     return false
                 }
                 val body = response.body ?: return false
@@ -298,7 +299,7 @@ object HttpUtil {
                 true
             }
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to download file: $url", e)
+            LogUtil.e(AppConfig.TAG, "Failed to download file", e)
             false
         }
     }

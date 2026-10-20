@@ -31,6 +31,7 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
     sealed interface BackupViewModelEvent : ViewModelEvent {
         data class ShareFile(val filePath: String) : BackupViewModelEvent
         data class ExportLocal(val cachePath: String, val targetUri: Uri) : BackupViewModelEvent
+        data class DamsRestoreFailed(val remainingAttempts: Int) : BackupViewModelEvent
         object RestoreSuccess : BackupViewModelEvent
     }
 
@@ -122,23 +123,30 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
-    fun restoreDamsConfiguration(cacheDir: File, damsFile: File, password: String) {
+    fun restoreDamsConfiguration(
+        cacheDir: File,
+        damsFile: File,
+        password: String,
+        attemptsRemaining: Int,
+    ) {
         launchLoading {
             try {
                 val zipFile = File(cacheDir, "restore_${System.currentTimeMillis()}.zip")
                 zipFile.writeBytes(DamsFileCodec.decrypt(damsFile.readBytes(), password))
                 val success = performRestore(cacheDir, zipFile)
                 zipFile.delete()
-                damsFile.delete()
-                if (success) {
-                    toastSuccess(R.string.toast_success)
-                    _viewModelEvent.send(BackupViewModelEvent.RestoreSuccess)
-                } else {
-                    toastError(R.string.toast_failure)
+                if (!success) {
+                    throw IllegalStateException("The .dams archive could not be restored")
                 }
+                damsFile.delete()
+                toastSuccess(R.string.toast_success)
+                _viewModelEvent.send(BackupViewModelEvent.RestoreSuccess)
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "Failed to restore Dams export", e)
-                toastError(R.string.dams_file_invalid)
+                val remaining = (attemptsRemaining - 1).coerceAtLeast(0)
+                _viewModelEvent.send(BackupViewModelEvent.DamsRestoreFailed(remaining))
+            } finally {
+                damsFile.delete()
             }
         }
     }

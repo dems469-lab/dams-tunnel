@@ -44,6 +44,7 @@ import com.v2ray.ang.ui.server.ServerSocksActivity
 import com.v2ray.ang.ui.server.ServerTrojanActivity
 import com.v2ray.ang.ui.server.ServerVlessActivity
 import com.v2ray.ang.ui.server.ServerVmessActivity
+import com.v2ray.ang.util.DamsFileCodec
 import com.v2ray.ang.ui.server.ServerWireguardActivity
 import com.v2ray.ang.ui.settings.SettingsActivity
 import com.v2ray.ang.ui.subscription.SubSettingActivity
@@ -272,7 +273,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 val header = contentResolver.openInputStream(uri)?.use { input ->
                     ByteArray(5).also { bytes -> input.read(bytes) }
                 }
-                if (header?.contentEquals("DAMS1".toByteArray()) == true) {
+                if (header != null && DamsFileCodec.isDamsFile(header)) {
                     startActivity(
                         Intent(this, BackupActivity::class.java).putExtra(
                             BackupActivity.EXTRA_DAMS_URI,

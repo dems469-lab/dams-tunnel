@@ -37,6 +37,8 @@
     <string name="dams_version_format">v%1$s</string>
     <string name="dams_secure_connection">Connexion sécurisée</string>
     <string name="dams_privacy_protected">Votre vie privée est protégée</string>
+    <string name="dams_connection_details_hidden">Détails du serveur masqués</string>
+    <string name="dams_active_configuration">Configuration active</string>
     <string name="dams_ready_to_connect">Prêt à se connecter</string>
     <string name="dams_no_server_selected">Aucune configuration sélectionnée</string>
     <string name="dams_select_server_prompt">Choisissez une configuration pour commencer</string>
@@ -131,6 +133,7 @@
     <string name="title_dams_export">Exporter un fichier .dams protégé</string>
     <string name="title_dams_password">Mot de passe</string>
     <string name="title_dams_password_confirm">Confirmer le mot de passe</string>
+    <string name="title_dams_restore_attempts">Restaurer (.dams) — %1$d essais restants</string>
     <string name="dams_password_mismatch">Les mots de passe ne correspondent pas.</string>
     <string name="title_dams_expiry">Date d\'expiration (facultatif)</string>
     <string name="dams_no_expiry">Aucune expiration</string>

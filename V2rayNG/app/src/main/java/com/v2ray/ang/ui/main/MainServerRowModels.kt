@@ -48,13 +48,9 @@ private fun serverProtocolDescription(profile: ProfileItem): String {
     }
     profile.security?.let { security ->
         if (security.isNotBlank()) {
-            parts.add(
-                if (profile.insecure == true && security.equals("tls", ignoreCase = true)) {
-                    "$security insecure"
-                } else {
-                    security
-                }
-            )
+            // The security option remains editable in the profile screen, but the
+            // warning label is intentionally kept out of the main connection UI.
+            parts.add(security)
         }
     }
     return parts.joinToString(" / ")

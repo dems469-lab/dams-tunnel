@@ -30,7 +30,6 @@ import com.v2ray.ang.service.DialerNativeService
 import com.v2ray.ang.service.DialerWebviewService
 import com.v2ray.ang.service.NetworkMonitor
 import com.v2ray.ang.util.LogUtil
-import com.v2ray.ang.util.TrafficStatsParser
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
@@ -43,6 +42,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.isActive
 import libv2ray.CoreCallbackHandler
 import libv2ray.CoreController
 import java.lang.ref.SoftReference
@@ -58,6 +58,11 @@ object CoreServiceManager {
     private val _trafficSnapshot = MutableStateFlow(TrafficSnapshot())
     val trafficSnapshot: StateFlow<TrafficSnapshot> = _trafficSnapshot.asStateFlow()
     private var trafficStatsJob: kotlinx.coroutines.Job? = null
+    private var connectionVerificationJob: kotlinx.coroutines.Job? = null
+    private var delayMeasurementJob: kotlinx.coroutines.Job? = null
+    private var healthCheckJob: kotlinx.coroutines.Job? = null
+    private var reconnectJob: kotlinx.coroutines.Job? = null
+    private var reconnectAttempt = 0
 
     @Volatile
     private var isReloading = false
@@ -66,9 +71,17 @@ object CoreServiceManager {
     @Volatile
     private var userStopped = true
 
+    @Volatile
+    private var connectionVerified = false
+
     /** Appelé uniquement par une action explicite de l'utilisateur. */
     fun markUserStopped() {
         userStopped = true
+        reconnectJob?.cancel()
+        reconnectJob = null
+        healthCheckJob?.cancel()
+        healthCheckJob = null
+        reconnectAttempt = 0
     }
 
     /** Tun descriptor the core was started with, null in the proxy only and root run modes. */
@@ -113,6 +126,7 @@ object CoreServiceManager {
         try {
             userStopped = false
             failoverAttempted = false
+            connectionVerified = false
             doStartCoreLoop(service, vpnInterface)
             return true
         } catch (e: Exception) {
@@ -142,9 +156,9 @@ object CoreServiceManager {
         val guid = MmkvManager.getSelectServer() ?: error("No server selected")
         val config = MmkvManager.decodeServerConfig(guid) ?: error("Failed to decode server config")
 
-        LogUtil.i(AppConfig.TAG, "StartCore-Manager: Starting core loop for ${config.remarks}")
+        LogUtil.i(AppConfig.TAG, "StartCore-Manager: Starting core loop for profile $guid")
         val result = CoreConfigManager.getV2rayConfig(service, guid)
-        LogUtil.d(AppConfig.TAG, result.content)
+        LogUtil.d(AppConfig.TAG, "Generated Xray configuration for profile $guid")
         if (!result.status) {
             error(result.errorMessage.ifBlank { "Failed to get V2Ray config" })
         }
@@ -205,32 +219,122 @@ object CoreServiceManager {
      * Only publish CONNECTED after a request has crossed the running core.
      */
     private fun verifyConnection(service: Service) {
-        connectionTestScope.launch {
+        connectionVerificationJob?.cancel()
+        connectionVerificationJob = connectionTestScope.launch {
             var delayMillis = -1L
             var lastError: String? = null
             for (attempt in 0 until 2) {
                 if (attempt > 0) delay(1500L)
                 try {
-                    delayMillis = coreController.measureDelay(SettingsManager.getDelayTestUrl())
+                    delayMillis = measureDelayWithFallback()
                     if (delayMillis >= 0) break
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     lastError = e.message
                     LogUtil.w(AppConfig.TAG, "StartCore-Manager: connectivity verification failed", e)
                 }
             }
             if (delayMillis >= 0 && isRunning()) {
+                connectionVerified = true
+                reconnectAttempt = 0
+                startHealthCheck(service)
                 NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_connected), android.graphics.Color.rgb(34, 211, 238))
                 MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
             } else if (isRunning()) {
+                connectionVerified = false
                 if (!failoverAttempted && tryFailover(service)) {
                     return@launch
                 }
                 val message = service.getString(com.v2ray.ang.R.string.connection_verification_failed)
                 LogUtil.e(AppConfig.TAG, "StartCore-Manager: no traffic after startup: ${lastError ?: "unknown error"}")
-                MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
-                NotificationManager.updateState(message, android.graphics.Color.rgb(239, 68, 68))
-                stopCoreLoop(cancelConnectionChecks = false)
-                service.stopSelf()
+                // The core is still alive and the user did not stop it.  Keep the
+                // lifecycle in reconnecting state so the UI does not present a
+                // terminal failure while the backoff loop is still working.
+                MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, message)
+                NotificationManager.updateState(
+                    service.getString(com.v2ray.ang.R.string.connection_reconnecting),
+                    android.graphics.Color.rgb(245, 196, 81),
+                )
+                scheduleReconnect(service)
+            }
+        }
+    }
+
+    private fun startHealthCheck(service: Service) {
+        healthCheckJob?.cancel()
+        healthCheckJob = connectionTestScope.launch {
+            while (isActive && !userStopped && isRunning()) {
+                delay(15_000L)
+                if (!isRunning() || userStopped) break
+                val reachable = try {
+                    measureDelayWithFallback() >= 0L
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    false
+                }
+                if (!reachable) {
+                    connectionVerified = false
+                    MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
+                    NotificationManager.updateState(
+                        service.getString(com.v2ray.ang.R.string.connection_reconnecting),
+                        android.graphics.Color.rgb(245, 196, 81),
+                    )
+                    scheduleReconnect(service)
+                    break
+                }
+            }
+        }
+    }
+
+    /**
+     * Tests the configured endpoint and then the alternate endpoint when the first
+     * request returns a negative delay.  A negative result is a failed probe, not
+     * a reason to declare the VPN connected.
+     */
+    private fun measureDelayWithFallback(): Long {
+        val primary = coreController.measureDelay(SettingsManager.getDelayTestUrl())
+        if (primary >= 0L) return primary
+        return coreController.measureDelay(SettingsManager.getDelayTestUrl(true))
+    }
+
+    private fun scheduleReconnect(service: Service) {
+        if (userStopped || reconnectJob?.isActive == true) return
+        reconnectJob = connectionTestScope.launch {
+            val backoff = longArrayOf(2_000L, 5_000L, 10_000L, 30_000L)
+            while (isActive && !userStopped && !connectionVerified) {
+                val wait = backoff[reconnectAttempt.coerceAtMost(backoff.lastIndex)]
+                reconnectAttempt++
+                delay(wait)
+                if (userStopped) return@launch
+                val currentService = getService() ?: return@launch
+                MessageHelper.sendMsg2UI(currentService, AppConfig.MSG_STATE_RECONNECTING, "")
+                NotificationManager.updateState(
+                    currentService.getString(com.v2ray.ang.R.string.connection_reconnecting),
+                    android.graphics.Color.rgb(245, 196, 81),
+                )
+                try {
+                    if (isRunning()) {
+                        reloadCore(cancelConnectionChecks = false)
+                    } else {
+                        LauncherManager.startService(currentService)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // Keep retrying after a transient launcher or core error.
+                }
+                // A running loop is not yet a working connection. Wait for its
+                // connectivity probe, then retry if that probe failed. This avoids
+                // losing the next retry when verification fails while this job is
+                // still marked active.
+                kotlinx.coroutines.withTimeoutOrNull(60_000L) {
+                    while (isActive && !userStopped && !connectionVerified) {
+                        connectionVerificationJob?.join()
+                        if (!connectionVerified) delay(500L)
+                    }
+                }
             }
         }
     }
@@ -265,6 +369,9 @@ object CoreServiceManager {
                 delay(1000L)
                 val now = System.currentTimeMillis()
                 val stats = queryAllOutboundTrafficStats()
+                // QueryAllOutboundTrafficStats reads and resets Xray's counters.
+                // Device-wide counters include unrelated apps and must not be
+                // presented as tunnel traffic.
                 val uplink = stats.filter { it.direction == AppConfig.UPLINK }.sumOf { it.value }
                 val downlink = stats.filter { it.direction == AppConfig.DOWNLINK }.sumOf { it.value }
                 val seconds = ((now - previousTime).coerceAtLeast(1L)) / 1000.0
@@ -288,7 +395,17 @@ object CoreServiceManager {
      * @return True if the core was stopped successfully, false otherwise.
      */
     fun stopCoreLoop(cancelConnectionChecks: Boolean = true): Boolean {
+        connectionVerified = false
         if (cancelConnectionChecks) connectionTestScope.coroutineContext.cancelChildren()
+        healthCheckJob?.cancel()
+        healthCheckJob = null
+        reconnectJob?.cancel()
+        reconnectJob = null
+        reconnectAttempt = 0
+        connectionVerificationJob?.cancel()
+        connectionVerificationJob = null
+        delayMeasurementJob?.cancel()
+        delayMeasurementJob = null
         trafficStatsJob?.cancel()
         trafficStatsJob = null
         _trafficSnapshot.value = TrafficSnapshot()
@@ -299,7 +416,7 @@ object CoreServiceManager {
         currentVpnInterface = null
 
         if (isRunning()) {
-            CoroutineScope(Dispatchers.IO).launch {
+            connectionTestScope.launch {
                 try {
                     coreController.stopLoop()
                 } catch (e: Exception) {
@@ -362,7 +479,13 @@ object CoreServiceManager {
             val tunFd = currentVpnInterface
 
             isReloading = true
-            if (cancelConnectionChecks) connectionTestScope.coroutineContext.cancelChildren()
+            connectionVerified = false
+            if (cancelConnectionChecks) {
+                connectionVerificationJob?.cancel()
+                delayMeasurementJob?.cancel()
+                healthCheckJob?.cancel()
+                trafficStatsJob?.cancel()
+            }
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload start...")
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
             NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_reconnecting), android.graphics.Color.rgb(245, 196, 81))
@@ -375,7 +498,8 @@ object CoreServiceManager {
         } catch (e: Exception) {
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to reload core: $message", e)
-            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
+            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
+            if (!userStopped) scheduleReconnect(service)
             false
         } finally {
             isReloading = false
@@ -383,19 +507,19 @@ object CoreServiceManager {
     }
 
     /**
-     * Queries and resets all outbound traffic counters in one core call.
-     * Go side format: tag,direction,value;tag,direction,value;
+     * Reads and resets counters through the stable API exported by the pinned
+     * libv2ray AAR. The newer QueryAll helper is not present in the CI artifact.
      */
     fun queryAllOutboundTrafficStats(): List<OutboundTrafficStat> {
         if (!isRunning()) return emptyList()
         return runCatching {
-            // La méthode n'existe pas dans toutes les versions de l'AAR libv2ray.
-            // L'appel réflexif conserve la compatibilité binaire et active les
-            // statistiques lorsque le cœur les supporte.
-            val method = coreController.javaClass.methods.firstOrNull {
-                it.name == "queryAllOutboundTrafficStats" && it.parameterCount == 0
-            } ?: return@runCatching emptyList()
-            TrafficStatsParser.parse(method.invoke(coreController) as? String ?: "")
+            val tags = linkedSetOf(AppConfig.TAG_PROXY, AppConfig.TAG_DIRECT)
+            val values = mutableListOf<OutboundTrafficStat>()
+            tags.forEach { tag ->
+                values += OutboundTrafficStat(tag, AppConfig.UPLINK, coreController.queryStats(tag, AppConfig.UPLINK))
+                values += OutboundTrafficStat(tag, AppConfig.DOWNLINK, coreController.queryStats(tag, AppConfig.DOWNLINK))
+            }
+            values
         }.onFailure {
             LogUtil.w(AppConfig.TAG, "StartCore-Manager: failed to query traffic statistics", it)
         }.getOrDefault(emptyList())
@@ -413,8 +537,8 @@ object CoreServiceManager {
             return
         }
 
-        connectionTestScope.coroutineContext.cancelChildren()
-        connectionTestScope.launch {
+        delayMeasurementJob?.cancel()
+        val measurementJob = connectionTestScope.launch {
             var time = -1L
             var errorStr = ""
 
@@ -449,7 +573,9 @@ object CoreServiceManager {
                     MessageHelper.sendMsg2UI(service, AppConfig.MSG_MEASURE_DELAY_CANCEL, "", requestId)
                 }
             }
-        }.invokeOnCompletion { cause ->
+        }
+        delayMeasurementJob = measurementJob
+        measurementJob.invokeOnCompletion { cause ->
             if (cause is CancellationException) {
                 MessageHelper.sendMsg2UI(service, AppConfig.MSG_MEASURE_DELAY_CANCEL, "", requestId)
             }
@@ -515,7 +641,11 @@ object CoreServiceManager {
             when (intent?.getIntExtra("key", 0)) {
                 AppConfig.MSG_REGISTER_CLIENT -> {
                     if (isRunning()) {
-                        MessageHelper.sendMsg2UI(serviceControl.getService(), AppConfig.MSG_STATE_RUNNING, "")
+                        MessageHelper.sendMsg2UI(
+                            serviceControl.getService(),
+                            if (connectionVerified) AppConfig.MSG_STATE_START_SUCCESS else AppConfig.MSG_STATE_CONNECTING,
+                            "",
+                        )
                     } else {
                         MessageHelper.sendMsg2UI(serviceControl.getService(), AppConfig.MSG_STATE_NOT_RUNNING, "")
                     }
@@ -541,7 +671,7 @@ object CoreServiceManager {
                     if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
 
                     val pendingResult = goAsync()
-                    CoroutineScope(Dispatchers.Default).launch {
+                    connectionTestScope.launch {
                         try {
                             serviceControl.stopService()
                             delay(500L)

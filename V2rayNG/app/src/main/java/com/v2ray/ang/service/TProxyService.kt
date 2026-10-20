@@ -51,7 +51,7 @@ class TProxyService(
             writeText(configContent)
         }
 //        LogUtil.i(AppConfig.TAG, "Config file created: ${configFile.absolutePath}")
-        LogUtil.d(AppConfig.TAG, "HevSocks5Tunnel Config content:\n$configContent")
+        LogUtil.d(AppConfig.TAG, "HevSocks5Tunnel configuration prepared")
 
         try {
 //            LogUtil.i(AppConfig.TAG, "TProxyStartService...")

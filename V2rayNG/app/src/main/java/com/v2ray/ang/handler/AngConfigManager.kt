@@ -75,16 +75,19 @@ object AngConfigManager {
         return 0
     }
 
-    /** Copies a Dams profile link while keeping the standard protocol URI inside it. */
+    /**
+     * Copies a compact Dams profile link while keeping the standard protocol URI inside it.
+     *
+     * The payload is URL-safe Base64 without padding, for example
+     * `dams://dm1lc3M6Ly8uLg`.  The protocol version is deliberately encoded in the
+     * payload format rather than exposed as a route segment; the importer still accepts
+     * the former `dams://profile/v1/<payload>` links for backward compatibility.
+     */
     fun shareDamsProfileLink2Clipboard(context: Context, guid: String): Int {
         return try {
             val config = shareConfig(guid)
             if (config.isEmpty()) return -1
-            val encoded = Base64.encodeToString(
-                config.toByteArray(Charsets.UTF_8),
-                Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
-            )
-            Utils.setClipboard(context, "dams://profile/v1/$encoded")
+            Utils.setClipboard(context, encodeDamsProfileLink(config))
             0
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to share Dams profile link", e)
@@ -226,13 +229,27 @@ object AngConfigManager {
         }
     }
 
-    private fun decodeDamsProfileLink(value: String?): String? {
+    internal fun encodeDamsProfileLink(config: String): String {
+        val encoded = Base64.encodeToString(
+            config.toByteArray(Charsets.UTF_8),
+            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+        )
+        return "dams://$encoded"
+    }
+
+    internal fun decodeDamsProfileLink(value: String?): String? {
         if (value.isNullOrBlank()) return null
-        val uri = runCatching { URI(value.trim()) }.getOrNull() ?: return null
-        if (uri.scheme != "dams" || uri.host != "profile" || uri.path?.startsWith("/v1/") != true) {
-            return null
+        val rawValue = value.trim()
+        val encoded = when {
+            // Compatibility with links exported by earlier Dams Tunnel builds.
+            rawValue.startsWith("dams://profile/v1/", ignoreCase = true) ->
+                rawValue.substringAfter("dams://profile/v1/", missingDelimiterValue = "")
+
+            rawValue.startsWith("dams://", ignoreCase = true) ->
+                rawValue.substringAfter("dams://", missingDelimiterValue = "")
+
+            else -> ""
         }
-        val encoded = uri.path.removePrefix("/v1/")
         if (encoded.isEmpty()) return null
         return runCatching {
             Base64.decode(encoded, Base64.URL_SAFE or Base64.NO_WRAP).toString(Charsets.UTF_8)
@@ -517,7 +534,7 @@ object AngConfigManager {
                     return SubscriptionUpdateResult(failureCount = 1)
                 }
             }
-            LogUtil.i(AppConfig.TAG, url)
+            LogUtil.i(AppConfig.TAG, "Updating subscription ${it.subscription.remarks}")
             val userAgent = it.subscription.userAgent
             val requestHeaders = it.subscription.requestHeaders
             val proxyUsername = SettingsManager.getSocksUsername()

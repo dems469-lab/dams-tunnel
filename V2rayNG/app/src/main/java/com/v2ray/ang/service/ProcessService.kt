@@ -16,7 +16,8 @@ class ProcessService {
      * @param cmd The command to run.
      */
     fun runProcess(context: Context, cmd: MutableList<String>) {
-        LogUtil.i(AppConfig.TAG, cmd.toString())
+        // Process arguments can contain credentials; never write them to logs.
+        LogUtil.i(AppConfig.TAG, "Starting helper process (${cmd.firstOrNull() ?: "unknown"})")
 
         try {
             val proBuilder = ProcessBuilder(cmd)

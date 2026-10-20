@@ -67,14 +67,14 @@ object WebDavManager {
             cl.newCall(req).execute().use { resp ->
                 val success = resp.isSuccessful
                 if (success) {
-                    LogUtil.i(AppConfig.TAG, "WebDAV upload success: $remote")
+                    LogUtil.i(AppConfig.TAG, "WebDAV upload succeeded")
                 } else {
-                    LogUtil.e(AppConfig.TAG, "WebDAV upload failed: $remote (HTTP ${resp.code})")
+                    LogUtil.e(AppConfig.TAG, "WebDAV upload failed (HTTP ${resp.code})")
                 }
                 return@withContext success
             }
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "WebDAV upload exception: $remote", e)
+            LogUtil.e(AppConfig.TAG, "WebDAV upload failed", e)
             return@withContext false
         }
     }
@@ -93,7 +93,7 @@ object WebDavManager {
             val req = applyAuth(Request.Builder().url(remote).get()).build()
             cl.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) {
-                    LogUtil.e(AppConfig.TAG, "WebDAV download failed: $remote (HTTP ${resp.code})")
+                    LogUtil.e(AppConfig.TAG, "WebDAV download failed (HTTP ${resp.code})")
                     return@withContext false
                 }
 
@@ -104,11 +104,11 @@ object WebDavManager {
                     }
                 }
 
-                LogUtil.i(AppConfig.TAG, "WebDAV download success: $remote")
+                LogUtil.i(AppConfig.TAG, "WebDAV download succeeded")
                 return@withContext true
             }
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "WebDAV download exception: $remote", e)
+            LogUtil.e(AppConfig.TAG, "WebDAV download failed", e)
             return@withContext false
         }
     }

@@ -94,10 +94,10 @@ object LauncherManager {
 
         SettingsManager.refreshRuntimeSocksPort()
 
-        if (config.insecure == true && config.pinnedCA256.isNullOrEmpty()) {
-            // Warning only: this profile explicitly requested insecure TLS and remains connectable.
-            context.toast(R.string.toast_allow_insecure_warning)
-        }
+        // A TLS-insecure profile remains compatible when explicitly requested by the
+        // profile.  Do not display a start-up toast here: it obscures the connection
+        // state and must not be mistaken for a connection failure.  The setting stays
+        // visible only in the profile editor.
 
         if (MmkvManager.decodeSettingsBool(AppConfig.PREF_PROXY_SHARING)) {
             context.toast(R.string.toast_warning_pref_proxysharing_short)

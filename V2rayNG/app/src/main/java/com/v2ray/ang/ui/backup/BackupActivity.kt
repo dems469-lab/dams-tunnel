@@ -49,6 +49,7 @@ import com.v2ray.ang.dto.entities.WebDavConfig
 import com.v2ray.ang.extension.toastError
 import com.v2ray.ang.extension.toastSuccess
 import com.v2ray.ang.handler.SettingsManager
+import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.ui.base.HelperBaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.DeleteConfirmDialog
@@ -62,6 +63,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.io.File
+import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -75,9 +77,11 @@ class BackupActivity : HelperBaseComponentActivity() {
     companion object {
         const val EXTRA_DAMS_URI = "extra_dams_uri"
         const val EXTRA_OPEN_DAMS_EXPORT = "extra_open_dams_export"
+        private const val DAMS_MAX_ATTEMPTS = 5
     }
 
     private val viewModel: BackupViewModel by viewModels()
+    private var pendingDamsUri: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,13 +91,21 @@ class BackupActivity : HelperBaseComponentActivity() {
         }
     }
 
-    private fun showDamsImportDialog(uri: Uri) {
+    private fun showDamsImportDialog(uri: Uri, requestedAttempts: Int? = null) {
+        pendingDamsUri = uri
+        val attemptKey = damsAttemptKey(uri)
+        val remainingAttempts = (requestedAttempts
+            ?: MmkvManager.decodeSettingsInt(attemptKey, DAMS_MAX_ATTEMPTS)).coerceIn(0, DAMS_MAX_ATTEMPTS)
+        if (remainingAttempts == 0) {
+            toastError(R.string.dams_file_invalid)
+            return
+        }
         val password = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             hint = getString(R.string.title_dams_password)
         }
         PlatformAlertDialog.Builder(this)
-            .setTitle(R.string.title_configuration_restore)
+            .setTitle(getString(R.string.title_dams_restore_attempts, remainingAttempts))
             .setView(password)
             .setNegativeButton(R.string.action_cancel, null)
             .setPositiveButton(R.string.action_ok) { _, _ ->
@@ -103,7 +115,12 @@ class BackupActivity : HelperBaseComponentActivity() {
                         contentResolver.openInputStream(uri)?.use { input ->
                             file.outputStream().use(input::copyTo)
                         }
-                        viewModel.restoreDamsConfiguration(cacheDir, file, password.text.toString())
+                        viewModel.restoreDamsConfiguration(
+                            cacheDir,
+                            file,
+                            password.text.toString(),
+                            remainingAttempts,
+                        )
                     } catch (e: Exception) {
                         file.delete()
                         LogUtil.e(AppConfig.TAG, "Failed to read Dams import", e)
@@ -128,7 +145,22 @@ class BackupActivity : HelperBaseComponentActivity() {
                         }
 
                         is BackupViewModel.BackupViewModelEvent.RestoreSuccess -> {
+                            pendingDamsUri?.let { MmkvManager.encodeSettings(damsAttemptKey(it), DAMS_MAX_ATTEMPTS) }
+                            pendingDamsUri = null
                             SettingsManager.initApp(this@BackupActivity)
+                        }
+
+                        is BackupViewModel.BackupViewModelEvent.DamsRestoreFailed -> {
+                            pendingDamsUri?.let {
+                                MmkvManager.encodeSettings(damsAttemptKey(it), event.remainingAttempts)
+                            }
+                            pendingDamsUri?.let { uri ->
+                                if (event.remainingAttempts > 0) {
+                                    showDamsImportDialog(uri, event.remainingAttempts)
+                                } else {
+                                    toastError(R.string.dams_file_invalid)
+                                }
+                            }
                         }
 
                         else -> {}
@@ -136,6 +168,13 @@ class BackupActivity : HelperBaseComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun damsAttemptKey(uri: Uri): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(uri.toString().toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+        return "dams_import_attempts_$digest"
     }
 
     @Composable
@@ -383,6 +422,7 @@ private fun DamsExportDialog(
     onDismiss: () -> Unit,
     onExport: (String, Long?) -> Unit,
 ) {
+    val endOfSelectedDayMillis = 24L * 60L * 60L * 1000L
     var password by remember { mutableStateOf("") }
     var passwordConfirmation by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -431,7 +471,10 @@ private fun DamsExportDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    expiry = datePickerState.selectedDateMillis
+                    // DatePicker returns the beginning of the selected day.  A file
+                    // selected for today must remain valid for the whole day, not
+                    // expire immediately at midnight.
+                    expiry = datePickerState.selectedDateMillis?.plus(endOfSelectedDayMillis)
                     showDatePicker = false
                 }) { Text(stringResource(R.string.action_ok)) }
             },

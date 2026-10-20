@@ -72,7 +72,13 @@ class NetworkMonitor(
         }
 
         override fun onLost(network: Network) {
-            onUnderlyingNetworksChanged(null)
+            if (upstream == network) {
+                upstream = null
+                onUnderlyingNetworksChanged(null)
+                // A lost upstream must trigger the same recovery path as a handover;
+                // otherwise the core can remain alive while its server socket is dead.
+                scheduleHandover(network)
+            }
         }
     }
 

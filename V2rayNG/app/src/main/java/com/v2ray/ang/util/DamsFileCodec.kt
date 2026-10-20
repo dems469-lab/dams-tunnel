@@ -14,7 +14,8 @@ import javax.crypto.spec.SecretKeySpec
 
 /** Password-protected, versioned container used by Dams Tunnel exports. */
 object DamsFileCodec {
-    private val magic = "DAMS1".toByteArray(StandardCharsets.US_ASCII)
+    private val legacyMagic = "DAMS1".toByteArray(StandardCharsets.US_ASCII)
+    private val magic = "DAMS2".toByteArray(StandardCharsets.US_ASCII)
     private const val saltSize = 16
     private const val nonceSize = 12
     private const val tagBits = 128
@@ -36,19 +37,24 @@ object DamsFileCodec {
         val nonce = ByteArray(nonceSize)
         SecureRandom().nextBytes(salt)
         SecureRandom().nextBytes(nonce)
-        val expiresAt = options.expiresAtEpochMillis ?: noExpiry
-        val header = ByteBuffer.allocate(magic.size + Long.SIZE_BYTES + Long.SIZE_BYTES + saltSize + nonceSize)
+        // DAMS2 intentionally keeps only cryptographic material in clear text.  Creation
+        // and expiry metadata stay inside the AES-GCM payload so a copied file does not
+        // reveal its owner’s usage period before a successful password check.
+        val header = ByteBuffer.allocate(magic.size + saltSize + nonceSize)
             .put(magic)
-            .putLong(nowEpochMillis)
-            .putLong(expiresAt)
             .put(salt)
             .put(nonce)
+            .array()
+        val protectedPayload = ByteBuffer.allocate(Long.SIZE_BYTES + Long.SIZE_BYTES + payload.size)
+            .putLong(nowEpochMillis)
+            .putLong(options.expiresAtEpochMillis ?: noExpiry)
+            .put(payload)
             .array()
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, deriveKey(options.password, salt), GCMParameterSpec(tagBits, nonce))
         cipher.updateAAD(header)
-        val ciphertext = cipher.doFinal(payload)
+        val ciphertext = cipher.doFinal(protectedPayload)
         return ByteArrayOutputStream(header.size + ciphertext.size).apply {
             write(header)
             write(ciphertext)
@@ -57,10 +63,20 @@ object DamsFileCodec {
 
     fun decrypt(container: ByteArray, password: String, nowEpochMillis: Long = System.currentTimeMillis()): ByteArray {
         if (password.isEmpty()) throw InvalidFileException("A password is required")
-        val headerSize = magic.size + Long.SIZE_BYTES + Long.SIZE_BYTES + saltSize + nonceSize
-        if (container.size <= headerSize || !container.copyOfRange(0, magic.size).contentEquals(magic)) {
-            throw InvalidFileException("Not a valid .dams file")
+        return when {
+            container.size >= magic.size && container.copyOfRange(0, magic.size).contentEquals(magic) ->
+                decryptV2(container, password, nowEpochMillis)
+
+            container.size >= legacyMagic.size && container.copyOfRange(0, legacyMagic.size).contentEquals(legacyMagic) ->
+                decryptV1(container, password, nowEpochMillis)
+
+            else -> throw InvalidFileException("Not a valid .dams file")
         }
+    }
+
+    private fun decryptV2(container: ByteArray, password: String, nowEpochMillis: Long): ByteArray {
+        val headerSize = magic.size + saltSize + nonceSize
+        if (container.size <= headerSize) throw InvalidFileException("Not a valid .dams file")
 
         try {
             val input = ByteArrayInputStream(container)
@@ -70,6 +86,44 @@ object DamsFileCodec {
             val actualMagic = ByteArray(magic.size)
             buffer.get(actualMagic)
             check(actualMagic.contentEquals(magic))
+            val salt = ByteArray(saltSize)
+            val nonce = ByteArray(nonceSize)
+            buffer.get(salt)
+            buffer.get(nonce)
+
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, deriveKey(password, salt), GCMParameterSpec(tagBits, nonce))
+            cipher.updateAAD(header)
+            val protectedPayload = cipher.doFinal(input.readBytes())
+            if (protectedPayload.size < Long.SIZE_BYTES * 2) throw InvalidFileException("Invalid .dams file")
+            val payloadBuffer = ByteBuffer.wrap(protectedPayload)
+            payloadBuffer.long // createdAt; available only after successful decryption
+            val expiresAt = payloadBuffer.long
+            if (expiresAt != noExpiry && nowEpochMillis >= expiresAt) {
+                throw InvalidFileException("This .dams file has expired")
+            }
+            return ByteArray(payloadBuffer.remaining()).also(payloadBuffer::get)
+        } catch (e: InvalidFileException) {
+            throw e
+        } catch (e: GeneralSecurityException) {
+            throw InvalidFileException("Incorrect password or corrupted .dams file", e)
+        } catch (e: Exception) {
+            throw InvalidFileException("Invalid .dams file", e)
+        }
+    }
+
+    /** Reads exports created by the first Dams Tunnel builds. New exports always use DAMS2. */
+    private fun decryptV1(container: ByteArray, password: String, nowEpochMillis: Long): ByteArray {
+        val headerSize = legacyMagic.size + Long.SIZE_BYTES + Long.SIZE_BYTES + saltSize + nonceSize
+        if (container.size <= headerSize) throw InvalidFileException("Not a valid .dams file")
+        try {
+            val input = ByteArrayInputStream(container)
+            val header = ByteArray(headerSize)
+            check(input.read(header) == headerSize)
+            val buffer = ByteBuffer.wrap(header)
+            val actualMagic = ByteArray(legacyMagic.size)
+            buffer.get(actualMagic)
+            check(actualMagic.contentEquals(legacyMagic))
             buffer.long
             val expiresAt = buffer.long
             val salt = ByteArray(saltSize)
@@ -79,7 +133,6 @@ object DamsFileCodec {
             if (expiresAt != noExpiry && nowEpochMillis >= expiresAt) {
                 throw InvalidFileException("This .dams file has expired")
             }
-
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
             cipher.init(Cipher.DECRYPT_MODE, deriveKey(password, salt), GCMParameterSpec(tagBits, nonce))
             cipher.updateAAD(header)
@@ -93,7 +146,10 @@ object DamsFileCodec {
         }
     }
 
-    fun isDamsFile(bytes: ByteArray): Boolean = bytes.size >= magic.size && bytes.copyOfRange(0, magic.size).contentEquals(magic)
+    fun isDamsFile(bytes: ByteArray): Boolean = bytes.size >= magic.size && (
+        bytes.copyOfRange(0, magic.size).contentEquals(magic) ||
+            bytes.copyOfRange(0, legacyMagic.size).contentEquals(legacyMagic)
+        )
 
     private fun deriveKey(password: String, salt: ByteArray): SecretKeySpec {
         val spec = PBEKeySpec(password.toCharArray(), salt, iterations, keyBits)
