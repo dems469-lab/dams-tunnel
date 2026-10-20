@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">Dams Tunnel</string>
+    <string name="ip_finder_clear_timeline">清除记录</string>
+    <string name="ip_finder_background_running_notice">只要 Android 保持前台服务运行，搜索就会在后台继续。可通过通知停止。</string>
     <string name="app_widget_name">开关</string>
     <string name="app_tile_name">开关</string>
     <string name="app_tile_first_use">初次使用此功能请先用 APP 添加配置</string>

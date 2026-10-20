@@ -43,6 +43,9 @@ internal fun selectedGuidAfterRemoval(
 
 internal fun hasSelectedProfile(guid: String?): Boolean = !guid.isNullOrBlank()
 
+internal fun shouldStopServiceOnToggle(isRunning: Boolean, status: MainStatus): Boolean =
+    isRunning || status == MainStatus.Connecting || status == MainStatus.Reconnecting
+
 /**
  * Main UI state
  */

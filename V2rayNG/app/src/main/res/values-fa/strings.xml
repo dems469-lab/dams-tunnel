@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">Dams Tunnel</string>
+    <string name="ip_finder_clear_timeline">پاک کردن تاریخچه</string>
+    <string name="ip_finder_background_running_notice">تا زمانی که Android سرویس پیش‌زمینه را فعال نگه دارد، جستجو در پس‌زمینه ادامه می‌یابد. از اعلان متوقفش کنید.</string>
     <string name="app_widget_name">تعویض</string>
     <string name="app_tile_name">تعویض</string>
     <string name="app_tile_first_use">برای اولین استفاده از این قابلیت، لطفاً ابتدا از داخل برنامه یک سرور اضافه کنید</string>

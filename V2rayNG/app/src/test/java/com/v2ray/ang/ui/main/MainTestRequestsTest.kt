@@ -9,6 +9,14 @@ import org.junit.jupiter.api.Test
 
 class MainTestRequestsTest {
     @Test
+    fun powerToggleStopsConnectedAndInProgressSessions() {
+        assertTrue(shouldStopServiceOnToggle(true, MainStatus.Connected))
+        assertTrue(shouldStopServiceOnToggle(false, MainStatus.Connecting))
+        assertTrue(shouldStopServiceOnToggle(false, MainStatus.Reconnecting))
+        assertFalse(shouldStopServiceOnToggle(false, MainStatus.Disconnected))
+    }
+
+    @Test
     fun onlyTheLatestCurrentRequestCanFinishOnce() {
         val requests = MainTestRequests()
         assertFalse(requests.isTesting)

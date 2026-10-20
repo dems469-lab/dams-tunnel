@@ -93,6 +93,7 @@ fun MainScreen(
     val groups = uiState.groups
     val isLoading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     val isRunning = uiState.isRunning
+    val canStopService = shouldStopServiceOnToggle(uiState.isRunning, uiState.status)
     val displayText = mainViewModel.formatStatus(uiState.status)
     val selectedGuid = uiState.selectedGuid
     val doubleColumnDisplay = uiState.doubleColumnDisplay
@@ -256,6 +257,7 @@ fun MainScreen(
                     contentPadding = innerPadding,
                     displayText = displayText,
                     isRunning = isRunning,
+                    canStopService = canStopService,
                     groupName = groups.firstOrNull { it.id == uiState.selectedGroupId }?.remarks,
                     selectedServerName = selectedServer?.profile?.remarks,
                     selectedServerAddress = selectedServer?.profile?.server,
@@ -421,6 +423,7 @@ private fun DamsDashboard(
     contentPadding: PaddingValues,
     displayText: String,
     isRunning: Boolean,
+    canStopService: Boolean,
     groupName: String?,
     selectedServerName: String?,
     selectedServerAddress: String?,
@@ -434,7 +437,7 @@ private fun DamsDashboard(
     onTestConnection: () -> Unit,
     onToggleConnection: () -> Unit,
 ) {
-    val powerActionLabel = stringResource(if (isRunning) R.string.acc_stop else R.string.acc_start)
+    val powerActionLabel = stringResource(if (canStopService) R.string.acc_stop else R.string.acc_start)
     val serverSummary = if (selectedServerAddress.isNullOrBlank()) {
         stringResource(R.string.dams_select_server_prompt)
     } else {

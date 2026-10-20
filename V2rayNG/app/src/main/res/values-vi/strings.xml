@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">Dams Tunnel</string>
+    <string name="ip_finder_clear_timeline">Xóa lịch sử</string>
+    <string name="ip_finder_background_running_notice">Tìm kiếm tiếp tục chạy nền khi Android duy trì dịch vụ tiền cảnh. Hãy dừng bằng thông báo.</string>
     <string name="app_widget_name">Kết nối ngay</string>
     <string name="app_tile_name">Kết nối ngay</string>
     <string name="app_tile_first_use">Vui lòng thêm một cấu hình vào v2rayNG để sử dụng!</string>

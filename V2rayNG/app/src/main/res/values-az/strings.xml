@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">Dams Tunnel</string>
+    <string name="ip_finder_clear_timeline">Tarixçəni sil</string>
+    <string name="ip_finder_background_running_notice">Android ön plan xidmətini işlək saxladıqca axtarış arxa planda davam edir. Bildirişdən dayandırın.</string>
     <string name="app_widget_name">Keçid</string>
     <string name="app_tile_name">Keçid</string>
     <string name="app_tile_first_use">Bu funksiyanı istifadə etməzdən əvvəl tətbiqə profil əlavə edin.</string>

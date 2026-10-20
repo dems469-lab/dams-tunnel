@@ -225,7 +225,8 @@ class MainActivity : HelperBaseComponentActivity() {
     }
 
     private fun handleFabAction() {
-        if (mainViewModel.uiState.value.isRunning) {
+        val state = mainViewModel.uiState.value
+        if (shouldStopServiceOnToggle(state.isRunning, state.status)) {
             LauncherManager.stopService(this)
         } else {
             requestServiceStart()

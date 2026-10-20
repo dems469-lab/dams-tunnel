@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">Dams Tunnel</string>
+    <string name="ip_finder_clear_timeline">محو السجل</string>
+    <string name="ip_finder_background_running_notice">يستمر البحث في الخلفية ما دام Android يشغّل الخدمة الأمامية. أوقفه من الإشعار.</string>
     <string name="app_widget_name">التبديل</string>
     <string name="app_tile_name">التبديل</string>
     <string name="app_tile_first_use">أول استخدام لهذه الميزة، يرجى استخدام التطبيق لإضافة خادم</string>

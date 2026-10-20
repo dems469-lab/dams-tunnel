@@ -21,7 +21,6 @@ import android.os.Vibrator
 import android.provider.Settings
 import android.service.voice.VoiceInteractionService
 import android.widget.Toast
-import android.view.WindowManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +49,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -104,7 +104,6 @@ class IpFinderActivity : BaseComponentActivity() {
     private var retryAfterVpnPermission = false
     private var showDisconnectVpnConfirmation by mutableStateOf(false)
     private var showRestoreAirplaneConfirmation by mutableStateOf(false)
-    private var activityResumed = false
     private var restorationJob: kotlinx.coroutines.Job? = null
     private val timeline = mutableStateListOf<Pair<Long, String>>()
     private var cycleJob: kotlinx.coroutines.Job? = null
@@ -196,14 +195,8 @@ class IpFinderActivity : BaseComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        activityResumed = true
         refreshState()
         maybeRestorePending()
-    }
-
-    override fun onPause() {
-        activityResumed = false
-        super.onPause()
     }
 
     override fun onDestroy() {
@@ -276,21 +269,15 @@ class IpFinderActivity : BaseComponentActivity() {
 
     private suspend fun requestAirplaneMode(enabled: Boolean): IpFinderAirplaneRequest {
         if (!assistantActive) return IpFinderAirplaneRequest(false, false)
-        val resumed = withTimeoutOrNull(FOREGROUND_RETURN_TIMEOUT_MILLIS) {
-            while (!activityResumed) delay(100)
-            true
-        } ?: false
-        if (!resumed) return IpFinderAirplaneRequest(false, false, foregroundTimeout = true)
         val requestId = UUID.randomUUID().toString()
         val preferences = getSharedPreferences(IpFinderVoiceContract.PREFS, MODE_PRIVATE)
         preferences.edit().remove("$requestId:dispatch").remove("$requestId:task_started").apply()
-        val args = Bundle().apply {
-            putBoolean(IpFinderVoiceContract.EXTRA_SET_AIRPLANE_MODE, true)
-            putString(IpFinderVoiceContract.EXTRA_REQUEST_ID, requestId)
-            putBoolean(IpFinderVoiceContract.EXTRA_AIRPLANE_ENABLED, enabled)
-        }
+        val request = Intent(this, DamsVoiceInteractionService::class.java)
+            .setAction(IpFinderVoiceContract.ACTION_REQUEST_AIRPLANE_MODE)
+            .putExtra(IpFinderVoiceContract.EXTRA_REQUEST_ID, requestId)
+            .putExtra(IpFinderVoiceContract.EXTRA_AIRPLANE_ENABLED, enabled)
         return try {
-            startLocalVoiceInteraction(args)
+            startService(request)
             val dispatch = withTimeoutOrNull(8_000) {
                 while (true) {
                     preferences.getString("$requestId:dispatch", null)?.let { return@withTimeoutOrNull it }
@@ -501,7 +488,6 @@ class IpFinderActivity : BaseComponentActivity() {
         resultText = null
         timeline.clear()
         cycleStart = SystemClock.elapsedRealtime()
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         loopSettingsRepository.markSearchPending()
         running = true
         cycleJob = lifecycleScope.launch {
@@ -593,7 +579,6 @@ class IpFinderActivity : BaseComponentActivity() {
                 ) {
                     loopSettingsRepository.clearSearchPending()
                 }
-                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 stopService(Intent(this@IpFinderActivity, IpFinderSearchService::class.java))
                 refreshState()
             }
@@ -763,11 +748,12 @@ class IpFinderActivity : BaseComponentActivity() {
             retryVpnVisible = retryVpnVisible,
             showDisconnectVpnConfirmation = showDisconnectVpnConfirmation,
             showRestoreAirplaneConfirmation = showRestoreAirplaneConfirmation,
-            onBack = { if (running) cycleJob?.cancel() else finish() },
+            onBack = { if (running) moveTaskToBack(true) else finish() },
             onEnableAssistant = ::openAssistantSettings,
             onAssistantSettings = ::openAssistantSettings,
             onStart = ::requestSearchStart,
             onStop = { if (running) cycleJob?.cancel() else finish() },
+            onClearTimeline = { timeline.clear() },
             onRulesChanged = { value -> rulesText = value; rulesRepository.save(value) },
             onResetRules = { rulesText = rulesRepository.reset() },
             onPrefixRules = { rulesText = rulesRepository.prefixAndSave(rulesText) },
@@ -792,9 +778,10 @@ class IpFinderActivity : BaseComponentActivity() {
 
     companion object {
         const val EXTRA_RESTORE_PENDING = "com.v2ray.ang.ipfinder.RESTORE_PENDING"
-        private const val FOREGROUND_RETURN_TIMEOUT_MILLIS = 30_000L
     }
 }
+
+private const val IP_FINDER_VISIBLE_TIMELINE_LINES = 6
 
 @Composable
 private fun IpFinderSetupScreen(
@@ -823,6 +810,7 @@ private fun IpFinderSetupScreen(
     onAssistantSettings: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onClearTimeline: () -> Unit,
     onRulesChanged: (String) -> Unit,
     onResetRules: () -> Unit,
     onPrefixRules: () -> Unit,
@@ -843,6 +831,10 @@ private fun IpFinderSetupScreen(
     }
     val cyclesValidation = IpFinderLoopNumberValidator.cycles(cyclesText)
     val pauseValidation = IpFinderLoopNumberValidator.pauseSeconds(pauseText)
+    val timelineScrollState = rememberScrollState()
+    LaunchedEffect(timeline.size) {
+        timelineScrollState.animateScrollTo(timelineScrollState.maxValue)
+    }
     Scaffold(
         modifier = Modifier.imePadding(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -945,7 +937,7 @@ private fun IpFinderSetupScreen(
                 )
             }
             Text(stringResource(R.string.ip_finder_attempt, attempt, totalCycles))
-            if (running) Text(stringResource(R.string.ip_finder_screen_awake_warning), color = MaterialTheme.colorScheme.error)
+            Text(stringResource(R.string.ip_finder_background_running_notice), color = MaterialTheme.colorScheme.secondary)
             Button(onClick = onStart, enabled = !running && assistantActive &&
                 parsedRules.inputError == null && parsedRules.validRules.isNotEmpty() &&
                 cyclesValidation.isValid && pauseValidation.isValid, modifier = Modifier.fillMaxWidth()) {
@@ -957,11 +949,25 @@ private fun IpFinderSetupScreen(
                     Text(stringResource(R.string.ip_finder_connect_vpn_retry))
                 }
             }
-            Text(stringResource(R.string.ip_finder_timeline), style = MaterialTheme.typography.titleMedium)
-            timeline.forEach { (elapsed, textId) ->
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Text("+${elapsed / 1000}s", modifier = Modifier.padding(end = 10.dp))
-                    Text(textId)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(stringResource(R.string.ip_finder_timeline), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = onClearTimeline, enabled = timeline.isNotEmpty()) {
+                    Text(stringResource(R.string.ip_finder_clear_timeline))
+                }
+            }
+            val visibleTimeline = timeline.takeLast(IP_FINDER_VISIBLE_TIMELINE_LINES)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 180.dp)
+                    .verticalScroll(timelineScrollState),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                visibleTimeline.forEach { (elapsed, textId) ->
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Text("+${elapsed / 1000}s", modifier = Modifier.padding(end = 10.dp))
+                        Text(textId)
+                    }
                 }
             }
             Spacer(Modifier.height(8.dp))

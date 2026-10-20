@@ -27,6 +27,8 @@
     <string name="ip_finder_cellular_ip">IP mobile actuelle : %1$s</string>
     <string name="ip_finder_attempt">Tentative %1$d / %2$d</string>
     <string name="ip_finder_timeline">Chronologie</string>
+    <string name="ip_finder_clear_timeline">Effacer l’historique</string>
+    <string name="ip_finder_background_running_notice">Pendant la recherche, le processeur peut rester actif jusqu’à environ 50 heures, même écran éteint, ce qui peut décharger la batterie. Arrêtez la recherche depuis sa notification.</string>
     <string name="ip_finder_stop">Arrêter</string>
     <string name="ip_finder_event_wifi">Wi-Fi actif : seule l’adresse cellulaire sera lue.</string>
     <string name="ip_finder_event_before">Adresse IP cellulaire avant : %1$s</string>
@@ -236,7 +238,7 @@
     <string name="server_lab_pinned_ca256">Certificate fingerprint (SHA-256)</string>
     <string name="server_lab_browser_dialer">Enable Browser Dialer</string>
     <string name="server_lab_browser_dialer_tip">Only supports xhttp (packet-up) and ws outbound; TLS-related settings may be ignored or conflict</string>
-    <string name="toast_allow_insecure_deprecated">Current node uses an unencrypted connection. Your communication may be directly viewed by network intermediate facilities controlled by authoritarian governments.\nFor security reasons, such nodes cannot be connected via Xray core version 26.2.6+.\nIf it is a self-built node, please enable security encryption such as TLS, or pin the certificate pinnedCA256.\nIf it is a provider node, please contact the service provider to complete the technical upgrade. If the service provider refuses to cooperate, it is recommended to switch to a provider that pays more attention to user security.\nFor more information, please visit https://github.com/2dust/v2rayN/discussions/9460</string>
+    <string name="toast_allow_insecure_deprecated">Ce nœud utilise une connexion non chiffrée. Des intermédiaires réseau peuvent voir vos communications.\nPour des raisons de sécurité, ce type de nœud ne peut pas être utilisé avec Xray Core 26.2.6 ou ultérieur.\nPour un nœud que vous gérez, activez un chiffrement tel que TLS ou épinglez le certificat avec pinnedCA256.\nPour un nœud fourni par un opérateur, demandez une mise à niveau sécurisée ou choisissez un fournisseur plus attentif à la sécurité.\nPour en savoir plus, consultez https://github.com/2dust/v2rayN/discussions/9460</string>
     <string name="toast_allow_insecure_warning">Attention : ce profil utilise TLS insecure. La connexion reste autorisée, mais le certificat n’est pas vérifié.</string>
     <string name="pinned_ca256_action_fetch">Fetch certificate fingerprint</string>
     <string name="toast_fetch_cert_sha256_success">Certificate fingerprint fetched successfully</string>
@@ -646,8 +648,8 @@
     <string name="acc_copy_log">Copy log</string>
     <string name="acc_clear_log">Clear log</string>
     <string name="acc_add_rule">Add routing rule</string>
-    <string name="acc_start">Start service</string>
-    <string name="acc_stop">Stop service</string>
+    <string name="acc_start">Connecter</string>
+    <string name="acc_stop">Déconnecter</string>
     <string name="acc_back">Back</string>
     <string name="acc_search">Search</string>
     <string name="acc_add">Add configuration</string>

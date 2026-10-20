@@ -8,6 +8,7 @@ import android.service.voice.VoiceInteractionSession
 import android.service.voice.VoiceInteractionSessionService
 
 object IpFinderVoiceContract {
+    const val ACTION_REQUEST_AIRPLANE_MODE = "com.v2ray.ang.ipfinder.REQUEST_AIRPLANE_MODE"
     const val EXTRA_SET_AIRPLANE_MODE = "com.v2ray.ang.ipfinder.SET_AIRPLANE_MODE"
     const val EXTRA_REQUEST_ID = "com.v2ray.ang.ipfinder.REQUEST_ID"
     const val EXTRA_AIRPLANE_ENABLED = "com.v2ray.ang.ipfinder.AIRPLANE_ENABLED"

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">Dams Tunnel</string>
+    <string name="ip_finder_clear_timeline">ইতিহাস মুছুন</string>
+    <string name="ip_finder_background_running_notice">Android-এর ফোরগ্রাউন্ড সার্ভিস চালু থাকলে অনুসন্ধান ব্যাকগ্রাউন্ডে চলবে। বিজ্ঞপ্তি থেকে বন্ধ করুন।</string>
     <string name="app_widget_name">সুইচ</string>
     <string name="app_tile_name">সুইচ</string>
     <string name="app_tile_first_use">এই ফিচারটি প্রথম ব্যবহার করা হচ্ছে, সার্ভার যোগ করতে অ্যাপটি ব্যবহার করুন</string>
