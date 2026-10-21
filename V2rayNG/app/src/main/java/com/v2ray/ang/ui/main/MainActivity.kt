@@ -58,6 +58,7 @@ import com.v2ray.ang.ui.subscription.SubSettingActivity
 import com.v2ray.ang.ui.userasset.UserAssetActivity
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
+import com.v2ray.ang.util.PerformanceDiagnostics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -120,6 +121,7 @@ class MainActivity : HelperBaseComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        PerformanceDiagnostics.refreshEnabled()
         if (!appUnlocked && MmkvManager.decodeSettingsBool(AppConfig.PREF_APP_LOCK, false)) {
             val keyguard = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
             if (!keyguard.isDeviceSecure) {

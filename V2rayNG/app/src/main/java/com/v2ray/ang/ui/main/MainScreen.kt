@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -70,12 +71,16 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.R
 import com.v2ray.ang.extension.toSpeedString
 import com.v2ray.ang.ui.compose.QRCodeDialog
 import com.v2ray.ang.ui.logcat.LogcatViewModel
+import com.v2ray.ang.util.PerformanceDiagnostics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -87,6 +92,8 @@ fun MainScreen(
     onAction: (MainAction) -> Unit,
     onNavigate: (MainDestination) -> Unit,
 ) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val performanceDiagnosticsEnabled by PerformanceDiagnostics.enabledFlow.collectAsStateWithLifecycle()
     val uiState by mainViewModel.uiState.collectAsStateWithLifecycle()
     val groups = uiState.groups
     val isLoading by mainViewModel.isLoading.collectAsStateWithLifecycle()
@@ -146,8 +153,19 @@ fun MainScreen(
     val selectedServer = selectedServers.firstOrNull { it.guid == selectedGuid }
         ?: selectedServers.firstOrNull()
 
-    LaunchedEffect(selectedTab) {
+    LaunchedEffect(selectedTab, performanceDiagnosticsEnabled, lifecycleOwner) {
         if (selectedTab == DamsTab.Journal) logcatViewModel.loadLogcat()
+        if (selectedTab == DamsTab.Home && performanceDiagnosticsEnabled) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                while (true) {
+                    kotlinx.coroutines.delay(1_000L)
+                    PerformanceDiagnostics.recordHomeRecompositionsPerSecond()
+                }
+            }
+        }
+    }
+    SideEffect {
+        if (selectedTab == DamsTab.Home) PerformanceDiagnostics.countHomeRecomposition()
     }
 
     LaunchedEffect(pagerState) {
@@ -684,6 +702,7 @@ private fun DashboardMetric(
 @Composable
 private fun JournalTabContent(contentPadding: PaddingValues, logcatViewModel: LogcatViewModel) {
     val logEntries by logcatViewModel.logEntries.collectAsStateWithLifecycle()
+    val performanceMetrics by logcatViewModel.performanceMetrics.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize().padding(contentPadding)) {
         Row(
@@ -700,7 +719,19 @@ private fun JournalTabContent(contentPadding: PaddingValues, logcatViewModel: Lo
                 Icon(painterResource(R.drawable.ic_delete_24dp), contentDescription = stringResource(R.string.acc_clear_log))
             }
         }
-        if (logEntries.isEmpty()) {
+        if (performanceMetrics.isNotEmpty()) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp)) {
+                Text(
+                    stringResource(R.string.performance_diagnostics_title),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                performanceMetrics.forEach { entry ->
+                    Text(entry, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        if (logEntries.isEmpty() && performanceMetrics.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,

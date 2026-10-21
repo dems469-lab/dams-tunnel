@@ -2,6 +2,7 @@ package com.v2ray.ang
 
 import android.app.Application
 import android.content.Context
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.work.Configuration
 import androidx.work.WorkManager
@@ -10,8 +11,10 @@ import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.ui.compose.ThemeManager
+import com.v2ray.ang.util.PerformanceDiagnostics
 
 class AngApplication : Application() {
+    private val processStartElapsedRealtime = SystemClock.elapsedRealtime()
     companion object {
         lateinit var application: AngApplication
     }
@@ -36,6 +39,7 @@ class AngApplication : Application() {
         super.onCreate()
 
         MmkvManager.initialize(this)
+        PerformanceDiagnostics.initialize(this, processStartElapsedRealtime)
 
         AppLocaleManager.initialize(this)
 

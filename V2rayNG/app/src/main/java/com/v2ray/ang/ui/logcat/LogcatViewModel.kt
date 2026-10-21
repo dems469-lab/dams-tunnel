@@ -8,6 +8,7 @@ import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.ui.base.BaseViewModel
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.LogRedactor
+import com.v2ray.ang.util.PerformanceDiagnostics
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,8 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
     private var currentFilter: String = ""
 
     private val _filteredLogs = MutableStateFlow<List<String>>(emptyList())
+    private val _performanceMetrics = MutableStateFlow<List<String>>(emptyList())
+    val performanceMetrics: StateFlow<List<String>> = _performanceMetrics.asStateFlow()
     val filteredLogs: StateFlow<List<String>> = _filteredLogs.asStateFlow()
     val logEntries: StateFlow<List<LogcatEntry>> = filteredLogs
         .map(::createLogcatEntries)
@@ -33,6 +36,7 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
 
     fun loadLogcat() {
         launchLoading {
+            _performanceMetrics.value = PerformanceDiagnostics.snapshot()
             try {
                 val allText = withContext(Dispatchers.IO) {
                     val args = buildLogcatCommandArguments(
@@ -47,6 +51,7 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
 
                 logsetsAll.clear()
                 logsetsAll.addAll(allText.map(LogRedactor::redact))
+                _performanceMetrics.value = PerformanceDiagnostics.snapshot()
                 applyFilter()
             } catch (e: IOException) {
                 LogUtil.e(AppConfig.TAG, "Failed to get logcat", e)
@@ -55,7 +60,7 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun copyLogcat() {
-        val all = filteredLogs.value.joinToString("\n")
+        val all = (filteredLogs.value + performanceMetrics.value).joinToString("\n")
         Utils.setClipboard(app, all)
         toast(R.string.toast_success)
     }
@@ -70,6 +75,8 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
 
             logsetsAll.clear()
             _filteredLogs.value = emptyList()
+            PerformanceDiagnostics.clear()
+            _performanceMetrics.value = emptyList()
         } catch (e: IOException) {
             LogUtil.e(AppConfig.TAG, "Failed to clear logcat", e)
         }

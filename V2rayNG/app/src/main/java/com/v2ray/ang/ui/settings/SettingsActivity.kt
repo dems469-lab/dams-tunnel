@@ -55,6 +55,7 @@ import com.v2ray.ang.ui.compose.SettingsSwitchItem
 import com.v2ray.ang.ui.compose.ThemeManager
 import com.v2ray.ang.ui.compose.verticalScrollbar
 import com.v2ray.ang.util.LogUtil
+import com.v2ray.ang.util.PerformanceDiagnostics
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.launch
 
@@ -179,6 +180,7 @@ fun SettingsScreen(
 
     var speedEnabled by rememberMmkvBool(AppConfig.PREF_SPEED_ENABLED, false)
     var trafficStatsDiagnostics by rememberMmkvBool(AppConfig.PREF_DIAGNOSTIC_TRAFFIC_STATS, false)
+    var performanceDiagnostics by rememberMmkvBool(AppConfig.PREF_DIAGNOSTIC_PERFORMANCE, false)
     var confirmRemove by rememberMmkvBool(AppConfig.PREF_CONFIRM_REMOVE, false)
     var doubleColumnDisplay by rememberMmkvBool(AppConfig.PREF_DOUBLE_COLUMN_DISPLAY, false)
     var groupAllDisplay by rememberMmkvBool(AppConfig.PREF_GROUP_ALL_DISPLAY, false)
@@ -279,6 +281,15 @@ fun SettingsScreen(
                     summary = stringResource(R.string.summary_pref_diagnostic_traffic_stats),
                     checked = trafficStatsDiagnostics,
                     onCheckedChange = { trafficStatsDiagnostics = it }
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.title_pref_diagnostic_performance),
+                    summary = stringResource(R.string.summary_pref_diagnostic_performance),
+                    checked = performanceDiagnostics,
+                    onCheckedChange = {
+                        performanceDiagnostics = it
+                        PerformanceDiagnostics.setEnabled(it)
+                    }
                 )
                 SettingsSwitchItem(
                     title = stringResource(R.string.title_pref_confirm_remove),
