@@ -270,7 +270,7 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
         val folderName = "${appName}_$dateFormatted"
         val backupDir = File(cacheDir, folderName)
         val zipFile = File(cacheDir, "$folderName.zip")
-        try {
+        return try {
             if (MMKV.backupAllToDirectory(backupDir.absolutePath) <= 0) {
                 return Pair(false, "")
             }
