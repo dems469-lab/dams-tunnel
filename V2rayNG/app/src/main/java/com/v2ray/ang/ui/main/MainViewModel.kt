@@ -14,6 +14,7 @@ import com.v2ray.ang.dto.LocateTarget
 import com.v2ray.ang.dto.RealPingResult
 import com.v2ray.ang.dto.TestServiceMessage
 import com.v2ray.ang.dto.entities.ProfileItem
+import com.v2ray.ang.premium.PremiumIsolationPolicy
 import com.v2ray.ang.dto.entities.ServersCache
 import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.extension.delay
@@ -649,7 +650,8 @@ class MainViewModel(
                         if (uiState.value.selectedGroupId.isEmpty() && keywordFilter.isEmpty()) {
                             dataSource.removeAllServer()
                         } else {
-                            val guids = currentServers().map { it.guid }
+                            val guids = PremiumIsolationPolicy.filterGeneralCleanup(currentServers()) { it.profile.subscriptionId }
+                                .map { it.guid }
                             guids.forEach { dataSource.removeServer(it) }
                             guids.size
                         }
@@ -676,6 +678,9 @@ class MainViewModel(
                     val duplicates = ArrayList<String>()
                     currentServers().forEach { server ->
                         val profile = server.profile
+                        if (!PremiumIsolationPolicy.includeInGeneralCleanup(profile.subscriptionId)) {
+                            return@forEach
+                        }
                         if (!profile.configType.isComplexType()) {
                             val identity = profile.duplicateIdentity()
                             if (!seen.add(identity)) duplicates += server.guid

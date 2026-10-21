@@ -22,6 +22,7 @@ internal object OrphanProfileCleaner {
         profiles: Collection<StoredProfileReference>,
         indexedServersBySubscription: Map<String, Set<String>?>,
         selectedServer: String?,
+        protectedGroupIds: Set<String> = emptySet(),
     ): Set<String>? {
         if (profiles.isEmpty()) return emptySet()
 
@@ -43,6 +44,7 @@ internal object OrphanProfileCleaner {
 
             val subscriptionId = profile.subscriptionId ?: return@mapNotNullTo null
             val groupId = subscriptionId.ifEmpty { DEFAULT_SUBSCRIPTION_ID }
+            if (groupId in protectedGroupIds) return@mapNotNullTo null
             if (!indexedServersBySubscription.containsKey(groupId)) {
                 return@mapNotNullTo null
             }

@@ -30,6 +30,7 @@ class PremiumEndpointPolicyTest {
             ),
             policy.subscriptionUrls("https://backup.example/sub/token_1"),
         )
+        assertEquals("token_1", policy.token("https://backup.example/sub/token_1"))
     }
 
     @Test

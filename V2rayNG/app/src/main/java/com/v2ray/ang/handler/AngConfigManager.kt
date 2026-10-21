@@ -4,10 +4,13 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.text.TextUtils
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.core.CoreConfigManager
 import com.v2ray.ang.dto.SubscriptionUpdateResult
 import com.v2ray.ang.dto.UrlContentRequest
 import com.v2ray.ang.dto.entities.ProfileItem
+import com.v2ray.ang.premium.PremiumGroup
+import com.v2ray.ang.premium.PremiumIsolationPolicy
 import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.dto.entities.SubscriptionItem
 import com.v2ray.ang.enums.EConfigType
@@ -528,7 +531,9 @@ object AngConfigManager {
      */
     fun updateConfigViaSubAll(): SubscriptionUpdateResult {
         return try {
-            val subscriptions = MmkvManager.decodeSubscriptions()
+            val subscriptions = PremiumIsolationPolicy.filterGeneralCleanup(
+                MmkvManager.decodeSubscriptions(),
+            ) { it.guid }
             subscriptions.fold(SubscriptionUpdateResult()) { acc, subscription ->
                 acc + updateConfigViaSub(subscription)
             }
@@ -634,12 +639,24 @@ object AngConfigManager {
      * @param subId The subscription ID.
      */
     fun removeInvalidServer(subId: String) {
+        if (!PremiumIsolationPolicy.includeInGeneralCleanup(subId)) return
         val serverList = MmkvManager.decodeServerList(subId)
         val invalidServers = serverList.filter {
             val aff = MmkvManager.decodeServerAffiliationInfo(it)
             aff != null && aff.testDelayMillis < 0L
         }
         MmkvManager.removeServers(invalidServers, subId)
+    }
+
+    /** Importe un contenu déjà téléchargé dans le groupe isolé, sans créer de SubscriptionItem. */
+    fun importPremiumSubscriptionContent(content: String): Int {
+        if (!BuildConfig.PREMIUM_ENABLED || content.isBlank()) return 0
+        return try {
+            parseConfigViaSub(content, PremiumGroup.ID, append = false)
+        } catch (e: ProfileStorageException) {
+            LogUtil.e(AppConfig.TAG, "Failed to store Premium profiles", e)
+            0
+        }
     }
 
     /**

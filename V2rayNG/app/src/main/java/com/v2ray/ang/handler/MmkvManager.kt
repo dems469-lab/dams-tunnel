@@ -26,6 +26,8 @@ import com.v2ray.ang.dto.entities.ServerAffiliationInfo
 import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.dto.entities.SubscriptionItem
 import com.v2ray.ang.dto.entities.WebDavConfig
+import com.v2ray.ang.premium.PremiumGroup
+import com.v2ray.ang.premium.PremiumIsolationPolicy
 import com.v2ray.ang.util.JsonUtil
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.flow.collectLatest
@@ -418,6 +420,7 @@ object MmkvManager {
      */
     fun removeServerViaSubid(subscriptionId: String?) {
         val subId = getSubscriptionId(subscriptionId)
+        if (PremiumIsolationPolicy.isPremiumGroup(subId)) return
         val serverList = decodeServerList(subId)
 
         // Remove all servers in the list
@@ -440,15 +443,17 @@ object MmkvManager {
      * @param subscriptionId The subscription ID.
      */
     fun removeServers(guids: List<String>, subscriptionId: String) {
-        if (guids.isEmpty()) return
+        if (guids.isEmpty() || PremiumIsolationPolicy.isPremiumGroup(subscriptionId)) return
+        val safeGuids = guids.filterNot(::isPremiumProfile)
+        if (safeGuids.isEmpty()) return
         val subId = getSubscriptionId(subscriptionId)
         val serverList = decodeServerList(subId)
-        if (serverList.removeAll(guids)) {
+        if (serverList.removeAll(safeGuids.toSet())) {
             encodeServerList(serverList, subId)
         }
 
         val selectedServer = getSelectServer()
-        guids.forEach { guid ->
+        safeGuids.forEach { guid ->
             if (selectedServer == guid) {
                 mainStorage.remove(KEY_SELECTED_SERVER)
             }
@@ -510,13 +515,24 @@ object MmkvManager {
      * @return The number of server configurations removed.
      */
     fun removeAllServer(): Int {
-        val count = profileFullStorage.allKeys()?.count() ?: 0
-        profileFullStorage.clearAll()
-        serverAffStorage.clearAll()
-        serverRawStorage.clearAll()
+        val allProfileGuids = profileFullStorage.allKeys().orEmpty().toSet()
+        val premiumGuids = decodeServerList(PremiumGroup.ID).toSet() + allProfileGuids.filter { guid ->
+            PremiumIsolationPolicy.retainFromGlobalDeletion(decodeServerConfig(guid)?.subscriptionId)
+        }
+        val removableGuids = allProfileGuids - premiumGuids
+        val count = removableGuids.size
+        profileFullStorage.removeValuesForKeys(removableGuids.toTypedArray())
+        serverAffStorage.removeValuesForKeys(
+            (serverAffStorage.allKeys().orEmpty().toSet() - premiumGuids).toTypedArray(),
+        )
+        serverRawStorage.removeValuesForKeys(
+            (serverRawStorage.allKeys().orEmpty().toSet() - premiumGuids).toTypedArray(),
+        )
 
         decodeSubscriptions().forEach { sub ->
-            encodeServerList(mutableListOf(), sub.guid)
+            if (PremiumIsolationPolicy.includeInGeneralCleanup(sub.guid)) {
+                encodeServerList(mutableListOf(), sub.guid)
+            }
         }
         return count
     }
@@ -530,6 +546,7 @@ object MmkvManager {
     fun removeInvalidServer(guid: String): Int {
         var count = 0
         if (guid.isNotEmpty()) {
+            if (isPremiumProfile(guid)) return 0
             decodeServerAffiliationInfo(guid)?.let { aff ->
                 if (aff.testDelayMillis < 0L) {
                     removeServer(guid)
@@ -537,7 +554,9 @@ object MmkvManager {
                 }
             }
         } else {
+            val premiumGuids = decodeServerList(PremiumGroup.ID).toSet()
             serverAffStorage.allKeys()?.forEach { key ->
+                if (key in premiumGuids || isPremiumProfile(key)) return@forEach
                 decodeServerAffiliationInfo(key)?.let { aff ->
                     if (aff.testDelayMillis < 0L) {
                         removeServer(key)
@@ -605,6 +624,7 @@ object MmkvManager {
                 profiles = profiles,
                 indexedServersBySubscription = indexedServersBySubscription,
                 selectedServer = getSelectServer(),
+                protectedGroupIds = setOf(PremiumGroup.ID),
             ) ?: return@synchronized null
 
             if (orphans.isNotEmpty()) {
@@ -618,6 +638,28 @@ object MmkvManager {
             mainStorage.unlock()
         }
     }
+
+    /**
+     * Supprime le groupe réservé Premium. À appeler uniquement après confirmation d'expiration
+     * par PremiumSubscriptionRepository (HTTP 403/404 unanimement confirmé ou date échue).
+     */
+    internal fun removePremiumGroupProfilesAfterConfirmedExpiration(): Int = synchronized(mainStorage) {
+        mainStorage.lock()
+        try {
+            val guids = (decodeServerList(PremiumGroup.ID) + profileFullStorage.allKeys().orEmpty()
+                .filter { isPremiumProfile(it) }).distinct()
+            removeProfilePayloads(guids)
+            persistServerList(emptyList(), PremiumGroup.ID)
+            if (getSelectServer()?.let(guids::contains) == true) mainStorage.remove(KEY_SELECTED_SERVER)
+            guids.size
+        } finally {
+            mainStorage.unlock()
+        }
+    }
+
+    private fun isPremiumProfile(guid: String): Boolean =
+        guid in decodeServerList(PremiumGroup.ID) ||
+            PremiumIsolationPolicy.isPremiumGroup(decodeServerConfig(guid)?.subscriptionId)
 
     //endregion
 
@@ -666,6 +708,7 @@ object MmkvManager {
      * @param subid The subscription ID.
      */
     fun removeSubscription(subid: String) {
+        if (PremiumIsolationPolicy.isPremiumGroup(subid)) return
         subStorage.remove(subid)
         val subsList = decodeSubsList()
         subsList.remove(subid)

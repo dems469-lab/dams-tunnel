@@ -119,4 +119,22 @@ class OrphanProfileCleanerTest {
 
         assertEquals(emptySet<String>(), result)
     }
+
+    @Test
+    fun `profile storage repair never removes an orphan in a protected Premium group`() {
+        val result = OrphanProfileCleaner.findOrphans(
+            profiles = listOf(
+                StoredProfileReference("free-orphan", "free-group"),
+                StoredProfileReference("premium-orphan", "dams-premium-v1"),
+            ),
+            indexedServersBySubscription = mapOf(
+                "free-group" to emptySet(),
+                "dams-premium-v1" to emptySet(),
+            ),
+            selectedServer = null,
+            protectedGroupIds = setOf("dams-premium-v1"),
+        )
+
+        assertEquals(setOf("free-orphan"), result)
+    }
 }

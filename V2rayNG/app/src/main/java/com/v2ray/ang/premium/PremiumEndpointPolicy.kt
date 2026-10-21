@@ -44,6 +44,19 @@ class PremiumEndpointPolicy(configuredBaseUrls: String) {
         return selectedEndpoints.map { "${it.baseUrl}/sub/$token" }
     }
 
+    /** Extrait un token sans le conserver dans un objet d'abonnement standard. */
+    fun token(codeOrUrl: String): String? {
+        val urls = subscriptionUrls(codeOrUrl)
+        if (urls.isEmpty()) return null
+        return runCatching { URI(urls.first()).rawPath.removePrefix("/sub/") }.getOrNull()
+    }
+
+    /** Construit les URLs de secours à partir d'un token déjà extrait. */
+    fun subscriptionUrlsForToken(token: String): List<String> {
+        if (endpoints.isEmpty() || !isSafeToken(token)) return emptyList()
+        return endpoints.map { "${it.baseUrl}/sub/$token" }
+    }
+
     private fun parseBaseUrl(value: String): Endpoint? {
         val candidate = value.trim().trimEnd('/')
         if (candidate.isEmpty()) return null
