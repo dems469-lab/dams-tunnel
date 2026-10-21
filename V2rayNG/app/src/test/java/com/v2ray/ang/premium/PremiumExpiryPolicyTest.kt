@@ -86,7 +86,7 @@ class PremiumExpiryPolicyTest {
             PremiumExpiryPolicy.observeHttpResponse(404, null, false, NOW / 1000),
         )
         assertEquals(
-            PremiumExpiryObservation.INDETERMINATE,
+            PremiumExpiryObservation.SERVER_FAILURE,
             PremiumExpiryPolicy.observeHttpResponse(500, null, false, NOW / 1000),
         )
         assertEquals(

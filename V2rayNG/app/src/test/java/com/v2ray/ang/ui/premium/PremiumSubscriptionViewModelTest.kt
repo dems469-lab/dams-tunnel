@@ -108,7 +108,7 @@ class PremiumSubscriptionViewModelTest {
     fun `expiration is shown and keeps saved Premium state`() {
         val expiry = PremiumExpiryState(firstConfirmedAtMillis = 1_800_000_000_000L, confirmationCount = 1)
         val data = FakeDataSource().apply {
-            activationResult = PremiumActivationResult.Expired
+            refreshResult = PremiumActivationResult.Expired
             savedExpiry = expiry
             tokenState = PremiumStoredTokenResult.Present
         }
