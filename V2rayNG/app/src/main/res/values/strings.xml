@@ -118,6 +118,8 @@
     <string name="dams_metric_download">Download</string>
     <string name="dams_metric_upload">Upload</string>
     <string name="dams_metric_unavailable">Unavailable</string>
+    <string name="dams_mobile_daily_usage_title">Mobile data used today</string>
+    <string name="dams_mobile_daily_usage_value">Download %1$s · Upload %2$s</string>
     <string name="dams_server_group">Server group</string>
     <string name="menu_item_add_config">Add config</string>
     <string name="menu_item_save_config">Save config</string>

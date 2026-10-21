@@ -35,6 +35,9 @@ class NetworkMonitor(
     }
 
     private var upstream: Network? = null
+    @Volatile
+    var underlyingIsCellular: Boolean? = null
+        private set
     private var handoverJob: Job? = null
     private var registered = false
     private val monitorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -60,6 +63,8 @@ class NetworkMonitor(
         override fun onAvailable(network: Network) {
             val previous = upstream
             upstream = network
+            underlyingIsCellular = connectivity.getNetworkCapabilities(network)
+                ?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
             onUnderlyingNetworksChanged(arrayOf(network))
             if (previous != null && previous != network) {
                 scheduleHandover(network)
@@ -68,12 +73,16 @@ class NetworkMonitor(
 
         override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
             // it's a good idea to refresh capabilities
+            if (upstream == network) {
+                underlyingIsCellular = networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+            }
             onUnderlyingNetworksChanged(arrayOf(network))
         }
 
         override fun onLost(network: Network) {
             if (upstream == network) {
                 upstream = null
+                underlyingIsCellular = null
                 onUnderlyingNetworksChanged(null)
                 // A lost upstream must trigger the same recovery path as a handover;
                 // otherwise the core can remain alive while its server socket is dead.
@@ -103,6 +112,7 @@ class NetworkMonitor(
         handoverJob = null
         monitorScope.coroutineContext.cancelChildren()
         upstream = null
+        underlyingIsCellular = null
         if (!registered) return
         registered = false
         try {

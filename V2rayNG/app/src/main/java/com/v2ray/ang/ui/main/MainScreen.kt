@@ -79,6 +79,7 @@ import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.R
 import com.v2ray.ang.extension.toSpeedString
+import com.v2ray.ang.extension.toTrafficString
 import com.v2ray.ang.ui.compose.QRCodeDialog
 import com.v2ray.ang.ui.logcat.LogcatViewModel
 import com.v2ray.ang.util.PerformanceDiagnostics
@@ -305,6 +306,8 @@ fun MainScreen(
                     downloadBytesPerSecond = traffic.downlinkBytesPerSecond,
                     uploadBytesPerSecond = traffic.uplinkBytesPerSecond,
                     trafficAvailable = traffic.available,
+                    mobileDailyUplinkBytes = traffic.mobileDailyUplinkBytes,
+                    mobileDailyDownlinkBytes = traffic.mobileDailyDownlinkBytes,
                     trafficHistory = uiState.trafficHistory,
                     diagnostic = uiState.diagnostic,
                     onOpenServers = { selectedTab = DamsTab.Configs },
@@ -468,6 +471,8 @@ private fun DamsDashboard(
     downloadBytesPerSecond: Long,
     uploadBytesPerSecond: Long,
     trafficAvailable: Boolean,
+    mobileDailyUplinkBytes: Long,
+    mobileDailyDownlinkBytes: Long,
     trafficHistory: List<com.v2ray.ang.dto.TrafficSnapshot>,
     diagnostic: ConnectionDiagnostic?,
     onOpenServers: () -> Unit,
@@ -623,6 +628,29 @@ private fun DamsDashboard(
                     DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_download), trafficMetric(isRunning, trafficAvailable, downloadBytesPerSecond))
                     DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_upload), trafficMetric(isRunning, trafficAvailable, uploadBytesPerSecond))
                 }
+            }
+        }
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = MaterialTheme.shapes.large,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(
+                    text = stringResource(R.string.dams_mobile_daily_usage_title),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(
+                        R.string.dams_mobile_daily_usage_value,
+                        mobileDailyDownlinkBytes.toTrafficString(),
+                        mobileDailyUplinkBytes.toTrafficString(),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                )
             }
         }
         if (isRunning && trafficAvailable && trafficHistory.size > 1) {

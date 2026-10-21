@@ -43,7 +43,7 @@ class TProxyService(
     /**
      * Starts the tun2socks process with the appropriate parameters.
      */
-    override fun startTun2Socks() {
+    override fun startTun2Socks(): Boolean {
 //        LogUtil.i(AppConfig.TAG, "Starting HevSocks5Tunnel via JNI")
 
         val configContent = buildConfig()
@@ -53,11 +53,16 @@ class TProxyService(
 //        LogUtil.i(AppConfig.TAG, "Config file created: ${configFile.absolutePath}")
         LogUtil.d(AppConfig.TAG, "HevSocks5Tunnel configuration prepared")
 
-        try {
+        return try {
 //            LogUtil.i(AppConfig.TAG, "TProxyStartService...")
-            TProxyStartService(configFile.absolutePath, vpnInterface.fd)
+            val started = TProxyStartService(configFile.absolutePath, vpnInterface.fd)
+            if (!started) {
+                LogUtil.e(AppConfig.TAG, "HevSocks5Tunnel refused to start")
+            }
+            started
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "HevSocks5Tunnel exception: ${e.message}")
+            false
         }
     }
 

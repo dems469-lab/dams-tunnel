@@ -155,7 +155,11 @@ class CoreVpnService : VpnService(), ServiceControl {
             return false
         }
 
-        runTun2socks()
+        if (!runTun2socks()) {
+            LogUtil.e(AppConfig.TAG, "StartCore-VPN: Le relais TUN n'a pas démarré")
+            stopAllService()
+            return false
+        }
         return true
     }
 
@@ -316,7 +320,7 @@ class CoreVpnService : VpnService(), ServiceControl {
      * Runs the tun2socks process.
      * Starts the tun2socks process with the appropriate parameters.
      */
-    private fun runTun2socks() {
+    private fun runTun2socks(): Boolean {
         if (SettingsManager.isUsingHevTun()) {
             tun2SocksService = TProxyService(
                 context = applicationContext,
@@ -328,7 +332,7 @@ class CoreVpnService : VpnService(), ServiceControl {
             tun2SocksService = null
         }
 
-        tun2SocksService?.startTun2Socks()
+        return tun2SocksService?.startTun2Socks() ?: true
     }
 
     private fun stopAllService(isForced: Boolean = true) {

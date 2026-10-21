@@ -4,6 +4,7 @@ import com.v2ray.ang.dto.ConnectionTestResult
 import com.v2ray.ang.dto.GroupMapItem
 import com.v2ray.ang.dto.LocateTarget
 import com.v2ray.ang.dto.TrafficSnapshot
+import com.v2ray.ang.handler.MobileTrafficUsageStore
 
 internal fun shouldWarnEmptyPerAppSelection(
     enabled: Boolean,
@@ -73,7 +74,13 @@ internal fun clearEphemeralConnectionData(
     isTesting = false,
     status = status,
     connectionDelayMillis = null,
-    traffic = TrafficSnapshot(),
+    traffic = state.traffic.copy(
+        uplinkBytesPerSecond = 0L,
+        downlinkBytesPerSecond = 0L,
+        uplinkTotalBytes = 0L,
+        downlinkTotalBytes = 0L,
+        available = false,
+    ),
     trafficHistory = emptyList(),
     diagnostic = if (showPendingDiagnostic) ConnectionDiagnostic() else null,
 )
@@ -89,7 +96,10 @@ data class MainUiState(
     val isTesting: Boolean = false,
     val status: MainStatus = MainStatus.Disconnected,
     val connectionDelayMillis: Long? = null,
-    val traffic: TrafficSnapshot = TrafficSnapshot(),
+    val traffic: TrafficSnapshot = TrafficSnapshot(
+        mobileDailyUplinkBytes = MobileTrafficUsageStore.current().uplinkBytes,
+        mobileDailyDownlinkBytes = MobileTrafficUsageStore.current().downlinkBytes,
+    ),
     val trafficHistory: List<TrafficSnapshot> = emptyList(),
     val diagnostic: ConnectionDiagnostic? = null,
     val locateTarget: LocateTarget? = null,

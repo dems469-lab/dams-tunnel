@@ -24,6 +24,7 @@ import com.v2ray.ang.extension.delay
 import com.v2ray.ang.extension.isNotNullEmpty
 import com.v2ray.ang.extension.isGroupType
 import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.handler.MobileTrafficUsageStore
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.handler.SpeedtestManager
@@ -407,10 +408,21 @@ object CoreServiceManager {
                     downlinkTotalBytes = _trafficSnapshot.value.downlinkTotalBytes,
                     available = false,
                 )
+                val dailyMobileUsage = if (snapshot.available && networkMonitor?.underlyingIsCellular == true) {
+                    val uplink = stats.filter { it.direction == AppConfig.UPLINK }.sumOf { it.value.coerceAtLeast(0L) }
+                    val downlink = stats.filter { it.direction == AppConfig.DOWNLINK }.sumOf { it.value.coerceAtLeast(0L) }
+                    MobileTrafficUsageStore.add(uplink, downlink)
+                } else {
+                    MobileTrafficUsageStore.current()
+                }
+                val snapshotWithDailyMobileUsage = snapshot.copy(
+                    mobileDailyUplinkBytes = dailyMobileUsage.uplinkBytes,
+                    mobileDailyDownlinkBytes = dailyMobileUsage.downlinkBytes,
+                )
                 previousTime = now
-                _trafficSnapshot.value = snapshot
-                NotificationManager.updateTraffic(snapshot)
-                MessageHelper.sendMsg2UI(service, AppConfig.MSG_TRAFFIC_UPDATE, snapshot)
+                _trafficSnapshot.value = snapshotWithDailyMobileUsage
+                NotificationManager.updateTraffic(snapshotWithDailyMobileUsage)
+                MessageHelper.sendMsg2UI(service, AppConfig.MSG_TRAFFIC_UPDATE, snapshotWithDailyMobileUsage)
             }
         }
     }
