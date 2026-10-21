@@ -99,15 +99,15 @@ object NotificationManager {
                 service.getString(R.string.notification_action_stop_v2ray),
                 stopV2RayPendingIntent
             )
-
-        lastTrafficText = null
-        lastTrafficUplinkTotal = -1L
-        lastTrafficDownlinkTotal = -1L
             .addAction(
                 R.drawable.ic_restore_24dp,
                 service.getString(R.string.title_service_restart),
                 restartV2RayPendingIntent
             )
+
+        lastTrafficText = null
+        lastTrafficUplinkTotal = -1L
+        lastTrafficDownlinkTotal = -1L
 
         //mBuilder?.setDefaults(NotificationCompat.FLAG_ONLY_ALERT_ONCE)
 
