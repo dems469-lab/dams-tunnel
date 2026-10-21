@@ -278,7 +278,7 @@ object CoreServiceManager {
             while (isActive && !userStopped && isRunning()) {
                 // Vérification courte : une coupure doit déclencher la reconnexion
                 // avant que l'utilisateur ne perçoive un tunnel abandonné.
-                delay(3_000L)
+                delay(2_000L)
                 if (!isRunning() || userStopped) break
                 val reachable = try {
                     measureDelayWithFallback() >= 0L
@@ -315,7 +315,9 @@ object CoreServiceManager {
     private fun scheduleReconnect(service: Service) {
         if (userStopped || reconnectJob?.isActive == true) return
         reconnectJob = connectionTestScope.launch {
-            val backoff = longArrayOf(2_000L, 5_000L, 10_000L, 30_000L)
+            // Première tentative rapide ; le backoff augmente seulement si le réseau
+            // reste réellement indisponible.
+            val backoff = longArrayOf(1_000L, 3_000L, 8_000L, 20_000L)
             while (isActive && !userStopped && !connectionVerified) {
                 val wait = backoff[reconnectAttempt.coerceAtMost(backoff.lastIndex)]
                 reconnectAttempt++

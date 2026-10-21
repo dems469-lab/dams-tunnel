@@ -27,6 +27,9 @@ object NotificationManager {
     private const val NOTIFICATION_ICON_THRESHOLD = 3000
     private var mBuilder: NotificationCompat.Builder? = null
     private var mNotificationManager: NotificationManager? = null
+    private var lastTrafficText: String? = null
+    private var lastTrafficUplinkTotal = -1L
+    private var lastTrafficDownlinkTotal = -1L
 
     /**
      * Starts the speed notification.
@@ -38,12 +41,12 @@ object NotificationManager {
     fun updateTraffic(snapshot: TrafficSnapshot) {
         if (!snapshot.available) {
             val unavailable = getService()?.getString(R.string.dams_metric_unavailable) ?: "—"
-            updateNotification(unavailable, snapshot.uplinkTotalBytes, snapshot.downlinkTotalBytes)
+            updateNotificationIfChanged(unavailable, snapshot.uplinkTotalBytes, snapshot.downlinkTotalBytes)
             return
         }
         val up = snapshot.uplinkBytesPerSecond.toSpeedString()
         val down = snapshot.downlinkBytesPerSecond.toSpeedString()
-        updateNotification("⬆️ $up · ⬇️ $down", snapshot.uplinkTotalBytes, snapshot.downlinkTotalBytes)
+        updateNotificationIfChanged("⬆️ $up · ⬇️ $down", snapshot.uplinkTotalBytes, snapshot.downlinkTotalBytes)
     }
 
     fun updateState(text: String, color: Int) {
@@ -96,6 +99,10 @@ object NotificationManager {
                 service.getString(R.string.notification_action_stop_v2ray),
                 stopV2RayPendingIntent
             )
+
+        lastTrafficText = null
+        lastTrafficUplinkTotal = -1L
+        lastTrafficDownlinkTotal = -1L
             .addAction(
                 R.drawable.ic_restore_24dp,
                 service.getString(R.string.title_service_restart),
@@ -127,6 +134,9 @@ object NotificationManager {
 
         mBuilder = null
         mNotificationManager = null
+        lastTrafficText = null
+        lastTrafficUplinkTotal = -1L
+        lastTrafficDownlinkTotal = -1L
     }
 
     /**
@@ -163,7 +173,15 @@ object NotificationManager {
      * @param proxyTraffic The proxy traffic.
      * @param directTraffic The direct traffic.
      */
-    private fun updateNotification(contentText: String?, proxyTraffic: Long, directTraffic: Long) {
+    private fun updateNotificationIfChanged(contentText: String?, proxyTraffic: Long, directTraffic: Long) {
+        if (contentText == lastTrafficText
+            && proxyTraffic == lastTrafficUplinkTotal
+            && directTraffic == lastTrafficDownlinkTotal
+        ) return
+
+        lastTrafficText = contentText
+        lastTrafficUplinkTotal = proxyTraffic
+        lastTrafficDownlinkTotal = directTraffic
         if (mBuilder != null) {
             if (proxyTraffic < NOTIFICATION_ICON_THRESHOLD && directTraffic < NOTIFICATION_ICON_THRESHOLD) {
                 mBuilder?.setSmallIcon(R.drawable.ic_stat_name)
