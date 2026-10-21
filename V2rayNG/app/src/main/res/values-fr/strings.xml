@@ -260,18 +260,18 @@
 
     <!-- PerAppProxyActivity -->
     <string name="msg_dialog_progress">Loading</string>
-    <string name="menu_item_search">Search</string>
-    <string name="menu_item_select_all">Select all</string>
-    <string name="menu_item_invert_selection">Invert selection</string>
+    <string name="menu_item_search">Rechercher</string>
+    <string name="menu_item_select_all">Tout sélectionner</string>
+    <string name="menu_item_invert_selection">Inverser la sélection</string>
     <string name="msg_enter_keywords">Enter keywords</string>
-    <string name="switch_bypass_apps_mode">Bypass Mode</string>
-    <string name="menu_item_select_proxy_app">Auto-select apps to be proxied</string>
+    <string name="switch_bypass_apps_mode">Mode contournement</string>
+    <string name="menu_item_select_proxy_app">Sélectionner automatiquement les applications à faire passer par le proxy</string>
     <string name="msg_downloading_content">Downloading content</string>
-    <string name="menu_item_export_proxy_app">Export to Clipboard</string>
-    <string name="menu_item_import_proxy_app">Import from Clipboard</string>
+    <string name="menu_item_export_proxy_app">Exporter vers le presse-papiers</string>
+    <string name="menu_item_import_proxy_app">Importer depuis le presse-papiers</string>
     <string name="per_app_proxy_settings">Proxy par application</string>
-    <string name="per_app_proxy_settings_enable">Enable per-app</string>
-    <string name="app_picker_unknown_app">Unknown app (UID not recognized)</string>
+    <string name="per_app_proxy_settings_enable">Activer le proxy par application</string>
+    <string name="app_picker_unknown_app">Application inconnue (UID non reconnu)</string>
 
     <!-- Preferences -->
     <string name="title_settings">Paramètres</string>
@@ -279,7 +279,7 @@
     <string name="title_core_settings">Paramètres du cœur</string>
     <string name="title_vpn_settings">Paramètres VPN</string>
     <string name="title_pref_per_app_proxy">Per-app proxy</string>
-    <string name="summary_pref_per_app_proxy">General: checked apps use the proxy, and unchecked apps connect directly;\nBypass mode: checked apps connect directly, and unchecked apps use the proxy.\nThe option to automatically select apps that should use the proxy is in the menu.</string>
+    <string name="summary_pref_per_app_proxy">Mode général : les applications cochées utilisent le proxy ; les autres se connectent directement.\nMode contournement : les applications cochées se connectent directement ; les autres utilisent le proxy.\nL’option de sélection automatique des applications à faire passer par le proxy se trouve dans le menu.</string>
     <string name="title_pref_is_booted">Se connecter au démarrage de l’appareil</string>
     <string name="summary_pref_is_booted">Se connecter automatiquement au serveur sélectionné au démarrage. Android peut limiter le démarrage en arrière-plan.</string>
     <string name="title_system_vpn_settings">Paramètres VPN du système</string>
@@ -655,7 +655,7 @@
     <string name="acc_start">Connecter</string>
     <string name="acc_stop">Déconnecter</string>
     <string name="acc_back">Back</string>
-    <string name="acc_search">Search</string>
+    <string name="acc_search">Rechercher</string>
     <string name="acc_add">Add configuration</string>
     <string name="acc_more">Plus d’options</string>
     <string name="acc_selected_server">Selected</string>
