@@ -7,11 +7,17 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
+import java.io.IOException
+import java.net.UnknownHostException
+import java.net.SocketTimeoutException
 
 internal sealed interface PremiumFetchResult {
     data class Content(val text: String, val userInfo: PremiumSubscriptionInfo?) : PremiumFetchResult
     data object ConfirmedExpired : PremiumFetchResult
+    data object InvalidCode : PremiumFetchResult
     data object EmptyResponse : PremiumFetchResult
+    data object DomainUnreachable : PremiumFetchResult
+    data object ServerFailure : PremiumFetchResult
     data object Failed : PremiumFetchResult
 }
 
@@ -29,10 +35,9 @@ internal class PremiumSubscriptionClient(
 ) {
     suspend fun fetch(token: String, nowEpochSeconds: Long): PremiumFetchResult = withContext(Dispatchers.IO) {
         val urls = endpointPolicy.subscriptionUrlsForToken(token)
-        if (urls.isEmpty()) return@withContext PremiumFetchResult.Failed
+        if (urls.isEmpty()) return@withContext PremiumFetchResult.InvalidCode
 
         val outcomes = mutableListOf<PremiumExpiryObservation>()
-        var emptyResponseFound = false
         urls.forEach { url ->
             val response = try {
                 val request = Request.Builder()
@@ -47,9 +52,7 @@ internal class PremiumSubscriptionClient(
                     )
                     if (!PremiumExpiryPolicy.responseMayContainSubscriptionContent(code)) {
                         val observation = PremiumExpiryPolicy.observeHttpResponse(code, userInfo, false, nowEpochSeconds)
-                        if (observation == PremiumExpiryObservation.HTTP_EXPIRED ||
-                            observation == PremiumExpiryObservation.HEADER_EXPIRED
-                        ) EndpointResult.Expired(observation) else EndpointResult.Failed
+                        EndpointResult.Observed(observation)
                     } else {
                         val body = httpResponse.body
                         val text = body?.let { readBounded(it.byteStream()) }
@@ -60,38 +63,43 @@ internal class PremiumSubscriptionClient(
                             nowEpochSeconds = nowEpochSeconds,
                         )) {
                             PremiumExpiryObservation.HTTP_EXPIRED,
-                            PremiumExpiryObservation.HEADER_EXPIRED -> EndpointResult.Expired(observation)
+                            PremiumExpiryObservation.HEADER_EXPIRED,
+                            PremiumExpiryObservation.INVALID_CODE,
+                            PremiumExpiryObservation.SERVER_FAILURE,
+                            PremiumExpiryObservation.NETWORK_FAILURE,
+                            PremiumExpiryObservation.EMPTY_RESPONSE,
+                            PremiumExpiryObservation.INDETERMINATE -> EndpointResult.Observed(observation)
                             PremiumExpiryObservation.ACTIVE -> EndpointResult.Content(text!!, userInfo)
-                            PremiumExpiryObservation.INDETERMINATE -> if (text.isNullOrBlank()) {
-                                EndpointResult.Empty
-                            } else {
-                                EndpointResult.Failed
-                            }
                         }
                     }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
+            } catch (_: UnknownHostException) {
+                EndpointResult.Observed(PremiumExpiryObservation.NETWORK_FAILURE)
+            } catch (_: SocketTimeoutException) {
+                EndpointResult.Observed(PremiumExpiryObservation.NETWORK_FAILURE)
+            } catch (_: IOException) {
+                EndpointResult.Observed(PremiumExpiryObservation.NETWORK_FAILURE)
             } catch (_: Exception) {
                 // Ne pas journaliser l'exception : certains clients incluent l'URL et le token.
-                EndpointResult.Failed
+                EndpointResult.Observed(PremiumExpiryObservation.INDETERMINATE)
             }
 
             when (response) {
                 is EndpointResult.Content -> return@withContext PremiumFetchResult.Content(response.text, response.userInfo)
-                is EndpointResult.Expired -> outcomes += response.observation
-                EndpointResult.Empty -> {
-                    emptyResponseFound = true
-                    outcomes += PremiumExpiryObservation.INDETERMINATE
-                }
-                EndpointResult.Failed -> outcomes += PremiumExpiryObservation.INDETERMINATE
+                is EndpointResult.Observed -> outcomes += response.observation
             }
         }
         when (PremiumExpiryPolicy.aggregate(outcomes, urls.size)) {
             PremiumExpiryObservation.HTTP_EXPIRED,
             PremiumExpiryObservation.HEADER_EXPIRED -> PremiumFetchResult.ConfirmedExpired
+            PremiumExpiryObservation.INVALID_CODE -> PremiumFetchResult.InvalidCode
             PremiumExpiryObservation.ACTIVE -> PremiumFetchResult.Failed
-            PremiumExpiryObservation.INDETERMINATE -> if (emptyResponseFound) PremiumFetchResult.EmptyResponse else PremiumFetchResult.Failed
+            PremiumExpiryObservation.EMPTY_RESPONSE -> PremiumFetchResult.EmptyResponse
+            PremiumExpiryObservation.NETWORK_FAILURE -> PremiumFetchResult.DomainUnreachable
+            PremiumExpiryObservation.SERVER_FAILURE -> PremiumFetchResult.ServerFailure
+            PremiumExpiryObservation.INDETERMINATE -> PremiumFetchResult.Failed
         }
     }
 
@@ -113,9 +121,7 @@ internal class PremiumSubscriptionClient(
 
     private sealed interface EndpointResult {
         data class Content(val text: String, val userInfo: PremiumSubscriptionInfo?) : EndpointResult
-        data class Expired(val observation: PremiumExpiryObservation) : EndpointResult
-        data object Empty : EndpointResult
-        data object Failed : EndpointResult
+        data class Observed(val observation: PremiumExpiryObservation) : EndpointResult
     }
 
     private companion object {

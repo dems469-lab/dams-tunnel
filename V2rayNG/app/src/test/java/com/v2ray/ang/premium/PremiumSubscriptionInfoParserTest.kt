@@ -76,6 +76,6 @@ class PremiumSubscriptionInfoParserTest {
     fun `total et expiration nuls correspondent a illimite ou inconnu`() {
         val info = PremiumSubscriptionInfoParser.parse("upload=10;download=20;total=0;expire=0")
 
-        assertEquals(PremiumSubscriptionStatus.UNKNOWN, PremiumSubscriptionInfoParser.status(info, 2_000_000_000L))
+        assertEquals(PremiumSubscriptionStatus.UNLIMITED, PremiumSubscriptionInfoParser.status(info, 2_000_000_000L))
     }
 }

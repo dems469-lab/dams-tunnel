@@ -36,6 +36,7 @@ import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.ipfinder.IpFinderActivity
 import com.v2ray.ang.ipfinder.IpFinderRecoveryStore
+import com.v2ray.ang.premium.PremiumFeatureGate
 import com.v2ray.ang.ui.AboutActivity
 import com.v2ray.ang.ui.backup.BackupActivity
 import com.v2ray.ang.ui.base.HelperBaseComponentActivity
@@ -43,6 +44,7 @@ import com.v2ray.ang.ui.checkupdate.CheckUpdateActivity
 import com.v2ray.ang.ui.logcat.LogcatActivity
 import com.v2ray.ang.ui.logcat.LogcatViewModel
 import com.v2ray.ang.ui.perappproxy.PerAppProxyActivity
+import com.v2ray.ang.ui.premium.PremiumSubscriptionActivity
 import com.v2ray.ang.ui.routing.RoutingSettingActivity
 import com.v2ray.ang.ui.server.ProfileEditorResult
 import com.v2ray.ang.ui.server.ServerCustomConfigActivity
@@ -73,6 +75,7 @@ import kotlinx.coroutines.withContext
 
 class MainActivity : HelperBaseComponentActivity() {
 
+    private var premiumFeatureEnabled by mutableStateOf(false)
     private var appUnlocked = false
     private var recoveryPromptShown = false
     private val appLockLauncher = registerForActivityResult(
@@ -121,6 +124,7 @@ class MainActivity : HelperBaseComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        premiumFeatureEnabled = PremiumFeatureGate.isEnabled()
         IpFinderRecoveryStore.initialize(this)
         mainViewModel.onAction(MainAction.Initialize)
 
@@ -181,6 +185,7 @@ class MainActivity : HelperBaseComponentActivity() {
         MainScreen(
             mainViewModel = mainViewModel,
             logcatViewModel = logcatViewModel,
+            showPremium = premiumFeatureEnabled,
             onAction = { action ->
                 when (action) {
                     MainAction.ToggleService -> {
@@ -251,6 +256,7 @@ class MainActivity : HelperBaseComponentActivity() {
     private fun navigateTo(destination: MainDestination) {
         val intent = when (destination) {
             MainDestination.Subscriptions -> Intent(this, SubSettingActivity::class.java)
+            MainDestination.PremiumSubscription -> Intent(this, PremiumSubscriptionActivity::class.java)
             MainDestination.PerAppProxy -> Intent(this, PerAppProxyActivity::class.java)
             MainDestination.Routing -> Intent(this, RoutingSettingActivity::class.java)
             MainDestination.IpFinder -> Intent(this, IpFinderActivity::class.java)

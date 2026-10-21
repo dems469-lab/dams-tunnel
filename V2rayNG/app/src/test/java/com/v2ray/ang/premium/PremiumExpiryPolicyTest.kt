@@ -89,6 +89,14 @@ class PremiumExpiryPolicyTest {
             PremiumExpiryObservation.INDETERMINATE,
             PremiumExpiryPolicy.observeHttpResponse(500, null, false, NOW / 1000),
         )
+        assertEquals(
+            PremiumExpiryObservation.INVALID_CODE,
+            PremiumExpiryPolicy.observeHttpResponse(401, null, false, NOW / 1000),
+        )
+        assertEquals(
+            PremiumExpiryObservation.EMPTY_RESPONSE,
+            PremiumExpiryPolicy.observeHttpResponse(200, null, false, NOW / 1000),
+        )
     }
 
     @Test

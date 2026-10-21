@@ -92,6 +92,7 @@ import kotlinx.coroutines.launch
 fun MainScreen(
     mainViewModel: MainViewModel,
     logcatViewModel: LogcatViewModel,
+    showPremium: Boolean,
     onAction: (MainAction) -> Unit,
     onNavigate: (MainDestination) -> Unit,
 ) {
@@ -231,6 +232,7 @@ fun MainScreen(
         drawerContent = {
             MainDrawerContent(
                 drawerState = drawerState,
+                showPremium = showPremium,
                 onNavigate = { route ->
                     scope.launch { drawerState.close() }
                     onNavigate(route)

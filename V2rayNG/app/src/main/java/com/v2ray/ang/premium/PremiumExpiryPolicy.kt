@@ -17,7 +17,16 @@ data class PremiumExpiryEvaluation(
     val action: PremiumExpiryAction,
 )
 
-enum class PremiumExpiryObservation { HTTP_EXPIRED, HEADER_EXPIRED, ACTIVE, INDETERMINATE }
+enum class PremiumExpiryObservation {
+    HTTP_EXPIRED,
+    HEADER_EXPIRED,
+    INVALID_CODE,
+    ACTIVE,
+    EMPTY_RESPONSE,
+    SERVER_FAILURE,
+    NETWORK_FAILURE,
+    INDETERMINATE,
+}
 
 /** Toute interprétation des réponses HTTP/expiration Premium est centralisée ici. */
 object PremiumExpiryPolicy {
@@ -31,10 +40,13 @@ object PremiumExpiryPolicy {
         nowEpochSeconds: Long,
     ): PremiumExpiryObservation = when {
         httpCode == HTTP_FORBIDDEN || httpCode == HTTP_NOT_FOUND -> PremiumExpiryObservation.HTTP_EXPIRED
+        httpCode == HTTP_BAD_REQUEST || httpCode == HTTP_UNAUTHORIZED -> PremiumExpiryObservation.INVALID_CODE
         httpCode in SUCCESS_RANGE &&
             PremiumSubscriptionInfoParser.status(info, nowEpochSeconds) == PremiumSubscriptionStatus.EXPIRED ->
             PremiumExpiryObservation.HEADER_EXPIRED
         httpCode in SUCCESS_RANGE && hasUsableContent -> PremiumExpiryObservation.ACTIVE
+        httpCode in SUCCESS_RANGE -> PremiumExpiryObservation.EMPTY_RESPONSE
+        httpCode in SERVER_ERROR_RANGE -> PremiumExpiryObservation.SERVER_FAILURE
         else -> PremiumExpiryObservation.INDETERMINATE
     }
 
@@ -46,6 +58,11 @@ object PremiumExpiryPolicy {
         endpointCount > 0 && observations.size == endpointCount &&
             observations.all { it == PremiumExpiryObservation.HTTP_EXPIRED } -> PremiumExpiryObservation.HTTP_EXPIRED
         observations.any { it == PremiumExpiryObservation.ACTIVE } -> PremiumExpiryObservation.ACTIVE
+        endpointCount > 0 && observations.size == endpointCount &&
+            observations.all { it == PremiumExpiryObservation.INVALID_CODE } -> PremiumExpiryObservation.INVALID_CODE
+        observations.any { it == PremiumExpiryObservation.NETWORK_FAILURE } -> PremiumExpiryObservation.NETWORK_FAILURE
+        observations.any { it == PremiumExpiryObservation.SERVER_FAILURE } -> PremiumExpiryObservation.SERVER_FAILURE
+        observations.any { it == PremiumExpiryObservation.EMPTY_RESPONSE } -> PremiumExpiryObservation.EMPTY_RESPONSE
         else -> PremiumExpiryObservation.INDETERMINATE
     }
 
@@ -94,6 +111,9 @@ object PremiumExpiryPolicy {
 
     private const val HTTP_FORBIDDEN = 403
     private const val HTTP_NOT_FOUND = 404
+    private const val HTTP_BAD_REQUEST = 400
+    private const val HTTP_UNAUTHORIZED = 401
     private const val REQUIRED_CONFIRMATIONS = 2
     private val SUCCESS_RANGE = 200..299
+    private val SERVER_ERROR_RANGE = 500..599
 }

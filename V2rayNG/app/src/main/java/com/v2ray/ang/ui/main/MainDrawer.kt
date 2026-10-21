@@ -32,6 +32,7 @@ import com.v2ray.ang.ui.compose.verticalScrollbar
 
 enum class MainDestination(@DrawableRes val iconRes: Int, @StringRes val labelRes: Int) {
     Subscriptions(R.drawable.ic_subscriptions_24dp, R.string.title_sub_setting),
+    PremiumSubscription(R.drawable.ic_subscriptions_24dp, R.string.premium_menu_my_subscription),
     PerAppProxy(R.drawable.ic_per_apps_24dp, R.string.per_app_proxy_settings),
     Routing(R.drawable.ic_routing_24dp, R.string.routing_settings_title),
     IpFinder(R.drawable.ic_ip_finder_24dp, R.string.ip_finder_drawer_entry),
@@ -43,25 +44,35 @@ enum class MainDestination(@DrawableRes val iconRes: Int, @StringRes val labelRe
     About(R.drawable.ic_about_24dp, R.string.title_about)
 }
 
-private val primaryDrawerItems = listOf(
-    MainDestination.Subscriptions,
-    MainDestination.PerAppProxy,
-    MainDestination.Routing,
-    MainDestination.IpFinder,
-    MainDestination.UserAssets,
-    MainDestination.Settings
-)
+internal fun primaryDrawerItems(showPremium: Boolean): List<MainDestination> = buildList {
+    add(MainDestination.Subscriptions)
+    if (showPremium) add(MainDestination.PremiumSubscription)
+    addAll(
+        listOf(
+            MainDestination.PerAppProxy,
+            MainDestination.Routing,
+            MainDestination.IpFinder,
+            MainDestination.UserAssets,
+            MainDestination.Settings,
+        ),
+    )
+}
 
-private val drawerItems = primaryDrawerItems + listOf(
+internal fun drawerItems(showPremium: Boolean): List<MainDestination> = primaryDrawerItems(showPremium) + listOf(
     MainDestination.Logcat,
     MainDestination.CheckUpdate,
     MainDestination.BackupRestore,
-    MainDestination.About
+    MainDestination.About,
 )
 
 @Composable
-fun MainDrawerContent(drawerState: DrawerState, onNavigate: (MainDestination) -> Unit) {
+fun MainDrawerContent(
+    drawerState: DrawerState,
+    showPremium: Boolean,
+    onNavigate: (MainDestination) -> Unit,
+) {
     val drawerScrollState = rememberScrollState()
+    val primaryItems = primaryDrawerItems(showPremium)
 
     ModalDrawerSheet(
         drawerState = drawerState,
@@ -97,8 +108,8 @@ fun MainDrawerContent(drawerState: DrawerState, onNavigate: (MainDestination) ->
                     )
                 }
             }
-            drawerItems.forEachIndexed { index, item ->
-                if (index == primaryDrawerItems.size) AppDivider()
+            drawerItems(showPremium).forEachIndexed { index, item ->
+                if (index == primaryItems.size) AppDivider()
                 NavigationDrawerItem(
                     label = { Text(stringResource(item.labelRes)) },
                     selected = false,

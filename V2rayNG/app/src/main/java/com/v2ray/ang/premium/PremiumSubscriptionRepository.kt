@@ -1,16 +1,22 @@
 package com.v2ray.ang.premium
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 sealed interface PremiumActivationResult {
     data class Imported(val profileCount: Int, val info: PremiumSubscriptionInfo?) : PremiumActivationResult
     data object InvalidCode : PremiumActivationResult
     data object Expired : PremiumActivationResult
     data object EmptyOrInvalidResponse : PremiumActivationResult
-    data object NetworkOrServerError : PremiumActivationResult
+    data object NetworkUnavailable : PremiumActivationResult
+    data object DomainUnreachable : PremiumActivationResult
+    data object ServerFailure : PremiumActivationResult
     data object ReentryRequired : PremiumActivationResult
     data object Disabled : PremiumActivationResult
 }
@@ -22,7 +28,7 @@ sealed interface PremiumStoredTokenResult {
     data object Present : PremiumStoredTokenResult
 }
 
-/** Étape de stockage/import. L'interface sera branchée à l'écran Premium à l'étape suivante. */
+/** Accès isolé au stockage et à l'import de l'abonnement Premium. */
 class PremiumSubscriptionRepository internal constructor(
     context: Context,
     private val endpointPolicy: PremiumEndpointPolicy = PremiumEndpointPolicy(configuredBaseUrls()),
@@ -32,16 +38,18 @@ class PremiumSubscriptionRepository internal constructor(
     private val removeExpiredProfiles: () -> Int = MmkvManager::removePremiumGroupProfiles,
     private val nowEpochSeconds: () -> Long = { System.currentTimeMillis() / 1000L },
     private val expiryStateStore: PremiumExpiryStateStore = PremiumExpiryStateStore(),
+    private val infoStore: PremiumSubscriptionInfoStore = PremiumSubscriptionInfoStore(),
     private val nowMillis: () -> Long = System::currentTimeMillis,
-) {
-    suspend fun activate(codeOrUrl: String): PremiumActivationResult {
-        if (!BuildConfig.PREMIUM_ENABLED) return PremiumActivationResult.Disabled
+    private val networkAvailable: () -> Boolean = { hasInternetCapability(context) },
+) : PremiumSubscriptionDataSource {
+    override suspend fun activate(codeOrUrl: String): PremiumActivationResult {
+        if (!PremiumFeatureGate.isEnabled()) return PremiumActivationResult.Disabled
         val token = endpointPolicy.token(codeOrUrl) ?: return PremiumActivationResult.InvalidCode
         return applyFetchResult(token, persistTokenOnSuccess = true)
     }
 
-    suspend fun refreshStoredToken(): PremiumActivationResult {
-        if (!BuildConfig.PREMIUM_ENABLED) return PremiumActivationResult.Disabled
+    override suspend fun refreshStoredToken(): PremiumActivationResult {
+        if (!PremiumFeatureGate.isEnabled()) return PremiumActivationResult.Disabled
         return when (val stored = tokenStore.readToken()) {
             PremiumTokenReadResult.Missing -> PremiumActivationResult.InvalidCode
             PremiumTokenReadResult.ReentryRequired -> PremiumActivationResult.ReentryRequired
@@ -49,8 +57,8 @@ class PremiumSubscriptionRepository internal constructor(
         }
     }
 
-    fun readStoredTokenState(): PremiumStoredTokenResult {
-        if (!BuildConfig.PREMIUM_ENABLED) return PremiumStoredTokenResult.Disabled
+    override fun readStoredTokenState(): PremiumStoredTokenResult {
+        if (!PremiumFeatureGate.isEnabled()) return PremiumStoredTokenResult.Disabled
         return when (val stored = tokenStore.readToken()) {
             PremiumTokenReadResult.Missing -> PremiumStoredTokenResult.Missing
             PremiumTokenReadResult.ReentryRequired -> PremiumStoredTokenResult.ReentryRequired
@@ -60,38 +68,62 @@ class PremiumSubscriptionRepository internal constructor(
 
     fun clear() = tokenStore.clear()
 
-    fun expiryState(): PremiumExpiryState = expiryStateStore.load()
+    override fun expiryState(): PremiumExpiryState = expiryStateStore.load()
+
+    override fun subscriptionInfo(): PremiumSubscriptionInfo? = infoStore.load()
 
     /** Suppression explicitement demandée : ne touche qu'aux profils du groupe Premium. */
-    fun removeSubscriptionManually(): Int {
+    override fun removeSubscriptionManually(): Int {
         val removedProfiles = removeExpiredProfiles()
         tokenStore.clear()
         expiryStateStore.clear()
+        infoStore.clear()
         return removedProfiles
     }
 
     private suspend fun applyFetchResult(
         token: String,
         persistTokenOnSuccess: Boolean,
-    ): PremiumActivationResult = when (val fetched = client.fetch(token, nowEpochSeconds())) {
-        is PremiumFetchResult.Content -> {
-            val count = importProfiles(fetched.text)
-            if (count <= 0) {
-                PremiumActivationResult.EmptyOrInvalidResponse
-            } else {
-                if (persistTokenOnSuccess) tokenStore.saveToken(token)
-                expiryStateStore.save(PremiumExpiryPolicy.recordActive(expiryStateStore.load()).state)
-                PremiumActivationResult.Imported(count, fetched.userInfo)
+    ): PremiumActivationResult {
+        val connected = withContext(Dispatchers.IO) { networkAvailable() }
+        if (!connected) return PremiumActivationResult.NetworkUnavailable
+        return when (val fetched = client.fetch(token, nowEpochSeconds())) {
+            is PremiumFetchResult.Content -> {
+                val count = withContext(Dispatchers.IO) { importProfiles(fetched.text) }
+                if (count <= 0) {
+                    PremiumActivationResult.EmptyOrInvalidResponse
+                } else {
+                    if (persistTokenOnSuccess) withContext(Dispatchers.IO) { tokenStore.saveToken(token) }
+                    withContext(Dispatchers.IO) {
+                        expiryStateStore.save(PremiumExpiryPolicy.recordActive(expiryStateStore.load()).state)
+                        infoStore.save(fetched.userInfo)
+                    }
+                    PremiumActivationResult.Imported(count, fetched.userInfo)
+                }
             }
+            PremiumFetchResult.ConfirmedExpired -> withContext(Dispatchers.IO) {
+                val evaluation = PremiumExpiryPolicy.recordExpiration(expiryStateStore.load(), nowMillis())
+                if (persistTokenOnSuccess && !evaluation.state.profilesDeleted) tokenStore.saveToken(token)
+                if (evaluation.action == PremiumExpiryAction.DELETE_PROFILES) removeExpiredProfiles()
+                expiryStateStore.save(evaluation.state)
+                PremiumActivationResult.Expired
+            }
+            PremiumFetchResult.EmptyResponse -> PremiumActivationResult.EmptyOrInvalidResponse
+            PremiumFetchResult.InvalidCode -> PremiumActivationResult.InvalidCode
+            PremiumFetchResult.DomainUnreachable -> PremiumActivationResult.DomainUnreachable
+            PremiumFetchResult.ServerFailure -> PremiumActivationResult.ServerFailure
+            PremiumFetchResult.Failed -> PremiumActivationResult.ServerFailure
         }
-        PremiumFetchResult.ConfirmedExpired -> {
-            val evaluation = PremiumExpiryPolicy.recordExpiration(expiryStateStore.load(), nowMillis())
-            if (evaluation.action == PremiumExpiryAction.DELETE_PROFILES) removeExpiredProfiles()
-            expiryStateStore.save(evaluation.state)
-            PremiumActivationResult.Expired
-        }
-        PremiumFetchResult.EmptyResponse -> PremiumActivationResult.EmptyOrInvalidResponse
-        PremiumFetchResult.Failed -> PremiumActivationResult.NetworkOrServerError
+    }
+
+    private fun hasInternetCapability(context: Context): Boolean {
+        return runCatching {
+            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return false
+            val network = connectivityManager.activeNetwork ?: return false
+            connectivityManager.getNetworkCapabilities(network)
+                ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        }.getOrDefault(false)
     }
 
     private companion object {

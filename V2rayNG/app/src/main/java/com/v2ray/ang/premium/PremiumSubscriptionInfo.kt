@@ -20,6 +20,7 @@ enum class PremiumSubscriptionStatus {
     EXPIRING_SOON,
     EXPIRED,
     QUOTA_EXHAUSTED,
+    UNLIMITED,
 }
 
 /** Résultat pur, indépendant d'Android, pour tester les statuts sans réseau ni horloge système. */
@@ -62,6 +63,7 @@ object PremiumSubscriptionInfoParser {
         if (expiry != null && expiry - nowEpochSeconds <= expiringSoonWithinSeconds) {
             return PremiumSubscriptionStatus.EXPIRING_SOON
         }
+        if (info.totalBytes == 0L) return PremiumSubscriptionStatus.UNLIMITED
         return if (expiry != null || total != null) PremiumSubscriptionStatus.ACTIVE
         else PremiumSubscriptionStatus.UNKNOWN
     }
