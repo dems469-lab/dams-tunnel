@@ -136,7 +136,6 @@ object AppConfig {
     const val APP_URL = "$GITHUB_URL/2dust/v2rayNG"
     const val APP_API_URL = "https://api.github.com/repos/2dust/v2rayNG/releases"
     const val APP_ISSUES_URL = "$APP_URL/issues"
-    const val APP_WIKI_MODE = "$APP_URL/wiki/Mode"
     const val APP_PRIVACY_POLICY = "$GITHUB_RAW_URL/2dust/v2rayNG/master/CR.md"
     const val TG_CHANNEL_URL = "https://t.me/github_2dust"
     const val DELAY_TEST_URL = "https://www.gstatic.com/generate_204"
