@@ -329,6 +329,7 @@ object CoreServiceManager {
                     currentService.getString(com.v2ray.ang.R.string.connection_reconnecting),
                     android.graphics.Color.rgb(245, 196, 81),
                 )
+                val previousVerification = connectionVerificationJob
                 try {
                     if (isRunning()) {
                         // Borne chaque rechargement : un appel natif bloqué ne doit
@@ -344,14 +345,12 @@ object CoreServiceManager {
                 } catch (_: Exception) {
                     // Keep retrying after a transient launcher or core error.
                 }
-                // A running loop is not yet a working connection. Wait for its
-                // connectivity probe, then retry if that probe failed. This avoids
-                // losing the next retry when verification fails while this job is
-                // still marked active.
-                kotlinx.coroutines.withTimeoutOrNull(60_000L) {
-                    while (isActive && !userStopped && !connectionVerified) {
-                        connectionVerificationJob?.join()
-                        if (!connectionVerified) delay(500L)
+                // Wait only for the probe started by this attempt. The old loop
+                // polled connectionVerified for up to 60 s after a failed probe,
+                // preventing this still-active job from scheduling the next retry.
+                if (!connectionVerified && !userStopped) {
+                    awaitNextReconnectVerification(previousVerification) {
+                        connectionVerificationJob
                     }
                 }
             }
