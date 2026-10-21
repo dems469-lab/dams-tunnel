@@ -1,7 +1,8 @@
 package com.v2ray.ang.ui.premium
 
-import android.os.Bundle
 import android.text.format.Formatter
+import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +50,7 @@ import com.v2ray.ang.premium.PremiumSubscriptionInfo
 import com.v2ray.ang.premium.PremiumSubscriptionInfoParser
 import com.v2ray.ang.premium.PremiumSubscriptionRepository
 import com.v2ray.ang.premium.PremiumSubscriptionStatus
+import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.NavigationBarsBottomPadding
@@ -67,6 +69,7 @@ class PremiumSubscriptionActivity : BaseComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         premiumFeatureEnabled = PremiumFeatureGate.isEnabled()
         if (!premiumFeatureEnabled) finish()
     }
@@ -76,6 +79,13 @@ class PremiumSubscriptionActivity : BaseComponentActivity() {
         if (!premiumFeatureEnabled) return
         val state by viewModel.uiState.collectAsStateWithLifecycle()
         LaunchedEffect(Unit) { viewModel.loadSavedState() }
+        LaunchedEffect(state.messageRes) {
+            if (state.messageRes == R.string.premium_activation_success ||
+                state.messageRes == R.string.premium_refresh_success
+            ) {
+                SettingsChangeManager.makeSetupGroupTab()
+            }
+        }
         BackHandler { finish() }
         PremiumSubscriptionScreen(
             state = state,

@@ -6,6 +6,30 @@ object PremiumGroup {
     const val NAME = "Premium"
 }
 
+/** Règles pures d'accès aux profils Premium. */
+internal object PremiumProfilePolicy {
+    fun shouldShowProfiles(featureEnabled: Boolean, profileCount: Int): Boolean =
+        featureEnabled && profileCount > 0
+
+    fun blocksConnection(groupId: String?, subscriptionExpired: Boolean): Boolean =
+        isPremiumGroup(groupId) && subscriptionExpired
+
+    fun isShareAllowed(groupId: String?): Boolean = !isPremiumGroup(groupId)
+
+    fun canExportDams(hasPremiumProfiles: Boolean): Boolean = !hasPremiumProfiles
+
+    fun <T> appendVisibleGroup(
+        groups: List<T>,
+        premiumGroup: T,
+        featureEnabled: Boolean,
+        profileCount: Int,
+    ): List<T> = if (shouldShowProfiles(featureEnabled, profileCount)) {
+        groups + premiumGroup
+    } else {
+        groups
+    }
+}
+
 /** Règles partagées par les opérations globales et leurs tests JVM. */
 internal object PremiumIsolationPolicy {
     fun isPremiumGroup(groupId: String?): Boolean = groupId == PremiumGroup.ID

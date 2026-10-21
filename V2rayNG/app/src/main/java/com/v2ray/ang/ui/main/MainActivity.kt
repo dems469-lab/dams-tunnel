@@ -37,6 +37,8 @@ import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.ipfinder.IpFinderActivity
 import com.v2ray.ang.ipfinder.IpFinderRecoveryStore
 import com.v2ray.ang.premium.PremiumFeatureGate
+import com.v2ray.ang.premium.PremiumExpiryStateStore
+import com.v2ray.ang.premium.PremiumProfilePolicy
 import com.v2ray.ang.ui.AboutActivity
 import com.v2ray.ang.ui.backup.BackupActivity
 import com.v2ray.ang.ui.base.HelperBaseComponentActivity
@@ -76,6 +78,7 @@ import kotlinx.coroutines.withContext
 class MainActivity : HelperBaseComponentActivity() {
 
     private var premiumFeatureEnabled by mutableStateOf(false)
+    private var showPremiumExpiredPrompt by mutableStateOf(false)
     private var appUnlocked = false
     private var recoveryPromptShown = false
     private val appLockLauncher = registerForActivityResult(
@@ -238,12 +241,39 @@ class MainActivity : HelperBaseComponentActivity() {
                 },
             )
         }
+        if (showPremiumExpiredPrompt) {
+            ComposeAlertDialog(
+                onDismissRequest = { showPremiumExpiredPrompt = false },
+                title = { Text(stringResource(R.string.premium_expired_connect_title)) },
+                text = { Text(stringResource(R.string.premium_expired_connect_message)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showPremiumExpiredPrompt = false
+                        navigateTo(MainDestination.PremiumSubscription)
+                    }) { Text(stringResource(R.string.premium_menu_my_subscription)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showPremiumExpiredPrompt = false }) {
+                        Text(stringResource(R.string.premium_cancel))
+                    }
+                },
+            )
+        }
     }
 
-    private fun shareToClipboard(guid: String): Boolean =
-        AngConfigManager.shareDamsProfileLink2Clipboard(this, guid) == 0
+    private fun shareToClipboard(guid: String): Boolean {
+        if (MmkvManager.isPremiumProfileGuid(guid)) {
+            toast(R.string.premium_export_excluded)
+            return false
+        }
+        return AngConfigManager.shareDamsProfileLink2Clipboard(this, guid) == 0
+    }
 
     private fun shareFullContentAsync(guid: String) {
+        if (MmkvManager.isPremiumProfileGuid(guid)) {
+            toast(R.string.premium_export_excluded)
+            return
+        }
         lifecycleScope.launch(Dispatchers.IO) {
             val result = AngConfigManager.shareFullContent2Clipboard(this@MainActivity, guid)
             withContext(Dispatchers.Main) {
@@ -280,6 +310,16 @@ class MainActivity : HelperBaseComponentActivity() {
     }
 
     private fun requestServiceStart() {
+        val selectedProfile = mainViewModel.uiState.value.selectedGuid
+            ?.let(MmkvManager::decodeServerConfig)
+        if (PremiumProfilePolicy.blocksConnection(
+                selectedProfile?.subscriptionId,
+                PremiumExpiryStateStore().load().isExpired,
+            )
+        ) {
+            showPremiumExpiredPrompt = true
+            return
+        }
         if (!SettingsManager.isVpnMode()) {
             startV2Ray()
             return

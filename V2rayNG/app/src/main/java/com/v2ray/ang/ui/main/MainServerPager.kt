@@ -351,7 +351,7 @@ private fun ServerListItem(
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(row.remarks, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (doubleColumnDisplay) {
+                if (doubleColumnDisplay && !row.isPremiumProfile) {
                     IconButton(onClick = { actions.more(row.guid, row.profile) }, Modifier.size(36.dp)) {
                         Icon(
                             painterResource(R.drawable.ic_more_vert_24dp),
@@ -359,7 +359,7 @@ private fun ServerListItem(
                             Modifier.size(24.dp)
                         )
                     }
-                } else {
+                } else if (!row.isPremiumProfile) {
                     IconButton(onClick = { actions.share(row.guid, row.profile) }, Modifier.size(36.dp)) {
                         Icon(
                             painterResource(R.drawable.ic_share_24dp),
@@ -385,7 +385,14 @@ private fun ServerListItem(
             }
             Spacer(modifier = Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                if (row.subscriptionBadge.isNotBlank()) {
+                if (row.isPremiumProfile) {
+                    Text(
+                        stringResource(R.string.premium_profile_badge),
+                        modifier = Modifier.padding(end = 8.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                } else if (row.subscriptionBadge.isNotBlank()) {
                     Box(
                         Modifier
                             .size(24.dp)

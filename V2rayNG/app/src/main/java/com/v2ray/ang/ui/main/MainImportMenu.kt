@@ -9,6 +9,7 @@ import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.extension.isComplexType
 import com.v2ray.ang.ui.compose.AppDropdownMenuItems
 import com.v2ray.ang.ui.compose.SelectListDialog
+import com.v2ray.ang.premium.PremiumGroup
 
 private enum class ImportMenuAction(@StringRes val labelRes: Int, val action: MainAction) {
     QRCode(R.string.menu_item_import_config_qrcode, MainAction.ImportQRcode),
@@ -55,8 +56,10 @@ internal enum class ServerMenuAction(
 internal fun serverMenuActions(
     isComplexProfile: Boolean,
     includeManagementActions: Boolean,
+    isPremiumProfile: Boolean = false,
 ): List<ServerMenuAction> = ServerMenuAction.entries.filter { action ->
-    (includeManagementActions || action.isShareAction) && (!isComplexProfile || action.supportsComplexProfiles)
+    !isPremiumProfile && (includeManagementActions || action.isShareAction) &&
+        (!isComplexProfile || action.supportsComplexProfiles)
 }
 
 @Composable
@@ -85,6 +88,7 @@ fun ShareMethodDialog(
     val menuActions = serverMenuActions(
         isComplexProfile = profile.configType.isComplexType(),
         includeManagementActions = more,
+        isPremiumProfile = profile.subscriptionId == PremiumGroup.ID,
     )
     SelectListDialog(
         options = menuActions,

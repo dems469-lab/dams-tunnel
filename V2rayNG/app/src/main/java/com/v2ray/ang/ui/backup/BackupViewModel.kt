@@ -7,6 +7,7 @@ import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.WebDavConfig
 import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.premium.PremiumProfilePolicy
 import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.handler.WebDavManager
 import com.v2ray.ang.ui.base.BaseViewModel
@@ -112,6 +113,10 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
         password: String,
         expiresAtEpochMillis: Long?,
     ) {
+        if (!PremiumProfilePolicy.canExportDams(MmkvManager.hasPremiumProfiles())) {
+            toastError(R.string.premium_dams_export_blocked)
+            return
+        }
         launchLoading {
             try {
                 val ret = backupConfigurationToCache(cacheDir, appName)

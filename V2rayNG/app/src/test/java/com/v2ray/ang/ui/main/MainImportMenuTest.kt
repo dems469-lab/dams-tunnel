@@ -42,4 +42,16 @@ class MainImportMenuTest {
         )
         assertEquals(expected, serverMenuActions(isComplexProfile = true, includeManagementActions = true))
     }
+
+    @Test
+    fun premiumProfileHasNoShareEditOrDeleteActions() {
+        assertEquals(
+            emptyList<ServerMenuAction>(),
+            serverMenuActions(
+                isComplexProfile = false,
+                includeManagementActions = true,
+                isPremiumProfile = true,
+            ),
+        )
+    }
 }

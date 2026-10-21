@@ -444,7 +444,7 @@ object MmkvManager {
      */
     fun removeServers(guids: List<String>, subscriptionId: String) {
         if (guids.isEmpty() || PremiumIsolationPolicy.isPremiumGroup(subscriptionId)) return
-        val safeGuids = guids.filterNot(::isPremiumProfile)
+        val safeGuids = guids.filterNot(::isPremiumProfileGuid)
         if (safeGuids.isEmpty()) return
         val subId = getSubscriptionId(subscriptionId)
         val serverList = decodeServerList(subId)
@@ -546,7 +546,7 @@ object MmkvManager {
     fun removeInvalidServer(guid: String): Int {
         var count = 0
         if (guid.isNotEmpty()) {
-            if (isPremiumProfile(guid)) return 0
+            if (isPremiumProfileGuid(guid)) return 0
             decodeServerAffiliationInfo(guid)?.let { aff ->
                 if (aff.testDelayMillis < 0L) {
                     removeServer(guid)
@@ -556,7 +556,7 @@ object MmkvManager {
         } else {
             val premiumGuids = decodeServerList(PremiumGroup.ID).toSet()
             serverAffStorage.allKeys()?.forEach { key ->
-                if (key in premiumGuids || isPremiumProfile(key)) return@forEach
+                if (key in premiumGuids || isPremiumProfileGuid(key)) return@forEach
                 decodeServerAffiliationInfo(key)?.let { aff ->
                     if (aff.testDelayMillis < 0L) {
                         removeServer(key)
@@ -644,7 +644,7 @@ object MmkvManager {
         mainStorage.lock()
         try {
             val guids = (decodeServerList(PremiumGroup.ID) + profileFullStorage.allKeys().orEmpty()
-                .filter { isPremiumProfile(it) }).distinct()
+                .filter { isPremiumProfileGuid(it) }).distinct()
             removeProfilePayloads(guids)
             persistServerList(emptyList(), PremiumGroup.ID)
             if (getSelectServer()?.let(guids::contains) == true) mainStorage.remove(KEY_SELECTED_SERVER)
@@ -654,9 +654,13 @@ object MmkvManager {
         }
     }
 
-    private fun isPremiumProfile(guid: String): Boolean =
+    fun isPremiumProfileGuid(guid: String): Boolean =
         guid in decodeServerList(PremiumGroup.ID) ||
             PremiumIsolationPolicy.isPremiumGroup(decodeServerConfig(guid)?.subscriptionId)
+
+    fun hasPremiumProfiles(): Boolean =
+        decodeServerList(PremiumGroup.ID).isNotEmpty() ||
+            profileFullStorage.allKeys().orEmpty().any(::isPremiumProfileGuid)
 
     //endregion
 

@@ -25,6 +25,9 @@ import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.handler.SubscriptionUpdater
 import com.v2ray.ang.ui.compose.ThemeManager
 import com.v2ray.ang.helper.MessageHelper
+import com.v2ray.ang.premium.PremiumFeatureGate
+import com.v2ray.ang.premium.PremiumGroup
+import com.v2ray.ang.premium.PremiumProfilePolicy
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.channels.Channel
@@ -162,7 +165,17 @@ class MainRepository(
             )
         }
         result += MmkvManager.decodeSubscriptions()
-        return result
+        val premiumProfileCount = MmkvManager.decodeServerList(PremiumGroup.ID).size
+        val premiumGroup = SubscriptionCache(
+            guid = PremiumGroup.ID,
+            subscription = SubscriptionItem().apply { remarks = PremiumGroup.NAME },
+        )
+        return PremiumProfilePolicy.appendVisibleGroup(
+            groups = result,
+            premiumGroup = premiumGroup,
+            featureEnabled = PremiumFeatureGate.isEnabled(),
+            profileCount = premiumProfileCount,
+        )
     }
 
     override fun getSubscriptionItem(id: String): SubscriptionItem? =

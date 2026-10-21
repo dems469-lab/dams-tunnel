@@ -484,6 +484,11 @@
     <string name="premium_loading">Loading subscription…</string>
     <string name="premium_not_activated">Enter your subscription code to activate Premium.</string>
     <string name="premium_date_unknown">Expiration date unavailable</string>
+    <string name="premium_profile_badge">Premium</string>
+    <string name="premium_expired_connect_title">Premium subscription expired</string>
+    <string name="premium_expired_connect_message">This Premium subscription has expired. Its profiles are retained but cannot connect. Open My subscription to renew or refresh it.</string>
+    <string name="premium_export_excluded">Premium profiles cannot be shared, copied, or exported.</string>
+    <string name="premium_dams_export_blocked">A full .dams backup cannot be created while Premium profiles are present, because it could expose them. Remove the Premium subscription first.</string>
     <plurals name="premium_days_remaining">
         <item quantity="one">%d day remaining</item>
         <item quantity="other">%d days remaining</item>

@@ -14,7 +14,9 @@ import com.v2ray.ang.dto.LocateTarget
 import com.v2ray.ang.dto.RealPingResult
 import com.v2ray.ang.dto.TestServiceMessage
 import com.v2ray.ang.dto.entities.ProfileItem
+import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.premium.PremiumIsolationPolicy
+import com.v2ray.ang.premium.PremiumGroup
 import com.v2ray.ang.dto.entities.ServersCache
 import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.extension.delay
@@ -330,8 +332,10 @@ class MainViewModel(
             is MainAction.ImportBatchConfig -> importBatchConfig(action.configText)
             MainAction.LocateHandled -> consumeLocateTarget()
             is MainAction.ShareQRCode -> {
-                val bitmap = dataSource.share2QRCode(action.guid)
-                _uiState.update { it.copy(shareQRCodeBitmap = bitmap) }
+                if (!MmkvManager.isPremiumProfileGuid(action.guid)) {
+                    val bitmap = dataSource.share2QRCode(action.guid)
+                    _uiState.update { it.copy(shareQRCodeBitmap = bitmap) }
+                }
             }
 
             MainAction.DismissQRCodeDialog -> {
@@ -453,7 +457,11 @@ class MainViewModel(
         return servers.map { server ->
             buildServerRowUiModel(
                 server = server,
-                subscriptionRemarks = subscriptionRemarks[server.profile.subscriptionId].orEmpty()
+                subscriptionRemarks = if (PremiumGroup.ID == server.profile.subscriptionId) {
+                    PremiumGroup.NAME
+                } else {
+                    subscriptionRemarks[server.profile.subscriptionId].orEmpty()
+                }
             )
         }
     }
@@ -626,9 +634,16 @@ class MainViewModel(
                     } else {
                         currentServers().map { it.guid }
                     }
-                    val ret = dataSource.shareNonCustomConfigsToClipboard(list)
+                    val eligible = list.filterNot(MmkvManager::isPremiumProfileGuid)
+                    val excludedPremium = list.size - eligible.size
+                    if (eligible.isEmpty() && excludedPremium > 0) {
+                        toast(R.string.premium_export_excluded)
+                        return@withContext
+                    }
+                    val ret = dataSource.shareNonCustomConfigsToClipboard(eligible)
                     if (ret > 0) {
                         toast(dataSource.getString(R.string.title_export_config_count, ret))
+                        if (excludedPremium > 0) toast(R.string.premium_export_excluded)
                     } else {
                         toastError(R.string.toast_failure)
                     }

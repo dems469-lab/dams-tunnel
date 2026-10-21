@@ -14,6 +14,7 @@ internal data class ServerRowUiModel(
     val typeDescription: String,
     val testDelayMillis: Long,
     val subscriptionBadge: String,
+    val isPremiumProfile: Boolean,
 )
 
 internal data class ServerGroupUiState(
@@ -35,6 +36,7 @@ internal fun buildServerRowUiModel(
         typeDescription = serverProtocolDescription(profile),
         testDelayMillis = server.testDelayMillis,
         subscriptionBadge = subscriptionRemarks.firstOrNull()?.toString().orEmpty(),
+        isPremiumProfile = com.v2ray.ang.premium.PremiumGroup.ID == profile.subscriptionId,
     )
 }
 
