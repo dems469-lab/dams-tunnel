@@ -278,7 +278,7 @@
     <string name="title_advanced">Paramètres avancés</string>
     <string name="title_core_settings">Paramètres du cœur</string>
     <string name="title_vpn_settings">Paramètres VPN</string>
-    <string name="title_pref_per_app_proxy">Per-app proxy</string>
+    <string name="title_pref_per_app_proxy">Proxy par application</string>
     <string name="summary_pref_per_app_proxy">Mode général : les applications cochées utilisent le proxy ; les autres se connectent directement.\nMode contournement : les applications cochées se connectent directement ; les autres utilisent le proxy.\nL’option de sélection automatique des applications à faire passer par le proxy se trouve dans le menu.</string>
     <string name="title_pref_is_booted">Se connecter au démarrage de l’appareil</string>
     <string name="summary_pref_is_booted">Se connecter automatiquement au serveur sélectionné au démarrage. Android peut limiter le démarrage en arrière-plan.</string>
@@ -365,16 +365,16 @@
     <string name="summary_pref_enable_local_proxy">Si cette option est désactivée, aucun proxy SOCKS n’est disponible ; les mises à jour d’abonnements et les opérations similaires ne peuvent pas l’utiliser.</string>
     <string name="title_pref_socks_enable_udp" translatable="false">SOCKS5 UDP</string>
     <string name="summary_pref_socks_enable_udp">L’authentification SOCKS5 n’est pas entièrement sécurisée avec UDP.</string>
-    <string name="summary_pref_socks_port">Local proxy port</string>
+    <string name="summary_pref_socks_port">Port du proxy local</string>
     <string name="title_pref_dynamic_socks_port">Activer le port dynamique du proxy local</string>
     <string name="summary_pref_dynamic_socks_port">Utiliser un port local aléatoire pour chaque entrée.</string>
     <string name="title_pref_socks_username">Nom d’utilisateur du proxy local (facultatif)</string>
-    <string name="summary_pref_socks_username">Username</string>
+    <string name="summary_pref_socks_username">Nom d’utilisateur</string>
     <string name="title_pref_socks_password">Mot de passe du proxy local (facultatif)</string>
-    <string name="summary_pref_socks_password">Password</string>
+    <string name="summary_pref_socks_password">Mot de passe</string>
 
-    <string name="title_pref_local_dns_port">Local DNS port</string>
-    <string name="summary_pref_local_dns_port">Local DNS port</string>
+    <string name="title_pref_local_dns_port">Port du DNS local</string>
+    <string name="summary_pref_local_dns_port">Port du DNS local</string>
 
     <string name="title_pref_confirm_remove">Confirmation de suppression des configurations</string>
     <string name="summary_pref_confirm_remove">Demander une seconde confirmation avant de supprimer une configuration.</string>
@@ -390,9 +390,9 @@
     <string name="summary_pref_group_all_display">Regrouper dans un même onglet les profils de tous les groupes d’abonnement.</string>
 
     <!-- AboutActivity -->
-    <string name="title_pref_feedback">Feedback</string>
-    <string name="summary_pref_feedback">Suggest improvements or report bugs on GitHub</string>
-    <string name="summary_pref_tg_group">Join the Telegram group</string>
+    <string name="title_pref_feedback">Avis et commentaires</string>
+    <string name="summary_pref_feedback">Proposer des améliorations ou signaler des bugs sur GitHub.</string>
+    <string name="summary_pref_tg_group">Rejoindre le groupe Telegram</string>
     <string name="toast_tg_app_not_found">Application Telegram introuvable</string>
     <string name="title_privacy_policy">Politique de confidentialité</string>
     <string name="title_qr_code">QR code</string>
@@ -403,8 +403,8 @@
     <string name="title_tg_channel">Telegram channel</string>
 
 
-    <string name="title_pref_auto_update_subscription">Automatically update subscriptions</string>
-    <string name="summary_pref_auto_update_subscription">Update your subscriptions automatically at set intervals in the background. Depending on the device, this feature may not always work</string>
+    <string name="title_pref_auto_update_subscription">Mettre à jour automatiquement les abonnements</string>
+    <string name="summary_pref_auto_update_subscription">Mettre à jour les abonnements automatiquement à intervalles définis en arrière-plan. Selon l’appareil, cette fonction peut ne pas toujours fonctionner.</string>
     <string name="title_pref_auto_update_interval">Intervalle de mise à jour automatique (minutes ; minimum 15)</string>
 
     <string name="title_core_loglevel">Niveau de journalisation</string>
