@@ -136,8 +136,8 @@
     <string name="confirm_delete_proxy_chain_member">Are you sure you want to delete this chain member?</string>
     <string name="confirm_delete_routing_rule">Voulez-vous vraiment supprimer cette règle de routage ?</string>
     <string name="confirm_delete_subscription_group">Voulez-vous vraiment supprimer ce groupe d’abonnements ?</string>
-    <string name="confirm_delete_asset_file">Are you sure you want to delete this asset file?</string>
-    <string name="confirm_delete_asset_source">Are you sure you want to delete this asset source?</string>
+    <string name="confirm_delete_asset_file">Voulez-vous vraiment supprimer ce fichier de ressources ?</string>
+    <string name="confirm_delete_asset_source">Voulez-vous vraiment supprimer cette source de ressources ?</string>
     <string name="server_lab_remarks">remarks</string>
     <string name="server_lab_address">address</string>
     <string name="server_lab_port">port</string>
@@ -246,17 +246,17 @@
     <string name="toast_fetch_cert_sha256_failed">Failed to fetch certificate fingerprint</string>
 
     <!-- UserAssetActivity -->
-    <string name="toast_asset_copy_failed">File copy failed, please use File Manager</string>
+    <string name="toast_asset_copy_failed">Échec de la copie du fichier. Veuillez utiliser le gestionnaire de fichiers.</string>
     <string name="menu_item_add_asset">Add asset</string>
-    <string name="menu_item_add_file">Add files</string>
-    <string name="menu_item_add_url">Add URL</string>
-    <string name="menu_item_scan_qrcode">Scan QR code</string>
+    <string name="menu_item_add_file">Ajouter des fichiers</string>
+    <string name="menu_item_add_url">Ajouter une URL</string>
+    <string name="menu_item_scan_qrcode">Scanner un QR code</string>
     <string name="title_url" translatable="false">URL</string>
     <string name="menu_item_download_file">Download files</string>
-    <string name="title_user_asset_add_url">Add asset URL</string>
-    <string name="msg_file_not_found">File not found</string>
-    <string name="msg_remark_is_duplicate">This name already exists</string>
-    <string name="asset_geo_files_sources">Geo file source (optional)</string>
+    <string name="title_user_asset_add_url">Ajouter une URL de ressource</string>
+    <string name="msg_file_not_found">Fichier introuvable</string>
+    <string name="msg_remark_is_duplicate">Ce nom existe déjà</string>
+    <string name="asset_geo_files_sources">Source des fichiers Geo (facultative)</string>
 
     <!-- PerAppProxyActivity -->
     <string name="msg_dialog_progress">Loading</string>
@@ -266,7 +266,7 @@
     <string name="msg_enter_keywords">Enter keywords</string>
     <string name="switch_bypass_apps_mode">Mode contournement</string>
     <string name="menu_item_select_proxy_app">Sélectionner automatiquement les applications à faire passer par le proxy</string>
-    <string name="msg_downloading_content">Downloading content</string>
+    <string name="msg_downloading_content">Téléchargement du contenu</string>
     <string name="menu_item_export_proxy_app">Exporter vers le presse-papiers</string>
     <string name="menu_item_import_proxy_app">Importer depuis le presse-papiers</string>
     <string name="per_app_proxy_settings">Proxy par application</string>
@@ -646,8 +646,8 @@
     <string name="toast_permission_denied_for">%1$s permission denied</string>
     <string name="acc_add_subscription">Ajouter un abonnement</string>
     <string name="toast_malformed_json_detail">Invalid configuration: %1$s</string>
-    <string name="acc_add_asset">Add asset source</string>
-    <string name="acc_download_file">Download asset files</string>
+    <string name="acc_add_asset">Ajouter une source de ressources</string>
+    <string name="acc_download_file">Télécharger les fichiers de ressources</string>
     <string name="acc_qr_code">QR code</string>
     <string name="acc_copy_log">Copier le journal</string>
     <string name="acc_clear_log">Effacer le journal</string>
