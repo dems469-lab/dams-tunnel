@@ -427,7 +427,7 @@
     <string name="title_root_lan_sharing">Partager le VPN avec le réseau local et les appareils connectés (root)</string>
     <string name="summary_root_lan_sharing">Faire passer par le VPN le trafic du point d’accès Wi-Fi et des appareils connectés en USB.</string>
 
-    <string name="title_logcat" translatable="false">Logcat</string>
+    <string name="title_logcat">Journal</string>
     <string name="logcat_copy">Copier</string>
     <string name="logcat_clear">Effacer</string>
     <string name="logcat_share">Partager le journal</string>
@@ -642,7 +642,7 @@
     <string name="backup_location_local">Local</string>
     <string name="backup_location_webdav" translatable="false">WebDAV</string>
 
-    <string name="acc_refresh">Refresh log</string>
+    <string name="acc_refresh">Actualiser le journal</string>
     <string name="toast_permission_denied_for">Autorisation %1$s refusée</string>
     <string name="acc_add_subscription">Ajouter un abonnement</string>
     <string name="toast_malformed_json_detail">Configuration invalide : %1$s</string>
