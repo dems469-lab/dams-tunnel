@@ -280,7 +280,7 @@
     <string name="title_vpn_settings">Paramètres VPN</string>
     <string name="title_pref_per_app_proxy">Proxy par application</string>
     <string name="per_app_empty_warning_title">Aucune application sélectionnée</string>
-    <string name="per_app_empty_warning_message">La sélection est vide. En mode VPN Android, toutes les applications peuvent utiliser le tunnel ; en mode root, aucune application sélectionnée n'y est dirigée. Choisissez le mode global ou sélectionnez des applications avant de continuer.</string>
+    <string name="per_app_empty_warning_message">La sélection est vide. En mode VPN Android, toutes les applications peuvent utiliser le tunnel ; en mode root, les applications cochées ne sont pas dirigées dans le tunnel. Choisissez le mode global ou sélectionnez des applications avant de continuer.</string>
     <string name="per_app_empty_use_global">Passer en mode global</string>
     <string name="per_app_empty_choose_apps">Choisir des applications</string>
     <string name="summary_pref_per_app_proxy">Mode général : les applications cochées utilisent le proxy ; les autres se connectent directement.\nMode contournement : les applications cochées se connectent directement ; les autres utilisent le proxy.\nL’option de sélection automatique des applications à faire passer par le proxy se trouve dans le menu.</string>

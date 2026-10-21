@@ -280,7 +280,7 @@
     <string name="title_vpn_settings">VPN Settings</string>
     <string name="title_pref_per_app_proxy">Per-app proxy</string>
     <string name="per_app_empty_warning_title">No applications selected</string>
-    <string name="per_app_empty_warning_message">The selection is empty. In Android VPN mode all apps may use the tunnel; in root mode no selected app is routed into it. Choose global mode or select apps before continuing.</string>
+    <string name="per_app_empty_warning_message">The selection is empty. In Android VPN mode all apps may use the tunnel; in root mode checked apps are not routed into the tunnel. Choose global mode or select apps before continuing.</string>
     <string name="per_app_empty_use_global">Use global mode</string>
     <string name="per_app_empty_choose_apps">Choose applications</string>
     <string name="summary_pref_per_app_proxy">General: checked apps use the proxy, and unchecked apps connect directly;\nBypass mode: checked apps connect directly, and unchecked apps use the proxy.\nThe option to automatically select apps that should use the proxy is in the menu.</string>
