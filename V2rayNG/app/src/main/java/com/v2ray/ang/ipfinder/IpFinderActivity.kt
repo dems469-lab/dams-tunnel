@@ -605,14 +605,8 @@ class IpFinderActivity : BaseComponentActivity() {
     }
 
     private fun notifyIpFound(message: String) {
-        runCatching {
-            NotificationHelper.notify(
-                com.v2ray.ang.enums.NotificationChannelType.IP_FINDER_FOUND,
-                this,
-                getString(R.string.ip_finder_notification_found_title),
-                message
-            )
-        }
+        // La vibration est déclenchée en premier afin de ne pas attendre la
+        // construction/émission de la notification sur les appareils lents.
         runCatching {
             @Suppress("DEPRECATION")
             val vibrator = getSystemService(Vibrator::class.java)
@@ -622,6 +616,14 @@ class IpFinderActivity : BaseComponentActivity() {
                 @Suppress("DEPRECATION")
                 vibrator?.vibrate(500L)
             }
+        }
+        runCatching {
+            NotificationHelper.notify(
+                com.v2ray.ang.enums.NotificationChannelType.IP_FINDER_FOUND,
+                this,
+                getString(R.string.ip_finder_notification_found_title),
+                message
+            )
         }
     }
 

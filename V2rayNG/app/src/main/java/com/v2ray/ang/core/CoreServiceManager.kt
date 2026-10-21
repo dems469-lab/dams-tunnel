@@ -275,7 +275,9 @@ object CoreServiceManager {
         healthCheckJob?.cancel()
         healthCheckJob = connectionTestScope.launch {
             while (isActive && !userStopped && isRunning()) {
-                delay(15_000L)
+                // Vérification courte : une coupure doit déclencher la reconnexion
+                // avant que l'utilisateur ne perçoive un tunnel abandonné.
+                delay(3_000L)
                 if (!isRunning() || userStopped) break
                 val reachable = try {
                     measureDelayWithFallback() >= 0L
@@ -326,7 +328,11 @@ object CoreServiceManager {
                 )
                 try {
                     if (isRunning()) {
-                        reloadCore(cancelConnectionChecks = false)
+                        // Borne chaque rechargement : un appel natif bloqué ne doit
+                        // pas empêcher les tentatives suivantes.
+                        kotlinx.coroutines.withTimeoutOrNull(12_000L) {
+                            reloadCore(cancelConnectionChecks = false)
+                        }
                     } else {
                         LauncherManager.startService(currentService)
                     }

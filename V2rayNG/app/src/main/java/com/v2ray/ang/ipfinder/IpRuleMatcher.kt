@@ -100,12 +100,30 @@ object IpRuleMatcher {
         val pattern: String,
     ) {
         fun matches(address: String, ignoreCase: Boolean): Boolean = when (operator) {
-            IpRuleOperator.PREFIX -> address.regionMatches(0, pattern, 0, pattern.length, ignoreCase)
-            IpRuleOperator.SUFFIX -> address.length >= pattern.length &&
-                address.regionMatches(address.length - pattern.length, pattern, 0, pattern.length, ignoreCase)
+            IpRuleOperator.PREFIX -> if (!ignoreCase) address.matchesIpv4Prefix(pattern) else
+                address.regionMatches(0, pattern, 0, pattern.length, true)
+            IpRuleOperator.SUFFIX -> if (!ignoreCase) address.matchesIpv4Suffix(pattern) else
+                address.length >= pattern.length &&
+                    address.regionMatches(address.length - pattern.length, pattern, 0, pattern.length, true)
             IpRuleOperator.EXACT -> address.equals(pattern, ignoreCase)
-            IpRuleOperator.CONTAINS -> address.containsLiteral(pattern, ignoreCase)
+            IpRuleOperator.CONTAINS -> if (!ignoreCase) address.containsIpv4Groups(pattern) else
+                address.containsLiteral(pattern, true)
         }
+    }
+
+    /** Matches complete IPv4 groups, never a substring of an octet. */
+    private fun String.matchesIpv4Prefix(pattern: String): Boolean =
+        this == pattern || (startsWith(pattern) && getOrNull(pattern.length) == '.')
+
+    private fun String.matchesIpv4Suffix(pattern: String): Boolean =
+        this == pattern || (endsWith(pattern) && getOrNull(length - pattern.length - 1) == '.')
+
+    /** Allows a prefix to be found in the dotted address, but only on group boundaries. */
+    private fun String.containsIpv4Groups(pattern: String): Boolean {
+        val addressGroups = split('.')
+        val patternGroups = pattern.split('.')
+        if (patternGroups.size > addressGroups.size) return false
+        return addressGroups.windowed(patternGroups.size).any { it == patternGroups }
     }
 
     private fun String.containsLiteral(pattern: String, ignoreCase: Boolean): Boolean {

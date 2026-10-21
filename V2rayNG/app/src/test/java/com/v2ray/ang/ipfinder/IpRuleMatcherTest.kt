@@ -26,14 +26,18 @@ class IpRuleMatcherTest {
     }
 
     @Test
-    fun unmarkedRuleUsesLiteralContainsAndPeriodsAreNotWildcards() {
-        assertTrue(IpRuleMatcher.match("10.76", "110.76.1.1").matches)
+    fun unmarkedRuleUsesCompleteIpv4GroupsAndPeriodsAreNotWildcards() {
+        assertTrue(IpRuleMatcher.match("10.76", "10.76.1.1").matches)
+        assertFalse(IpRuleMatcher.match("10.76", "110.76.1.1").matches)
+        assertFalse(IpRuleMatcher.match("10.76", "10.176.1.1").matches)
         assertFalse(IpRuleMatcher.match("10.76", "10x76.1.1").matches)
     }
 
     @Test
-    fun documentedContainsPitfallTenDotTenMatchesTenDotOneHundred() {
-        assertTrue(IpRuleMatcher.match("10.10", "10.100.4.5").matches)
+    fun anIpv4RuleNeverMatchesAFragmentOfAnotherOctet() {
+        assertFalse(IpRuleMatcher.match("10.10", "10.100.4.5").matches)
+        assertFalse(IpRuleMatcher.match("10.165", "10.188.210.165").matches)
+        assertTrue(IpRuleMatcher.match("10.188", "10.188.210.165").matches)
     }
 
     @Test
