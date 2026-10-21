@@ -1,0 +1,592 @@
+# Inventaire des chaînes identiques entre values et values-fr
+
+Comparaison au commit de base 1b984fa, avant les traductions de ce lot : 637 chaînes scalaires dans chacune des deux ressources, dont 549 strictement identiques. Les catégories sont fondées sur les noms de clés et l’écran fonctionnel associé. Une égalité littérale peut être un texte déjà français, un nom propre, un protocole, un libellé technique ou un véritable texte anglais.
+
+## Autres ressources (123)
+
+- `acc_add` — Add configuration
+- `acc_add_member` — Add proxy chain member
+- `acc_back` — Back
+- `acc_delete` — Delete
+- `acc_download_file` — Download asset files
+- `acc_edit` — Edit
+- `acc_locked` — This rule is kept when importing presets
+- `acc_more` — More options
+- `acc_open_menu` — Open navigation menu
+- `acc_qr_code` — QR code
+- `acc_remove` — Remove proxy chain member
+- `acc_save` — Save
+- `acc_search` — Search
+- `acc_select_image` — Select image to scan
+- `acc_selected_server` — Selected
+- `acc_start_scanner` — Start QR scanner
+- `acc_stop_scanner` — Stop QR scanner
+- `acc_turn_torch_off` — Turn flashlight off
+- `acc_turn_torch_on` — Turn flashlight on
+- `action_close` — Close
+- `action_edit` — Edit
+- `action_ok` — OK
+- `action_stop_service` — Stop service
+- `app_lock_not_available` — Configurez d’abord un verrouillage d’écran Android.
+- `app_lock_prompt` — Déverrouillez Dams Tunnel pour continuer.
+- `app_name` — Dams Tunnel
+- `backup_file_too_large` — Le fichier dépasse la limite autorisée de 5 Mio.
+- `backup_location_local` — Local
+- `backup_location_webdav` — WebDAV
+- `connection_connected` — Connecté ✅
+- `connection_connecting` — Connexion en cours…
+- `connection_reconnecting` — Reconnexion en cours…
+- `connection_running_task_left` — Tests running: %s
+- `connection_test_empty_message` — no details available
+- `connection_test_pending` — Check connectivity
+- `connection_test_testing` — Testing…
+- `connection_test_testing_count` — Testing %d configs…
+- `connection_verification_failed` — Connexion échouée : aucun trafic vérifié après le démarrage.
+- `dams_active_configuration` — Configuration active
+- `dams_connection_details_hidden` — Détails du serveur masqués
+- `dams_file_invalid` — Le fichier Dams est invalide, expiré ou le mot de passe est incorrect.
+- `dams_journal_empty` — Aucune entrée dans le journal
+- `dams_no_expiry` — Aucune expiration
+- `dams_password_incorrect` — Mot de passe incorrect. Réessayez.
+- `dams_password_mismatch` — Les mots de passe ne correspondent pas.
+- `dams_password_strength_acceptable` — Mot de passe acceptable.
+- `dams_password_strength_strong` — Mot de passe fort.
+- `dams_password_too_short` — 12 caractères minimum requis.
+- `dams_tab_configs` — Configs
+- `dams_tab_journal` — Journal
+- `dams_tab_plus` — Plus
+- `dams_version_format` — v%1$s
+- `diagnostic_network` — Réseau du téléphone
+- `diagnostic_network_unavailable` — Internet du téléphone indisponible.
+- `diagnostic_server` — Serveur
+- `diagnostic_tunnel` — Tunnel vérifié
+- `filter_config_all` — All
+- `menu_item_add_file` — Add files
+- `menu_item_add_url` — Add URL
+- `menu_item_download_file` — Download files
+- `menu_item_scan_qrcode` — Scan QR code
+- `menu_item_search` — Search
+- `menu_item_select_all` — Select all
+- `message_profile_storage_cleanup` — Delete profile data that is no longer used by any group? Selected profiles and data that cannot be safely classified will be kept.
+- `migration_fail` — Data migration failed!
+- `migration_success` — Data migration succeeded!
+- `msg_dialog_progress` — Loading
+- `msg_downloading_content` — Downloading content
+- `msg_enter_keywords` — Enter keywords
+- `msg_file_not_found` — File not found
+- `msg_remark_is_duplicate` — This name already exists
+- `navigation_drawer_close` — Close navigation drawer
+- `navigation_drawer_open` — Open navigation drawer
+- `notification_action_more` — Tap for more
+- `notification_action_stop_v2ray` — Stop
+- `notification_channel_connection_checks` — Connection checks
+- `notification_channel_service` — Dams Tunnel service
+- `notification_channel_subscription_updates` — Subscription updates
+- `permission_camera` — Camera
+- `permission_local_network` — Local network
+- `permission_notification` — Notification
+- `pinned_ca256_action_fetch` — Fetch certificate fingerprint
+- `pull_down_to_refresh` — Please pull down to refresh!
+- `server_customize_config` — Customize config
+- `server_obfs_password` — Obfs password
+- `server_test_delay_value` — %1$d ms
+- `share_method_dams_file` — Partager un fichier .dams protégé
+- `share_method_qrcode` — QR code
+- `summary_app_lock` — Demander le PIN, le schéma ou la biométrie à l’ouverture.
+- `summary_battery_optimization` — Autoriser Dams Tunnel à rester actif en arrière-plan.
+- `summary_root_lan_sharing` — Route traffic from Wi-Fi hotspot and USB-tethered devices through the VPN.
+- `summary_root_mode_enabled` — Use root access for low-level transparent proxying. Root mode handles network traffic directly instead of using the Android VPN service. Standard mode, per-app routing, and VPN-related settings do not apply while root mode is enabled.
+- `summary_scan_qrcode` — Tap the screen to open the camera and scan
+- `switch_bypass_apps_mode` — Bypass Mode
+- `tasker_blurb_start` — Start %1$s
+- `tasker_blurb_stop` — Stop %1$s
+- `tasker_setting_confirm` — Confirm
+- `tasker_start_service` — Start Service
+- `title_app_lock` — Verrouillage de l’application
+- `title_battery_optimization` — Optimisation de la batterie
+- `title_dams_export` — Exporter un fichier .dams protégé
+- `title_dams_export_action` — Exporter la configuration complète (.dams)
+- `title_dams_password` — Mot de passe
+- `title_dams_password_confirm` — Confirmer le mot de passe
+- `title_del_config_count` — Delete %d configs
+- `title_del_duplicate_config_count` — Delete %d duplicate configs
+- `title_export_config_count` — Export %d configs
+- `title_file_chooser` — Select a config
+- `title_filter_config` — Filter configs
+- `title_import_config_count` — Import %d configs
+- `title_qr_code` — QR code
+- `title_root_lan_sharing` — Share VPN with LAN / tethered devices (root users)
+- `title_root_mode_enabled` — Enable root mode (root users)
+- `title_unencrypted_backup_warning` — Sauvegarde non chiffrée
+- `title_update_subscription_no_subscription` — No subscriptions
+- `title_update_subscription_result` — Updated %1$d configs (%2$d success, %3$d failed, %4$d skipped)
+- `title_url` — URL
+- `title_webdav_config_setting_unknown` — Please configure WebDAV first.
+- `title_webdav_pass` — Password
+- `title_webdav_remote_path` — Remote directory (optional)
+- `title_webdav_url` — WebDAV server URL
+- `title_webdav_user` — Username
+- `value_unknown` — unknown
+
+## Ressources utilisateur (7)
+
+- `acc_add_asset` — Add asset source
+- `asset_geo_files_sources` — Geo file source (optional)
+- `confirm_delete_asset_file` — Are you sure you want to delete this asset file?
+- `confirm_delete_asset_source` — Are you sure you want to delete this asset source?
+- `menu_item_add_asset` — Add asset
+- `title_user_asset_add_url` — Add asset URL
+- `toast_asset_copy_failed` — File copy failed, please use File Manager
+
+## Routage (29)
+
+- `acc_add_rule` — Add routing rule
+- `routing_preset_china_blacklist` — China Blacklist
+- `routing_preset_china_whitelist` — China Whitelist
+- `routing_preset_global` — Global
+- `routing_preset_iran_whitelist` — Iran Whitelist
+- `routing_preset_russia_whitelist` — Russia Whitelist
+- `routing_settings_add_rule` — Add rule
+- `routing_settings_comma_tip` — Separate multiple entries with commas (,).
+- `routing_settings_delete` — Clear
+- `routing_settings_domain` — domain
+- `routing_settings_domain_strategy` — Domain strategy
+- `routing_settings_export_rulesets_to_clipboard` — Export ruleset to clipboard
+- `routing_settings_import_predefined_rulesets` — Import predefined rulesets
+- `routing_settings_import_rulesets_from_clipboard` — Import ruleset from clipboard
+- `routing_settings_import_rulesets_from_qrcode` — Import ruleset from QR code
+- `routing_settings_import_rulesets_tip` — Existing rulesets will be deleted. Continue?
+- `routing_settings_ip` — ip
+- `routing_settings_locked` — Locked; keep this rule when importing presets
+- `routing_settings_network` — network
+- `routing_settings_outbound_tag` — outboundTag
+- `routing_settings_outbound_tag_hint` — proxy / direct / block / <%1$s>
+- `routing_settings_port` — port
+- `routing_settings_process` — process (Package Name — only supported when using Xray TUN, routeOnly enabled, and Android 10+)
+- `routing_settings_process_select` — Select package name
+- `routing_settings_protocol` — protocol
+- `routing_settings_protocol_tip` — [http,tls,bittorrent]
+- `routing_settings_rule_title` — Routing Rule Settings
+- `routing_settings_save` — Save
+- `routing_settings_tips` — A rule applies only when every configured matching condition is satisfied (AND). Rules are checked from top to bottom; the first matching rule is applied.
+
+## Subscriptions (22)
+
+- `acc_add_subscription` — Add subscription
+- `acc_share_subscription` — Share subscription link
+- `acc_update_subscriptions` — Update subscriptions
+- `share_subscription_clipboard` — Export to clipboard
+- `share_subscription_qrcode` — QR code
+- `sub_allow_insecure_url` — Allow insecure HTTP address
+- `sub_auto_update` — Enable automatic update
+- `sub_setting_enable` — Enable update
+- `sub_setting_entry_proxy_tip` — The selected proxy is added before every profile in this subscription as the entry link in the proxy chain for that profile.
+- `sub_setting_exit_proxy_tip` — The selected proxy is added after every profile in this subscription as the exit link in the proxy chain for that profile.
+- `sub_setting_filter` — Remarks filter (regular expression)
+- `sub_setting_next_profile` — Exit proxy
+- `sub_setting_pre_profile` — Entry proxy
+- `sub_setting_pre_profile_tip` — Make sure the config remarks exist and are unique
+- `sub_setting_remarks` — Remarks
+- `sub_setting_request_headers` — Request Headers (JSON format)
+- `sub_setting_url` — Optional URL
+- `sub_setting_user_agent` — User Agent
+- `subscription_update_progress` — Testing %2$s: %1$s
+- `subscription_update_updating` — Updating subscription: %1$s
+- `subscription_updater_job_tips` — The task will run in the background, and progress information will be displayed in the notification.
+- `title_sub_setting` — Subscriptions
+
+## Journal / Logcat (8)
+
+- `acc_clear_log` — Clear log
+- `acc_copy_log` — Copy log
+- `acc_refresh` — Refresh log
+- `acc_share_log` — Share log
+- `logcat_clear` — Clear
+- `logcat_copy` — Copy
+- `logcat_share` — Share log
+- `title_logcat` — Logcat
+
+## Proxy par application (7)
+
+- `acc_per_app_proxy_information` — Per-app proxy information
+- `app_picker_unknown_app` — Unknown app (UID not recognized)
+- `menu_item_export_proxy_app` — Export to Clipboard
+- `menu_item_import_proxy_app` — Import from Clipboard
+- `menu_item_invert_selection` — Invert selection
+- `menu_item_select_proxy_app` — Auto-select apps to be proxied
+- `per_app_proxy_settings_enable` — Enable per-app
+
+## Dialogues et toasts (42)
+
+- `confirm_delete_duplicate_profiles` — Are you sure you want to delete all duplicate profiles currently shown?
+- `confirm_delete_invalid_profiles` — Please test the profiles first. Are you sure you want to delete all invalid profiles currently shown?
+- `confirm_delete_policy_group` — Are you sure you want to delete this policy group?
+- `confirm_delete_proxy_chain_member` — Are you sure you want to delete this chain member?
+- `confirm_delete_routing_rule` — Are you sure you want to delete this routing rule?
+- `confirm_delete_subscription_group` — Are you sure you want to delete this subscription group?
+- `confirm_delete_visible_profiles` — Are you sure you want to delete all profiles currently shown?
+- `connection_test_error` — Connection test failed: %s
+- `connection_test_error_status_code` — Error code: #%d
+- `connection_test_fail` — Internet unavailable
+- `import_subscription_failure` — Import subscription failed
+- `import_subscription_success` — Subscription imported successfully
+- `toast_allow_insecure_warning` — Attention : ce profil utilise TLS insecure. La connexion reste autorisée, mais le certificat n’est pas vérifié.
+- `toast_config_file_invalid` — Invalid config
+- `toast_decoding_failed` — Decoding failed
+- `toast_failure` — Failure
+- `toast_fetch_cert_sha256_failed` — Failed to fetch certificate fingerprint
+- `toast_fetch_cert_sha256_success` — Certificate fingerprint fetched successfully
+- `toast_incorrect_protocol` — Incorrect protocol
+- `toast_insecure_url_protocol` — Do not use an insecure HTTP subscription URL
+- `toast_invalid_observatory_duration` — Invalid duration. Use a value like 3m or 30s.
+- `toast_invalid_observatory_sampling` — Invalid sampling. Use a positive number.
+- `toast_invalid_update_interval` — Invalid update interval. Minimum is 15 minutes.
+- `toast_invalid_url` — Invalid URL
+- `toast_malformed_json` — Invalid configuration.
+- `toast_malformed_json_detail` — Invalid configuration: %1$s
+- `toast_none_data` — No data available
+- `toast_none_data_clipboard` — There is no data in the clipboard
+- `toast_permission_denied` — Permission denied
+- `toast_permission_denied_for` — %1$s permission denied
+- `toast_permission_denied_notification` — Notification permission denied
+- `toast_profile_storage_cleanup` — Unused profiles removed: %1$d
+- `toast_profile_storage_cleanup_skipped` — Profile storage could not be safely classified. Nothing was removed.
+- `toast_require_file_manager` — Please install a file manager.
+- `toast_server_not_found_in_group` — Selected server not found in current group
+- `toast_services_failure` — Failed to start service
+- `toast_services_start` — Starting service
+- `toast_services_stop` — Stopping service
+- `toast_success` — Success
+- `toast_system_vpn_settings_unavailable` — System VPN settings are unavailable.
+- `toast_tg_app_not_found` — Telegram app not found
+- `toast_warning_pref_proxysharing_short` — Allow connections from the LAN. Make sure you are in a trusted network
+
+## IP Finder (118)
+
+- `ip_finder_airplane_restore_failed` — Arrêt : impossible de confirmer le retour du mode avion désactivé.
+- `ip_finder_assistant_active` — Assistant Dams Tunnel actif
+- `ip_finder_assistant_inactive` — Assistant Dams Tunnel non activé
+- `ip_finder_assistant_label` — Assistant de test IP Finder
+- `ip_finder_assistant_settings_unavailable` — Impossible d’ouvrir les réglages des assistants sur cet appareil.
+- `ip_finder_attempt` — Tentative %1$d / %2$d
+- `ip_finder_attempt_address_changed` — #%1$d %2$s : l’adresse a changé, reprise de la recherche
+- `ip_finder_attempt_failed` — Tentative %1$d : échec — %2$s
+- `ip_finder_attempt_match` — #%1$d %2$s : correspond à %3$s
+- `ip_finder_attempt_no_match` — #%1$d %2$s : aucune règle
+- `ip_finder_auto_connect_vpn` — Connecter le VPN automatiquement quand l’IP est trouvée
+- `ip_finder_back` — Retour
+- `ip_finder_cancel` — Annuler
+- `ip_finder_cellular_ip` — IP mobile actuelle : %1$s
+- `ip_finder_confirm` — Confirmer
+- `ip_finder_connect_vpn_retry` — Connecter le VPN
+- `ip_finder_cycle_failed` — La demande de bascule du mode avion a échoué. Vérifiez l’assistant système et réessayez.
+- `ip_finder_cycle_interrupted` — Cycle interrompu
+- `ip_finder_cycle_pending` — Un seul cycle sera exécuté à chaque lancement. L’adresse affichée provient exclusivement du réseau cellulaire.
+- `ip_finder_cycle_success` — Cycle terminé. Nouvelle adresse IP mobile : %1$s
+%2$s
+- `ip_finder_cycles_label` — Nombre de cycles
+- `ip_finder_diagnostic_current` — Application assistante actuelle : %1$s
+- `ip_finder_diagnostic_declared` — Service déclaré : %1$s
+- `ip_finder_diagnostic_resolved` — Service résolu par Android : %1$s
+- `ip_finder_diagnostic_role` — Rôle Assistant actif pour Dams Tunnel : %1$s
+- `ip_finder_diagnostic_title` — Diagnostic de l’assistant
+- `ip_finder_drawer_entry` — IP Finder (bêta)
+- `ip_finder_enable_assistant` — Activer comme assistant
+- `ip_finder_event_after` — Adresse IP cellulaire obtenue : %1$s
+- `ip_finder_event_airplane_off` — Mode avion réellement désactivé.
+- `ip_finder_event_airplane_on` — Mode avion réellement activé.
+- `ip_finder_event_before` — Adresse IP cellulaire avant : %1$s
+- `ip_finder_event_cancelled` — Cycle arrêté. Restauration du mode avion demandée.
+- `ip_finder_event_cellular_back` — Réseau cellulaire revenu.
+- `ip_finder_event_cellular_lost` — Réseau cellulaire perdu.
+- `ip_finder_event_failure_airplane_off` — Délai dépassé en attendant la désactivation du mode avion.
+- `ip_finder_event_failure_airplane_on` — Délai dépassé en attendant l’activation du mode avion.
+- `ip_finder_event_failure_cellular` — Le réseau cellulaire ne s’est pas déconnecté dans le délai prévu.
+- `ip_finder_event_failure_cellular_back` — Le réseau cellulaire n’est pas revenu dans les 45 secondes.
+- `ip_finder_event_failure_foreground` — L’application n’est pas revenue au premier plan après 30 secondes. Une désactivation du mode avion a été tentée ; vérifiez son état. La récupération reste mémorisée si elle n’a pas été confirmée.
+- `ip_finder_event_failure_no_ip` — Aucune adresse IP cellulaire disponible avant le test.
+- `ip_finder_event_failure_recovery_storage` — Impossible d’enregistrer l’état de récupération ; le mode avion n’a pas été modifié.
+- `ip_finder_event_failure_request` — Le système n’a pas accepté la demande de basculement.
+- `ip_finder_event_final_address` — Adresse cellulaire finale indisponible.
+- `ip_finder_event_initial_address` — Adresse cellulaire initiale indisponible.
+- `ip_finder_event_request_off` — Demande de désactivation du mode avion envoyée.
+- `ip_finder_event_request_on` — Demande d’activation du mode avion envoyée.
+- `ip_finder_event_restore_failed` — Restauration non confirmée. L’indicateur de récupération est conservé pour le prochain lancement.
+- `ip_finder_event_system_activity` — Activité de commande Android détectée. Une boîte de confirmation distincte n’est pas détectable.
+- `ip_finder_event_system_activity_missing` — Activité de commande Android non détectée. L’apparition d’une confirmation distincte n’est pas détectable.
+- `ip_finder_event_wifi` — Wi-Fi actif : seule l’adresse cellulaire sera lue.
+- `ip_finder_foreground_service_failed` — Impossible de démarrer la notification persistante. La recherche n’a pas démarré.
+- `ip_finder_found_vpn_connected` — Félicitations ! IP trouvée : %1$s (règle %2$s) à la tentative %3$d. VPN connecté.
+- `ip_finder_found_vpn_disconnected` — Félicitations ! IP trouvée : %1$s (règle %2$s). VPN non connecté.
+- `ip_finder_intro` — Ce test effectue un seul cycle du mode avion pour vérifier l’adresse IP attribuée au réseau mobile. Android considère Dams Tunnel comme un assistant ; l’application ne lit jamais votre écran. Le rôle est demandé uniquement pour basculer le mode avion. Le service de reconnaissance déclaré ne capture pas d’audio et ne traite aucune dictée. Pour revenir à votre assistant précédent, ouvrez les réglages des applications par défaut et sélectionnez-le.
+- `ip_finder_no` — Non
+- `ip_finder_no_current_assistant` — Aucune détectée
+- `ip_finder_notification_channel` — Recherche IP
+- `ip_finder_notification_found_channel` — IP trouvée
+- `ip_finder_notification_found_title` — Dams Tunnel — IP Finder
+- `ip_finder_notification_running` — Recherche en cours. Appuyez sur Arrêter pour interrompre.
+- `ip_finder_notification_title` — Dams Tunnel — IP Finder
+- `ip_finder_number_integer` — Saisissez un entier composé uniquement de chiffres.
+- `ip_finder_number_range` — Valeur hors limite pour ce champ.
+- `ip_finder_number_required` — Ce champ est obligatoire.
+- `ip_finder_pause_label` — Pause entre cycles (secondes)
+- `ip_finder_recovery_action` — Ouvrir IP Finder
+- `ip_finder_recovery_already_off` — Mode avion déjà désactivé ; indicateur de récupération effacé.
+- `ip_finder_recovery_cancel` — Plus tard
+- `ip_finder_recovery_done` — Mode avion désactivé et indicateur de récupération effacé.
+- `ip_finder_recovery_message` — Le test précédent a peut-être été interrompu alors que le mode avion était activé. Voulez-vous ouvrir IP Finder pour demander sa désactivation ?
+- `ip_finder_recovery_prompt` — Le mode avion semble encore actif. Voulez-vous demander sa désactivation ?
+- `ip_finder_recovery_role_needed` — Pour restaurer automatiquement le mode avion, activez Dams Tunnel comme assistant puis revenez ici.
+- `ip_finder_recovery_title` — Récupération du mode avion
+- `ip_finder_refuse_airplane_already_on` — Désactivez le mode avion avant de lancer la recherche.
+- `ip_finder_restore_airplane` — Désactiver le mode avion
+- `ip_finder_restore_assistant` — Revenir à l’assistant précédent
+- `ip_finder_rules_count` — Règles actives : %1$d
+- `ip_finder_rules_help` — ^ commence par · $ se termine par · = exact · sans symbole : contient n’importe où dans l’adresse · séparez par ligne, virgule ou ;
+- `ip_finder_rules_ignored_line` — Ignorées : \"%1$s\" (ligne %2$d)
+- `ip_finder_rules_ignored_more` — et %1$d autres
+- `ip_finder_rules_invalid_line` — Règle invalide à la ligne %1$d : %2$s (ignorée)
+- `ip_finder_rules_label` — IP recherchées
+- `ip_finder_rules_match_no` — Aucune règle ne correspond
+- `ip_finder_rules_match_no_ip` — Correspondance impossible : aucune IP mobile disponible.
+- `ip_finder_rules_match_yes` — Correspond à une règle : oui (règle %1$s)
+- `ip_finder_rules_none_valid` — Ajoutez au moins une règle IP valide pour lancer la recherche.
+- `ip_finder_rules_prefix` — Préfixer avec ^
+- `ip_finder_rules_prefix_confirm_message` — Un ^ sera ajouté devant chaque règle valide sans symbole. Les règles marquées et les fragments invalides resteront inchangés.
+- `ip_finder_rules_prefix_confirm_title` — Préfixer les règles ?
+- `ip_finder_rules_reset` — Réinitialiser la liste
+- `ip_finder_rules_reset_confirm_message` — Le texte actuel sera remplacé par la liste par défaut.
+- `ip_finder_rules_reset_confirm_title` — Réinitialiser la liste ?
+- `ip_finder_rules_too_large` — Limite dépassée : le texte des règles ne peut pas dépasser 20 Ko.
+- `ip_finder_rules_too_many` — Limite dépassée : 1 000 règles maximum. Réduisez la liste.
+- `ip_finder_screen_awake_warning` — Gardez cette page ouverte et l’écran allumé pendant la recherche. L’extinction manuelle peut interrompre le cycle.
+- `ip_finder_search_exhausted` — Aucune IP correspondante après %1$d tentatives.
+- `ip_finder_search_found` — IP trouvée : %1$s (règle %2$s), tentative %3$d.
+- `ip_finder_search_preconditions_changed` — Les conditions de recherche ont changé. Vérifiez l’assistant, le profil et le VPN.
+- `ip_finder_search_unexpected_failure` — La recherche s’est arrêtée à cause d’une erreur inattendue.
+- `ip_finder_select_profile_first` — Choisissez une configuration sur l’écran d’accueil avant de lancer la recherche
+- `ip_finder_start_cycle` — Trouver des IP
+- `ip_finder_stop` — Arrêter
+- `ip_finder_test_entry` — IP Finder (test)
+- `ip_finder_three_network_failures` — Arrêt : trois cycles consécutifs sans réseau cellulaire utilisable.
+- `ip_finder_timeline` — Chronologie
+- `ip_finder_vpn_active` — VPN Dams actif ou en cours : arrêtez-le avant le test.
+- `ip_finder_vpn_connect_failed` — IP trouvée : %1$s, mais le VPN n’a pas pu se connecter : %2$s
+- `ip_finder_vpn_disconnect_message` — Le VPN doit être déconnecté avant de rechercher une nouvelle IP.
+- `ip_finder_vpn_disconnect_timeout` — Le VPN n’a pas pu être arrêté à temps. La recherche n’a pas démarré.
+- `ip_finder_vpn_disconnect_title` — Déconnecter le VPN ?
+- `ip_finder_vpn_inactive` — VPN Dams inactif.
+- `ip_finder_vpn_not_confirmed` — La connexion VPN n’a pas été confirmée dans le délai de 20 secondes.
+- `ip_finder_vpn_permission_denied` — Autorisation VPN refusée. La recherche n’a pas démarré.
+- `ip_finder_vpn_start_rejected` — Le service VPN n’a pas confirmé le démarrage.
+- `ip_finder_wifi_active` — Wi-Fi actif
+- `ip_finder_wifi_inactive` — Wi-Fi inactif
+- `ip_finder_yes` — Oui
+
+## Configurations / serveur (77)
+
+- `server_lab_address` — address
+- `server_lab_address3` — address
+- `server_lab_alterid` — alterId
+- `server_lab_bandwidth_down` — Download bandwidth (supported units: k/m/g/t)
+- `server_lab_bandwidth_up` — Upload bandwidth (supported units: k/m/g/t)
+- `server_lab_browser_dialer` — Enable Browser Dialer
+- `server_lab_browser_dialer_tip` — Only supports xhttp (packet-up) and ws outbound; TLS-related settings may be ignored or conflict
+- `server_lab_content` — Content
+- `server_lab_ech_config_list` — echConfigList
+- `server_lab_encryption` — encryption
+- `server_lab_final_mask` — finalMask raw JSON, format: { FinalMaskObject }
+- `server_lab_flow` — flow
+- `server_lab_head_type` — head type
+- `server_lab_id` — id
+- `server_lab_id3` — password
+- `server_lab_id4` — Password (optional)
+- `server_lab_kcp_mtu` — mKCP MTU (optional, default 1350)
+- `server_lab_kcp_tti` — mKCP TTI (optional, default 50 ms)
+- `server_lab_local_address` — Local address (optional IPv4/IPv6, separated by commas)
+- `server_lab_local_mtu` — MTU (optional, default 1420)
+- `server_lab_mldsa65_verify` — mldsa65Verify
+- `server_lab_mode_type` — gRPC mode
+- `server_lab_more_function` — Transport
+- `server_lab_need_inbound` — Make sure the inbound port matches the settings
+- `server_lab_network` — Network
+- `server_lab_path` — path
+- `server_lab_path_grpc` — gRPC serviceName
+- `server_lab_path_h2` — h2 path
+- `server_lab_path_httpupgrade` — httpupgrade path
+- `server_lab_path_kcp` — kcp seed
+- `server_lab_path_quic` — QUIC key
+- `server_lab_path_ws` — ws path
+- `server_lab_path_xhttp` — xhttp path
+- `server_lab_pinned_ca256` — Certificate fingerprint (SHA-256)
+- `server_lab_port` — port
+- `server_lab_port3` — port
+- `server_lab_port_hop` — Port hopping (overrides the port)
+- `server_lab_port_hop_interval` — Port hopping interval (seconds)
+- `server_lab_preshared_key` — PreSharedKey (optional)
+- `server_lab_public_key` — PublicKey
+- `server_lab_remarks` — remarks
+- `server_lab_remote_dns` — remoteDNS (optional, comma-separated IPv4/IPv6)
+- `server_lab_request_host` — host
+- `server_lab_request_host6` — Host (SNI) (optional)
+- `server_lab_request_host_grpc` — gRPC Authority
+- `server_lab_request_host_h2` — h2 host
+- `server_lab_request_host_http` — http host
+- `server_lab_request_host_httpupgrade` — httpupgrade host
+- `server_lab_request_host_quic` — QUIC security
+- `server_lab_request_host_ws` — ws host
+- `server_lab_request_host_xhttp` — xhttp host
+- `server_lab_reserved` — Reserved (optional, separated by commas)
+- `server_lab_secret_key` — SecretKey
+- `server_lab_security` — security
+- `server_lab_security3` — security
+- `server_lab_security4` — User (optional)
+- `server_lab_short_id` — ShortId
+- `server_lab_sni` — SNI
+- `server_lab_spider_x` — SpiderX
+- `server_lab_stream_alpn` — ALPN
+- `server_lab_stream_fingerprint` — Fingerprint
+- `server_lab_stream_security` — TLS
+- `server_lab_verify_peer_cert_by_name` — Verify peer certificate by name
+- `server_lab_xhttp_extra` — XHTTP Extra raw JSON, format: { XHTTPObject }
+- `server_lab_xhttp_mode` — XHTTP Mode
+- `server_proxy_chain_member_unselected` — Select a member
+- `server_proxy_chain_members` — Proxy chain members
+- `server_proxy_chain_members_insufficient` — Insufficient members
+- `server_proxy_chain_members_invalid` — Invalid chain members: %1$s
+- `server_proxy_chain_members_unselected` — Please select a member for each chain row
+- `server_proxy_chain_pick_members` — Tap here to pick a member
+- `title_policy_group_fallback` — Fallback outbound (optional)
+- `title_policy_group_subscription_filter` — Remarks regex filter
+- `title_policy_group_subscription_id` — From subscription group
+- `title_policy_group_test_outbounds` — Test outbounds
+- `title_policy_group_type` — Policy group type
+- `title_server` — Config
+
+## Paramètres (106)
+
+- `summary_pref_append_http_proxy` — Allow browsers and supported apps to use the HTTP proxy directly instead of the virtual network interface (Android 10+).
+- `summary_pref_auto_remove_invalid_after_test` — Test results may not be accurate; deleted config cannot be recovered.
+- `summary_pref_auto_sort_after_test` — Test results may not be accurate;
+- `summary_pref_auto_test_after_update_subscription` — Automated testing takes a long time. If enabled, the task will run in the background; otherwise, it will run on the current page.
+- `summary_pref_auto_update_subscription` — Update your subscriptions automatically at set intervals in the background. Depending on the device, this feature may not always work
+- `summary_pref_confirm_remove` — Whether deleting a config requires a second confirmation by the user
+- `summary_pref_delay_test_url` — URL
+- `summary_pref_dns_hosts` — domain:address,…
+- `summary_pref_domestic_dns` — DNS
+- `summary_pref_double_column_display` — Display the profile list in two columns to fit more content on screen.
+- `summary_pref_dynamic_color` — Only works on Android 12+ devices
+- `summary_pref_dynamic_socks_port` — Use a random local proxy port for each inbound
+- `summary_pref_enable_local_proxy` — When disabled, no SOCKS proxy is available, so subscription updates and similar actions cannot use the proxy
+- `summary_pref_fake_dns_enabled` — FakeDNS returns synthetic IP addresses for domain lookups (faster, but may not work with some apps).
+- `summary_pref_feedback` — Suggest improvements or report bugs on GitHub
+- `summary_pref_group_all_display` — Combine profiles from every subscription group in one tab.
+- `summary_pref_ip_api_url` — URL
+- `summary_pref_ipv6_enabled` — Add IPv6 address and routes to the VPN interface
+- `summary_pref_is_booted` — Automatically connect to the selected server after the device starts. Android may restrict background starts.
+- `summary_pref_kill_switch` — Bloquer le trafic si le tunnel VPN est interrompu.
+- `summary_pref_local_dns_enabled` — DNS processed by core‘s DNS module (Recommended if you need routing bypassing LAN and mainland addresses)
+- `summary_pref_local_dns_port` — Local DNS port
+- `summary_pref_mux_enabled` — Faster, but it may cause unstable connectivity
+Customize how to handle TCP, UDP and QUIC below
+- `summary_pref_per_app_proxy` — General: checked apps use the proxy, and unchecked apps connect directly;
+Bypass mode: checked apps connect directly, and unchecked apps use the proxy.
+The option to automatically select apps that should use the proxy is in the menu.
+- `summary_pref_prefer_ipv6` — Prefer IPv6 addresses when resolving domain names
+- `summary_pref_proxy_sharing_enabled` — Other devices can connect to proxy by your IP address through local proxy. Only enable in trusted networks to avoid unauthorized connections
+- `summary_pref_remote_dns` — DNS
+- `summary_pref_route_only_enabled` — Use the sniffed domain name for routing only, and keep the target address as the IP address.
+- `summary_pref_sniffing_enabled` — Detect destination domains from traffic (enabled by default).
+- `summary_pref_socks_enable_udp` — SOCKS5 authentication is not fully secure when using UDP.
+- `summary_pref_socks_password` — Password
+- `summary_pref_socks_port` — Local proxy port
+- `summary_pref_socks_username` — Username
+- `summary_pref_speed_enabled` — Show current speeds in the notification.
+The icon indicates whether proxy or direct traffic is dominant.
+- `summary_pref_tg_group` — Join the Telegram group
+- `summary_pref_use_hev_tunnel` — When enabled, TUN will use hev-socks5-tunnel; otherwise, it will use xray-core.
+- `summary_system_vpn_settings` — Open Android VPN settings to configure Always-on VPN, if supported by this device.
+- `title_advanced` — Advanced Settings
+- `title_core_loglevel` — Log Level
+- `title_core_settings` — Core Settings
+- `title_fragment_settings` — Fragment Settings
+- `title_mode` — Mode
+- `title_mode_help` — Click me for more help
+- `title_mode_settings` — Mode Settings
+- `title_mux_settings` — Mux Settings
+- `title_observatory_settings` — Observatory Settings
+- `title_outbound_domain_resolve_method` — Outbound domain resolution
+- `title_pref_append_http_proxy` — Add HTTP proxy to VPN
+- `title_pref_auto_remove_invalid_after_test` — Auto delete invalid config after testing
+- `title_pref_auto_sort_after_test` — Auto sort after testing
+- `title_pref_auto_test_after_update_subscription` — Auto test after updating subscription
+- `title_pref_auto_update_interval` — Automatic update interval (minutes; minimum 15)
+- `title_pref_auto_update_subscription` — Automatically update subscriptions
+- `title_pref_confirm_remove` — Delete config confirmation
+- `title_pref_delay_test_url` — Real delay test URL
+- `title_pref_dns_hosts` — DNS host mappings (format: domain:address,…)
+- `title_pref_domestic_dns` — Direct DNS (optional)
+- `title_pref_double_column_display` — Use two-column layout
+- `title_pref_dynamic_color` — Enable dynamic color
+- `title_pref_dynamic_socks_port` — Enable dynamic local proxy port
+- `title_pref_enable_local_proxy` — Enable local proxy
+- `title_pref_fake_dns_enabled` — Enable FakeDNS
+- `title_pref_feedback` — Feedback
+- `title_pref_fragment_enabled` — Enable Fragment
+- `title_pref_fragment_interval` — Fragment Interval (min-max)
+- `title_pref_fragment_length` — Fragment Length (min-max)
+- `title_pref_fragment_maxsplit` — Fragment Max Split
+- `title_pref_fragment_packets` — Fragment Packets
+- `title_pref_group_all_display` — Show an "All" group tab
+- `title_pref_hev_tunnel_loglevel` — Hev TUN log level
+- `title_pref_hev_tunnel_rw_timeout` — Hev TUN read/write timeout (seconds; TCP/UDP defaults: 300/60)
+- `title_pref_ip_api_url` — Current connection info test URL
+- `title_pref_ipv6_enabled` — Enable IPv6
+- `title_pref_is_booted` — Connect after device boot
+- `title_pref_kill_switch` — Blocage anti-fuite
+- `title_pref_local_dns_enabled` — Enable local DNS
+- `title_pref_local_dns_port` — Local DNS port
+- `title_pref_mux_concurrency` — TCP connections (range -1 to 1024)
+- `title_pref_mux_enabled` — Enable Mux
+- `title_pref_mux_xudp_concurrency` — XUDP connections (range -1 to 1024)
+- `title_pref_mux_xudp_quic` — Handling of QUIC in mux tunnel
+- `title_pref_observatory_least_load_interval` — leastLoad Interval
+- `title_pref_observatory_least_load_method` — leastLoad HTTP method
+- `title_pref_observatory_least_load_sampling` — leastLoad Sampling
+- `title_pref_observatory_least_load_timeout` — leastLoad Timeout
+- `title_pref_observatory_least_ping_interval` — leastPing Interval
+- `title_pref_per_app_proxy` — Per-app proxy
+- `title_pref_prefer_ipv6` — Prefer IPv6
+- `title_pref_proxy_sharing_enabled` — Allow connections from the LAN
+- `title_pref_real_ping_concurrency` — Concurrent real-delay tests
+- `title_pref_remote_dns` — Remote DNS (UDP/TCP/HTTPS/QUIC, optional)
+- `title_pref_route_only_enabled` — Enable routeOnly
+- `title_pref_sniffing_enabled` — Enable Sniffing
+- `title_pref_socks_enable_udp` — SOCKS5 UDP
+- `title_pref_socks_password` — Local proxy password (optional)
+- `title_pref_socks_port` — Local proxy port
+- `title_pref_socks_username` — Local proxy username (optional)
+- `title_pref_speed_enabled` — Enable speed display
+- `title_pref_use_hev_tunnel` — Use Hev TUN
+- `title_pref_vpn_bypass_lan` — Bypass LAN in VPN mode
+- `title_pref_vpn_dns` — VPN DNS (IPv4/IPv6 only)
+- `title_pref_vpn_interface_address` — VPN Interface Address
+- `title_pref_vpn_mtu` — VPN MTU (default 1500)
+- `title_system_vpn_settings` — System VPN settings
+- `title_vpn_settings` — VPN Settings
+- `toast_root_required` — Root access is required for this feature
+
+## À propos / mise à jour (10)
+
+- `title_oss_license` — Open-source licenses
+- `title_source_code` — Source code
+- `title_tg_channel` — Telegram channel
+- `title_translators` — Translators
+- `update_already_latest_version` — Already on the latest version
+- `update_check_for_update` — Check for update
+- `update_check_pre_release` — Check pre-release versions
+- `update_checking_for_update` — Checking for update…
+- `update_new_version_found` — New version found: %s
+- `update_now` — Update now
+
+Total : **549** chaînes identiques.
