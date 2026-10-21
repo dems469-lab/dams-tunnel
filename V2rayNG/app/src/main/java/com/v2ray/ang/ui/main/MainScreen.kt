@@ -45,6 +45,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -81,6 +82,7 @@ import com.v2ray.ang.extension.toSpeedString
 import com.v2ray.ang.ui.compose.QRCodeDialog
 import com.v2ray.ang.ui.logcat.LogcatViewModel
 import com.v2ray.ang.util.PerformanceDiagnostics
+import android.os.SystemClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -154,6 +156,20 @@ fun MainScreen(
         ?: selectedServers.firstOrNull()
 
     LaunchedEffect(selectedTab, performanceDiagnosticsEnabled, lifecycleOwner) {
+        if (performanceDiagnosticsEnabled) {
+            val tabName = when (selectedTab) {
+                DamsTab.Home -> "Accueil"
+                DamsTab.Configs -> "Configs"
+                DamsTab.Journal -> "Journal"
+                DamsTab.Settings -> "Paramètres"
+            }
+            val startedAt = SystemClock.elapsedRealtime()
+            withFrameNanos { }
+            PerformanceDiagnostics.recordMainTabFirstDraw(
+                tabName,
+                SystemClock.elapsedRealtime() - startedAt,
+            )
+        }
         if (selectedTab == DamsTab.Journal) logcatViewModel.loadLogcat()
         if (selectedTab == DamsTab.Home && performanceDiagnosticsEnabled) {
             lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {

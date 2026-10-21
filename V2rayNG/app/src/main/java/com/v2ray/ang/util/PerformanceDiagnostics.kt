@@ -53,6 +53,11 @@ object PerformanceDiagnostics {
         append("Premier affichage — $screenName : ${durationMillis.coerceAtLeast(0)} ms")
     }
 
+    fun recordMainTabFirstDraw(tabName: String, durationMillis: Long) {
+        if (!isEnabled()) return
+        append("Premier affichage — onglet $tabName : ${durationMillis.coerceAtLeast(0)} ms")
+    }
+
     fun countHomeRecomposition() {
         if (isEnabled()) homeRecompositions.incrementAndGet()
     }
