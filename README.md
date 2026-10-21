@@ -1,90 +1,241 @@
-# v2rayNG
+# Dams Tunnel
 
-A V2Ray client for Android, support [Xray core](https://github.com/XTLS/Xray-core) and [v2fly core](https://github.com/v2fly/v2ray-core)
+[![Dams CI](https://github.com/dems469-lab/dams-tunnel/actions/workflows/dams-ci.yml/badge.svg)](https://github.com/dems469-lab/dams-tunnel/actions/workflows/dams-ci.yml)
+[![Dams APK](https://github.com/dems469-lab/dams-tunnel/actions/workflows/dams-build.yml/badge.svg)](https://github.com/dems469-lab/dams-tunnel/actions/workflows/dams-build.yml)
 
-[![API](https://img.shields.io/badge/API-24%2B-yellow.svg?style=flat)](https://developer.android.com/about/versions/lollipop)
-[![Kotlin Version](https://img.shields.io/badge/Kotlin-2.4.0-blue.svg)](https://kotlinlang.org)
-[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/2dust/v2rayNG)](https://github.com/2dust/v2rayNG/commits/master)
-[![CodeFactor](https://www.codefactor.io/repository/github/2dust/v2rayng/badge)](https://www.codefactor.io/repository/github/2dust/v2rayng)
-[![GitHub Releases](https://img.shields.io/github/downloads/2dust/v2rayNG/latest/total?logo=github)](https://github.com/2dust/v2rayNG/releases)
-[![Chat on Telegram](https://img.shields.io/badge/Chat%20on-Telegram-brightgreen.svg)](https://t.me/v2rayn)
+**Dams Tunnel** est une application Android de tunnel VPN construite autour du cœur Xray. Le projet conserve les formats et composants open source dont il est dérivé, tout en développant progressivement une identité, une interface et des fonctions propres à Dams Tunnel.
 
----
+> Le VPN ne garantit ni une vitesse précise, ni l'accès à tous les sites ou réseaux. Les performances dépendent notamment du serveur choisi, de l'opérateur, du réseau, du protocole et de la configuration. N'utilisez que des serveurs et profils auxquels vous faites confiance.
 
-## Download / 下载
+## Langues
 
-Download the latest release here:
+- [Français](#français)
+- [English](#english)
 
-在这里下载最新版本：
+## État du projet
 
-[https://github.com/2dust/v2rayNG/releases](https://github.com/2dust/v2rayNG/releases)
+- Version Android déclarée dans le projet : **2.3.11**.
+- Le code Android se trouve dans `V2rayNG/` ; les workflows GitHub construisent et vérifient le projet.
+- Les interfaces de production sont en cours de personnalisation. Certaines fonctions, dont **IP Finder**, sont expérimentales et peuvent dépendre des réglages Android et du fabricant du téléphone.
+- Une compilation réussie ne prouve pas le fonctionnement sur tous les appareils. Les tests de service VPN, de reconnexion en arrière-plan et de bascule du mode avion doivent aussi être effectués sur téléphone.
 
-> [!TIP]
-> v2rayNG is the mobile version. For the desktop version, please visit the v2rayN \
-> v2rayNG 是手机版，电脑版请访问 v2rayN
->
-> https://github.com/2dust/v2rayN
+## Fonctions
 
----
+- Gestion de profils et de liens de configuration compatibles avec les formats pris en charge par le cœur intégré.
+- Tunnel VPN Android et service en arrière-plan avec notification persistante.
+- Statistiques de trafic du tunnel et suivi séparé de la consommation mobile quotidienne, lorsque les informations nécessaires sont disponibles.
+- Sauvegarde et restauration de configurations, dont le format Dams protégé par mot de passe.
+- **IP Finder (bêta)** : outil expérimental de recherche d'adresse IP cellulaire, soumis au rôle d'assistant Android et aux restrictions du constructeur. Son fonctionnement et ses limites sont décrits dans l'écran de la fonction.
+- Journal local et outils de diagnostic.
 
-### Geoip and Geosite
+Les protocoles, transports et options réellement disponibles dépendent de la version du cœur Xray et du type de profil. Dams Tunnel ne fournit pas de serveurs VPN : l'utilisateur doit apporter ses propres profils ou abonnements.
 
-- geoip.dat and geosite.dat files are in `Android/data/com.v2ray.ang/files/assets` (path may differ on some Android device)
-- download feature will get enhanced version in this [repo](https://github.com/Loyalsoldier/v2ray-rules-dat) (note: it needs a working proxy)
-- latest official [domain list](https://github.com/Loyalsoldier/v2ray-rules-dat) and [ip list](https://github.com/Loyalsoldier/geoip) can be imported manually
-- possible to use a third-party dat file in the same folder, like [h2y](https://guide.v2fly.org/routing/sitedata.html#%E5%A4%96%E7%BD%AE%E7%9A%84%E5%9F%9F%E5%90%8D%E6%96%87%E4%BB%B6)
+## Télécharger
 
-More in our [wiki](https://github.com/2dust/v2rayNG/wiki)
+Les versions officielles de Dams Tunnel sont publiées sur la [page Releases du dépôt](https://github.com/dems469-lab/dams-tunnel/releases). N'installez pas un APK provenant d'une autre page ou d'un autre projet : une signature différente empêchera normalement la mise à jour directe et peut présenter un risque de sécurité.
 
-### Geoip 与 Geosite
+Les APK de test publiés par GitHub Actions sont des artefacts de workflow et ne constituent pas automatiquement une version stable. Vérifiez le nom de la branche, le résultat du workflow et l'empreinte de certificat avant installation.
 
-- geoip.dat 和 geosite.dat 文件位于 `Android/data/com.v2ray.ang/files/assets`（部分设备路径可能不同）
-- 下载功能将获取该 [仓库](https://github.com/Loyalsoldier/v2ray-rules-dat) 中的增强版本（注意：此功能需要一个可用的代理）
-- 最新官方 [域名列表](https://github.com/Loyalsoldier/v2ray-rules-dat) 和 [IP 列表](https://github.com/Loyalsoldier/geoip) 可手动导入
-- 也可在同一文件夹中使用第三方 dat 文件，例如 [h2y](https://guide.v2fly.org/routing/sitedata.html#%E5%A4%96%E7%BD%AE%E7%9A%84%E5%9F%9F%E5%90%8D%E6%96%87%E4%BB%B6)
+## Compilation et tests
 
-更多内容请见我们的 [wiki](https://github.com/2dust/v2rayNG/wiki)
+### Prérequis
 
----
+- Git avec prise en charge des sous-modules.
+- Android Studio ou un JDK compatible avec le wrapper Gradle du dépôt.
+- Android SDK et NDK correspondant aux versions déclarées dans `.github/workflows/dams-ci.yml` et `.github/workflows/dams-build.yml`.
 
-## Development guide / 开发指南
+Les versions d'AGP, Kotlin, Gradle, SDK, NDK et du cœur Xray évoluent avec le dépôt : consultez les fichiers de build et les workflows plutôt que de recopier des versions anciennes dans vos scripts.
 
-### Note
+### Récupérer le code
 
-- Android project under the V2rayNG folder can be compiled directly in Android Studio, or using the Gradle wrapper. But the v2ray core inside the aar is (probably) outdated.
-- The aar can be compiled from the Golang project [AndroidLibV2rayLite](https://github.com/2dust/AndroidLibV2rayLite) or [AndroidLibXrayLite](https://github.com/2dust/AndroidLibXrayLite). For a quick start, read the guides for [Go Mobile](https://github.com/golang/go/wiki/Mobile) and [Makefiles for Go Developers](https://tutorialedge.net/golang/makefiles-for-go-developers/).
-- v2rayNG can run on Android Emulators. For WSA, VPN permission needs to be granted via `appops set [package name] ACTIVATE_VPN allow`.
-
-### 提示
-
-- V2rayNG 文件夹下的 Android 项目可直接在 Android Studio 中编译，或使用 Gradle wrapper 编译。但 aar 内置的 v2ray core（可能）已过时。
-- aar 可由 Golang 项目 [AndroidLibV2rayLite](https://github.com/2dust/AndroidLibV2rayLite) 或 [AndroidLibXrayLite](https://github.com/2dust/AndroidLibXrayLite) 编译而成。快速入门可参考 [Go Mobile](https://github.com/golang/go/wiki/Mobile) 指南和 [Makefiles for Go Developers](https://tutorialedge.net/golang/makefiles-for-go-developers/)。
-- v2rayNG 可在 Android 模拟器上运行。对于 WSA，需要通过 `appops set [package name] ACTIVATE_VPN allow` 授予 VPN 权限。
-
----
-
-
-## GPG Verification / GPG 签名校验
-
-Release files are signed with GPG to verify authenticity and integrity, helping prevent mirror, ISP, or CDN hijacking.
-
-发布文件已使用 GPG 签名，可用于校验文件真实性与完整性，预防镜像站、运营商或 CDN 劫持。
-
-### Fingerprint / 公钥指纹
-
-```text
-7694 5E9F 3E9A 168F 8070 F195 805D 661C
-134D FAF6 8903 C199 463C 31E5 AE90 3AE0
+```bash
+git clone --recurse-submodules https://github.com/dems469-lab/dams-tunnel.git
+cd dams-tunnel
 ```
 
+Si le dépôt est déjà cloné sans ses sous-modules :
+
+```bash
+git submodule update --init --recursive
+```
+
+### Construire localement
+
+Le workflow CI prépare les bibliothèques natives et télécharge un AAR Xray épinglé avec vérification SHA-256. Reproduisez ces étapes à partir de `.github/workflows/dams-ci.yml`, puis lancez Gradle depuis `V2rayNG/` :
+
+```bash
+cd V2rayNG
+./gradlew testPlaystoreDebugUnitTest lintPlaystoreDebug
+./gradlew assemblePlaystoreDebug
+```
+
+Sous Windows, utilisez `gradlew.bat`. La compilation de publication signée est réalisée par le workflow **Dams APK** ; ne remplacez pas la clé de publication par une clé de débogage.
+
+### Intégration continue
+
+- **Dams CI** s'exécute sur les changements de branches et les demandes de fusion. Il prépare les bibliothèques natives, vérifie les bibliothèques attendues, lance les tests unitaires et lint.
+- **Dams APK** produit des APK Play Store signés sur les branches `phase-*` ou sur lancement manuel. L'artefact porte le nom `dams-release-apks` ; le workflow affiche aussi l'empreinte SHA-256 du certificat.
+- La signature de publication utilise les secrets GitHub `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` et `KEY_PASSWORD`. Leurs valeurs ne doivent jamais être ajoutées au dépôt, au README ou aux journaux.
+- Les étapes exactes et leurs résultats sont consultables dans l'onglet **Actions** du dépôt.
+
+## Organisation du dépôt
+
+| Chemin | Rôle |
+| --- | --- |
+| `V2rayNG/` | Application Android Kotlin, interface Compose, ressources, tests et configuration Gradle. |
+| `V2rayNG/app/src/main/java/com/v2ray/ang/core/` | Assemblage de configuration et cycle de vie du cœur réseau. |
+| `V2rayNG/app/src/main/java/com/v2ray/ang/service/` | Services Android associés au tunnel VPN. |
+| `V2rayNG/app/src/main/java/com/v2ray/ang/ipfinder/` | Fonction expérimentale IP Finder, isolée du stockage des profils. |
+| `V2rayNG/app/src/test/` | Tests unitaires. |
+| `hev-socks5-tunnel/` | Sous-module du composant de tunnel HEV. |
+| `AndroidLibXrayLite/` | Sous-module associé au cœur Android Xray. |
+| `.github/workflows/` | Workflows CI et production des APK. |
+
+Cette carte est indicative : la structure réelle du code est la référence.
+
+## Sécurité et confidentialité
+
+- Les profils VPN peuvent contenir des identifiants, clés ou adresses privés. Ne les partagez pas publiquement.
+- Ne commitez jamais de keystore, mot de passe, jeton, clé privée ou fichier de configuration réel.
+- Le format `.dams` protégé doit être exporté avec un mot de passe robuste ; conservez ce mot de passe séparément. La perte du mot de passe peut rendre la sauvegarde irrécupérable.
+- Les mesures de trafic et journaux peuvent différer selon le cœur, le profil et l'appareil. Les journaux sont destinés au diagnostic et ne doivent pas contenir de secrets.
+- Un VPN ne rend pas automatiquement anonyme et ne protège pas contre un appareil compromis, un serveur malveillant ou les données que l'utilisateur choisit de transmettre.
+- IP Finder peut demander à Android le rôle d'assistant pour son test expérimental du mode avion. Lisez son explication et les confirmations système avant activation ; les réglages du constructeur peuvent limiter son fonctionnement en arrière-plan.
+- Les rapports de vulnérabilité ne doivent pas inclure de profils, mots de passe, IP personnelles ou journaux contenant des données sensibles. Ouvrez un rapport privé auprès du mainteneur du dépôt.
+
+## Contribution
+
+Les changements doivent rester ciblés et accompagnés de tests lorsque c'est possible. Avant une demande de fusion :
+
+1. Consultez les consignes `AGENTS.md` applicables au chemin modifié.
+2. Ajoutez ou mettez à jour les tests correspondant au comportement changé.
+3. Lancez les tests et lint définis dans le workflow **Dams CI**.
+4. Indiquez les appareils et versions Android testés, ainsi que les limites connues.
+5. Ne joignez jamais de secret ou de profil VPN réel.
+
+Les changements du service VPN, des permissions et des callbacks Android doivent être vérifiés sur appareil en plus de la compilation.
+
+## Origine, propriété et licences
+
+Dams Tunnel est développé dans le dépôt `dems469-lab/dams-tunnel` à partir d'une base open source dérivée de [v2rayNG](https://github.com/2dust/v2rayNG). Les commits de cette base et les composants tiers ne deviennent pas la propriété exclusive du mainteneur de Dams Tunnel par le seul fait de les modifier ou de les renommer.
+
+Le dépôt conserve la licence **GNU GPL version 3** dans `LICENSE`. Les modifications couvertes par cette licence et distribuées doivent respecter ses conditions, notamment la conservation des avis applicables et la mise à disposition du code source correspondant selon les modalités de la GPL. Les sous-modules, bibliothèques et ressources peuvent avoir des licences distinctes : consultez leurs fichiers `LICENSE`, leurs avis et leurs dépôts respectifs.
+
+Le nom, le logo, les éléments graphiques originaux et les contributions créés spécifiquement pour Dams Tunnel peuvent avoir des titulaires de droits différents du code dérivé. Leur statut ne change pas les licences du code tiers incorporé. Ce README ne constitue pas un avis juridique.
+
+## Remerciements
+
+Merci aux mainteneurs de v2rayNG, Xray, HEV et aux auteurs des bibliothèques et ressources open source utilisées par le projet. Les crédits et licences propres à chaque composant priment ; cette liste n'est pas exhaustive.
+
 ---
 
-## Community / 社区
+## English
 
-Telegram Group / Telegram 群组：
+**Dams Tunnel** is an Android VPN tunnelling application built around the Xray core. It retains open-source formats and components from its upstream codebase while gradually developing a Dams Tunnel identity, interface and project-specific features.
 
-[https://t.me/v2rayN](https://t.me/v2rayN)
+> A VPN cannot guarantee a particular speed or access to every website or network. Performance depends on the selected server, carrier, network conditions, protocol and configuration. Use only servers and profiles you trust.
 
-Telegram Channel / Telegram 频道：
+### Project status
 
-[https://t.me/github_2dust](https://t.me/github_2dust)
+- Android version declared by the project: **2.3.11**.
+- Android source lives in `V2rayNG/`; GitHub workflows build and verify the project.
+- Production interfaces are being customized. Some features, including **IP Finder**, are experimental and may depend on Android settings and device-vendor restrictions.
+- A successful build does not prove operation on every device. VPN service, background reconnection and airplane-mode behavior also require on-device testing.
+
+### Features
+
+- VPN profile management and configuration links supported by the bundled core.
+- Android VPN tunnel service with a persistent notification.
+- Tunnel traffic statistics and separate daily mobile-data usage tracking when the required information is available.
+- Configuration backup and restore, including password-protected Dams files.
+- **IP Finder (beta)**: an experimental cellular-IP search tool subject to Android assistant-role requirements and device-vendor restrictions. Its screen explains its behavior and limitations.
+- Local logs and diagnostic tools.
+
+Available protocols, transports and options depend on the bundled Xray core and profile type. Dams Tunnel does not provide VPN servers; users must supply their own profiles or subscriptions.
+
+### Downloads
+
+Official Dams Tunnel releases are published on this repository's [Releases page](https://github.com/dems469-lab/dams-tunnel/releases). Do not install APKs from unrelated pages or projects: a different signing certificate will normally prevent an in-place update and may be a security risk.
+
+GitHub Actions APK artifacts are workflow outputs and are not automatically stable releases. Check the branch, workflow result and signing-certificate fingerprint before installing.
+
+### Build and test
+
+Requirements include Git with submodule support, a compatible JDK/Android Studio, and the Android SDK/NDK versions declared by the workflows.
+
+```bash
+git clone --recurse-submodules https://github.com/dems469-lab/dams-tunnel.git
+cd dams-tunnel
+```
+
+If the repository was cloned without submodules:
+
+```bash
+git submodule update --init --recursive
+```
+
+The CI workflow builds native libraries and downloads a pinned Xray AAR with a SHA-256 check. Follow `.github/workflows/dams-ci.yml` for those preparation steps, then run Gradle from `V2rayNG/`:
+
+```bash
+cd V2rayNG
+./gradlew testPlaystoreDebugUnitTest lintPlaystoreDebug
+./gradlew assemblePlaystoreDebug
+```
+
+On Windows, use `gradlew.bat`. Signed release APKs are produced by **Dams APK**; never substitute a debug key for the release key.
+
+### Continuous integration and release signing
+
+- **Dams CI** runs on branch changes and pull requests. It prepares native libraries, checks expected libraries, runs unit tests and lint.
+- **Dams APK** builds signed Play Store APKs on `phase-*` branches or by manual dispatch. Its artifact is named `dams-release-apks`; the workflow also prints the certificate SHA-256 fingerprint.
+- Release signing uses GitHub secrets named `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`. Never commit their values or print them in logs.
+- Check the repository's **Actions** tab for exact steps and results.
+
+### Repository layout
+
+| Path | Purpose |
+| --- | --- |
+| `V2rayNG/` | Kotlin Android app, Compose UI, resources, tests and Gradle configuration. |
+| `V2rayNG/app/src/main/java/com/v2ray/ang/core/` | Core configuration assembly and lifecycle. |
+| `V2rayNG/app/src/main/java/com/v2ray/ang/service/` | Android services associated with the VPN tunnel. |
+| `V2rayNG/app/src/main/java/com/v2ray/ang/ipfinder/` | Experimental IP Finder, isolated from VPN-profile storage. |
+| `V2rayNG/app/src/test/` | Unit tests. |
+| `hev-socks5-tunnel/` | HEV tunnel submodule. |
+| `AndroidLibXrayLite/` | Submodule associated with the Android Xray core. |
+| `.github/workflows/` | CI and APK build workflows. |
+
+This map is illustrative; the source tree is authoritative.
+
+### Security and privacy
+
+- VPN profiles may contain credentials, keys or private addresses. Do not publish them.
+- Never commit a keystore, password, token, private key or real VPN configuration.
+- Use a strong password for protected `.dams` exports and store it separately. Losing it may make the backup unrecoverable.
+- Traffic statistics and logs can vary by core, profile and device. Logs are diagnostic data and must not contain secrets.
+- A VPN does not automatically provide anonymity or protect against a compromised device, malicious server or information the user chooses to disclose.
+- IP Finder may request Android's assistant role for its experimental airplane-mode test. Read its explanation and system prompts; vendor settings may restrict background operation.
+- Do not include profiles, passwords, personal IP addresses or sensitive logs in vulnerability reports. Contact the repository maintainer privately.
+
+### Contributing
+
+Keep changes focused and add tests where practical. Before opening a pull request:
+
+1. Read the applicable `AGENTS.md` instructions.
+2. Add or update tests for changed behavior.
+3. Run the tests and lint tasks used by **Dams CI**.
+4. State which devices and Android versions were tested, and list known limitations.
+5. Never attach secrets or real VPN profiles.
+
+VPN-service, permission and Android-callback changes require on-device testing in addition to compilation.
+
+### Upstream origin, ownership and licenses
+
+Dams Tunnel is developed in `dems469-lab/dams-tunnel` from an open-source codebase derived from [v2rayNG](https://github.com/2dust/v2rayNG). Modifying or renaming upstream code does not make that code or third-party components exclusively owned by the Dams Tunnel maintainer.
+
+The repository retains the **GNU GPL version 3** in `LICENSE`. Distributed modifications covered by that license must comply with its terms, including applicable notices and providing the corresponding source under the GPL as required. Submodules, libraries and data may carry separate licenses; consult their license files, notices and upstream repositories.
+
+The Dams Tunnel name, logo, original visual assets and project-specific contributions may have rights holders distinct from the derived code. That does not change the licenses of incorporated third-party code. This README is not legal advice.
+
+### Acknowledgements
+
+Thanks to the maintainers of v2rayNG, Xray and HEV, and to the authors of the open-source libraries and data used by this project. Component-specific notices and licenses take precedence; this list is not exhaustive.
