@@ -5,6 +5,15 @@ plugins {
     id("com.jaredsburrows.license")
 }
 
+val premiumEnabledProperty = providers.gradleProperty("premiumEnabled").orElse("false").get()
+val premiumEnabled = premiumEnabledProperty.toBooleanStrictOrNull()
+    ?: error("premiumEnabled doit valoir true ou false")
+val premiumBaseUrls = providers.gradleProperty("premiumBaseUrls").orElse("").get()
+val premiumDebugBaseUrl = providers.gradleProperty("premiumDebugBaseUrl").orElse("").get()
+
+fun buildConfigString(value: String): String =
+    "\"${value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\""
+
 android {
     namespace = "com.v2ray.ang"
     compileSdk = 37
@@ -15,6 +24,9 @@ android {
         targetSdk = 37
         versionCode = 751
         versionName = "2.3.11"
+        buildConfigField("boolean", "PREMIUM_ENABLED", premiumEnabled.toString())
+        buildConfigField("String", "PREMIUM_BASE_URLS", buildConfigString(premiumBaseUrls))
+        buildConfigField("String", "PREMIUM_DEBUG_BASE_URL", buildConfigString(""))
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
         splits {
@@ -59,6 +71,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "PREMIUM_DEBUG_BASE_URL", buildConfigString(premiumDebugBaseUrl))
+        }
         release {
             isMinifyEnabled = false
             if (hasReleaseSigningCredentials) {
