@@ -349,9 +349,10 @@ object CoreServiceManager {
                 // polled connectionVerified for up to 60 s after a failed probe,
                 // preventing this still-active job from scheduling the next retry.
                 if (!connectionVerified && !userStopped) {
-                    awaitNextReconnectVerification(previousVerification) {
-                        connectionVerificationJob
-                    }
+                    awaitNextReconnectVerification(
+                        previousJob = previousVerification,
+                        currentJob = { connectionVerificationJob },
+                    )
                 }
             }
         }
