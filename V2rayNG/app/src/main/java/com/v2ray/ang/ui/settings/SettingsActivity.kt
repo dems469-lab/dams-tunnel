@@ -133,7 +133,7 @@ fun SettingsScreen(
     var muxSettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var fragmentSettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var observatorySettingsExpanded by rememberSaveable { mutableStateOf(false) }
-    var advancedSettingsExpanded by rememberSaveable { mutableStateOf(true) }
+    var advancedSettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var modeSettingsExpanded by rememberSaveable { mutableStateOf(true) }
 
     var localDns by rememberMmkvBool(AppConfig.PREF_LOCAL_DNS_ENABLED, false)
@@ -348,11 +348,17 @@ fun SettingsScreen(
             }
 
             CollapsiblePreferenceGroupHeader(
-                title = stringResource(R.string.title_vpn_settings),
-                expanded = vpnSettingsExpanded,
-                onExpandedChange = { vpnSettingsExpanded = it }
+                title = stringResource(R.string.title_advanced),
+                expanded = advancedSettingsExpanded,
+                onExpandedChange = { advancedSettingsExpanded = it }
             )
-            if (vpnSettingsExpanded) {
+            if (advancedSettingsExpanded) {
+                CollapsiblePreferenceGroupHeader(
+                    title = stringResource(R.string.title_vpn_settings),
+                    expanded = vpnSettingsExpanded,
+                    onExpandedChange = { vpnSettingsExpanded = it }
+                )
+                if (vpnSettingsExpanded) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.title_pref_ipv6_enabled),
                     summary = stringResource(R.string.summary_pref_ipv6_enabled),
@@ -449,14 +455,14 @@ fun SettingsScreen(
                     keyboardNumber = true,
                     onValueChanged = { hevTunRwTimeout = it }
                 )
-            }
+                }
 
-            CollapsiblePreferenceGroupHeader(
-                title = stringResource(R.string.title_core_settings),
-                expanded = coreSettingsExpanded,
-                onExpandedChange = { coreSettingsExpanded = it }
-            )
-            if (coreSettingsExpanded) {
+                CollapsiblePreferenceGroupHeader(
+                    title = stringResource(R.string.title_core_settings),
+                    expanded = coreSettingsExpanded,
+                    onExpandedChange = { coreSettingsExpanded = it }
+                )
+                if (coreSettingsExpanded) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.title_pref_sniffing_enabled),
                     summary = stringResource(R.string.summary_pref_sniffing_enabled),
@@ -553,14 +559,14 @@ fun SettingsScreen(
                     selectedValue = outboundResolveMethod,
                     onSelected = { outboundResolveMethod = it }
                 )
-            }
+                }
 
-            CollapsiblePreferenceGroupHeader(
-                title = stringResource(R.string.title_mux_settings),
-                expanded = muxSettingsExpanded,
-                onExpandedChange = { muxSettingsExpanded = it }
-            )
-            if (muxSettingsExpanded) {
+                CollapsiblePreferenceGroupHeader(
+                    title = stringResource(R.string.title_mux_settings),
+                    expanded = muxSettingsExpanded,
+                    onExpandedChange = { muxSettingsExpanded = it }
+                )
+                if (muxSettingsExpanded) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.title_pref_mux_enabled),
                     summary = stringResource(R.string.summary_pref_mux_enabled),
@@ -589,14 +595,14 @@ fun SettingsScreen(
                     enabled = mux && muxXudpConcurrencyInt >= 0,
                     onSelected = { muxXudpQuic = it }
                 )
-            }
+                }
 
-            CollapsiblePreferenceGroupHeader(
-                title = stringResource(R.string.title_fragment_settings),
-                expanded = fragmentSettingsExpanded,
-                onExpandedChange = { fragmentSettingsExpanded = it }
-            )
-            if (fragmentSettingsExpanded) {
+                CollapsiblePreferenceGroupHeader(
+                    title = stringResource(R.string.title_fragment_settings),
+                    expanded = fragmentSettingsExpanded,
+                    onExpandedChange = { fragmentSettingsExpanded = it }
+                )
+                if (fragmentSettingsExpanded) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.title_pref_fragment_enabled),
                     checked = fragment,
@@ -629,14 +635,14 @@ fun SettingsScreen(
                     keyboardNumber = true,
                     onValueChanged = { fragmentMaxSplit = it }
                 )
-            }
+                }
 
-            CollapsiblePreferenceGroupHeader(
-                title = stringResource(R.string.title_observatory_settings),
-                expanded = observatorySettingsExpanded,
-                onExpandedChange = { observatorySettingsExpanded = it }
-            )
-            if (observatorySettingsExpanded) {
+                CollapsiblePreferenceGroupHeader(
+                    title = stringResource(R.string.title_observatory_settings),
+                    expanded = observatorySettingsExpanded,
+                    onExpandedChange = { observatorySettingsExpanded = it }
+                )
+                if (observatorySettingsExpanded) {
                 SettingsEditItem(
                     title = stringResource(R.string.title_pref_observatory_least_ping_interval),
                     value = observatoryLeastPingInterval,
@@ -681,14 +687,8 @@ fun SettingsScreen(
                         }
                     }
                 )
-            }
+                }
 
-            CollapsiblePreferenceGroupHeader(
-                title = stringResource(R.string.title_advanced),
-                expanded = advancedSettingsExpanded,
-                onExpandedChange = { advancedSettingsExpanded = it }
-            )
-            if (advancedSettingsExpanded) {
                 SettingsSwitchItem(
                     title = stringResource(R.string.title_pref_is_booted),
                     summary = stringResource(R.string.summary_pref_is_booted),
@@ -729,25 +729,7 @@ fun SettingsScreen(
                     value = ipApiUrl,
                     onValueChanged = { ipApiUrl = it }
                 )
-            }
 
-            CollapsiblePreferenceGroupHeader(
-                title = stringResource(R.string.title_mode_settings),
-                expanded = modeSettingsExpanded,
-                onExpandedChange = { modeSettingsExpanded = it }
-            )
-            if (modeSettingsExpanded) {
-                SettingsListItem(
-                    title = stringResource(R.string.title_mode),
-                    entries = modeEntries,
-                    values = modeValues,
-                    selectedValue = mode,
-                    onSelected = { mode = it }
-                )
-                SettingsMenuItem(
-                    title = stringResource(R.string.title_mode_help),
-                    onClick = onModeHelpClicked
-                )
                 SettingsSwitchItem(
                     title = stringResource(R.string.title_root_mode_enabled),
                     summary = stringResource(R.string.summary_root_mode_enabled),
@@ -775,6 +757,21 @@ fun SettingsScreen(
                             lanSharing = newValue
                         }
                     }
+                )
+            }
+
+            CollapsiblePreferenceGroupHeader(
+                title = stringResource(R.string.title_mode_settings),
+                expanded = modeSettingsExpanded,
+                onExpandedChange = { modeSettingsExpanded = it }
+            )
+            if (modeSettingsExpanded) {
+                SettingsListItem(
+                    title = stringResource(R.string.title_mode),
+                    entries = modeEntries,
+                    values = modeValues,
+                    selectedValue = mode,
+                    onSelected = { mode = it }
                 )
             }
 
