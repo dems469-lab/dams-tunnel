@@ -275,16 +275,16 @@
 
     <!-- Preferences -->
     <string name="title_settings">Paramètres</string>
-    <string name="title_advanced">Advanced Settings</string>
-    <string name="title_core_settings">Core Settings</string>
-    <string name="title_vpn_settings">VPN Settings</string>
+    <string name="title_advanced">Paramètres avancés</string>
+    <string name="title_core_settings">Paramètres du cœur</string>
+    <string name="title_vpn_settings">Paramètres VPN</string>
     <string name="title_pref_per_app_proxy">Per-app proxy</string>
     <string name="summary_pref_per_app_proxy">General: checked apps use the proxy, and unchecked apps connect directly;\nBypass mode: checked apps connect directly, and unchecked apps use the proxy.\nThe option to automatically select apps that should use the proxy is in the menu.</string>
-    <string name="title_pref_is_booted">Connect after device boot</string>
-    <string name="summary_pref_is_booted">Automatically connect to the selected server after the device starts. Android may restrict background starts.</string>
-    <string name="title_system_vpn_settings">System VPN settings</string>
-    <string name="summary_system_vpn_settings">Open Android VPN settings to configure Always-on VPN, if supported by this device.</string>
-    <string name="toast_system_vpn_settings_unavailable">System VPN settings are unavailable.</string>
+    <string name="title_pref_is_booted">Se connecter au démarrage de l’appareil</string>
+    <string name="summary_pref_is_booted">Se connecter automatiquement au serveur sélectionné au démarrage. Android peut limiter le démarrage en arrière-plan.</string>
+    <string name="title_system_vpn_settings">Paramètres VPN du système</string>
+    <string name="summary_system_vpn_settings">Ouvrir les paramètres VPN Android pour configurer le VPN toujours activé, si l’appareil le permet.</string>
+    <string name="toast_system_vpn_settings_unavailable">Les paramètres VPN du système ne sont pas disponibles.</string>
 
 
     <string name="subscription_updater_job_tips">The task will run in the background, and progress information will be displayed in the notification.</string>
@@ -295,99 +295,99 @@
     <string name="title_pref_auto_sort_after_test">Auto sort after testing</string>
     <string name="summary_pref_auto_sort_after_test">Test results may not be accurate;</string>
 
-    <string name="title_mux_settings">Mux Settings</string>
-    <string name="title_pref_mux_enabled">Enable Mux</string>
-    <string name="summary_pref_mux_enabled">Faster, but it may cause unstable connectivity\nCustomize how to handle TCP, UDP and QUIC below</string>
-    <string name="title_pref_mux_concurrency">TCP connections (range -1 to 1024)</string>
-    <string name="title_pref_mux_xudp_concurrency">XUDP connections (range -1 to 1024)</string>
-    <string name="title_pref_mux_xudp_quic">Handling of QUIC in mux tunnel</string>
+    <string name="title_mux_settings">Paramètres Mux</string>
+    <string name="title_pref_mux_enabled">Activer Mux</string>
+    <string name="summary_pref_mux_enabled">Peut accélérer la connexion, mais aussi la rendre instable.\nPersonnalisez ci-dessous la gestion de TCP, UDP et QUIC.</string>
+    <string name="title_pref_mux_concurrency">Connexions TCP (plage : -1 à 1024)</string>
+    <string name="title_pref_mux_xudp_concurrency">Connexions XUDP (plage : -1 à 1024)</string>
+    <string name="title_pref_mux_xudp_quic">Gestion de QUIC dans le tunnel Mux</string>
     <string-array name="mux_xudp_quic_entries">
-        <item>reject</item>
-        <item>allow</item>
-        <item>skip</item>
+        <item>Refuser</item>
+        <item>Autoriser</item>
+        <item>Ignorer</item>
     </string-array>
 
-    <string name="title_pref_speed_enabled">Enable speed display</string>
-    <string name="summary_pref_speed_enabled">Show current speeds in the notification.\nThe icon indicates whether proxy or direct traffic is dominant.</string>
+    <string name="title_pref_speed_enabled">Afficher les débits</string>
+    <string name="summary_pref_speed_enabled">Afficher les débits actuels dans la notification.\nL’icône indique si le trafic du proxy ou le trafic direct est dominant.</string>
     <string name="title_pref_diagnostic_traffic_stats">Diagnostic des statistiques</string>
     <string name="summary_pref_diagnostic_traffic_stats">Affiche dans Journal les trois premières lectures brutes des statistiques Xray. Aucune adresse ni donnée de profil n’est incluse.</string>
     <string name="title_pref_diagnostic_performance">Diagnostic des performances</string>
     <string name="summary_pref_diagnostic_performance">Enregistre localement le démarrage, le premier affichage des écrans, le rythme d’actualisation de l’accueil et la mémoire Java utilisée. Désactivé par défaut, sans collecte de profil ni de réseau.</string>
     <string name="performance_diagnostics_title">Diagnostic des performances</string>
 
-    <string name="title_pref_sniffing_enabled">Enable Sniffing</string>
-    <string name="summary_pref_sniffing_enabled">Detect destination domains from traffic (enabled by default).</string>
-    <string name="title_pref_route_only_enabled">Enable routeOnly</string>
-    <string name="summary_pref_route_only_enabled">Use the sniffed domain name for routing only, and keep the target address as the IP address.</string>
+    <string name="title_pref_sniffing_enabled">Activer Sniffing</string>
+    <string name="summary_pref_sniffing_enabled">Détecter les domaines de destination à partir du trafic (activé par défaut).</string>
+    <string name="title_pref_route_only_enabled">Activer routeOnly</string>
+    <string name="summary_pref_route_only_enabled">Utiliser le nom de domaine détecté uniquement pour le routage et conserver l’adresse IP comme adresse cible.</string>
 
-    <string name="title_pref_local_dns_enabled">Enable local DNS</string>
-    <string name="summary_pref_local_dns_enabled">DNS processed by core‘s DNS module (Recommended if you need routing bypassing LAN and mainland addresses)</string>
+    <string name="title_pref_local_dns_enabled">Activer le DNS local</string>
+    <string name="summary_pref_local_dns_enabled">Le DNS est traité par le module DNS du cœur (recommandé si le routage doit contourner le réseau local et certaines adresses nationales).</string>
 
-    <string name="title_pref_fake_dns_enabled">Enable FakeDNS</string>
-    <string name="summary_pref_fake_dns_enabled">FakeDNS returns synthetic IP addresses for domain lookups (faster, but may not work with some apps).</string>
+    <string name="title_pref_fake_dns_enabled">Activer FakeDNS</string>
+    <string name="summary_pref_fake_dns_enabled">FakeDNS renvoie des adresses IP synthétiques pour les noms de domaine (plus rapide, mais incompatible avec certaines applications).</string>
 
-    <string name="title_pref_ipv6_enabled">Enable IPv6</string>
-    <string name="summary_pref_ipv6_enabled">Add IPv6 address and routes to the VPN interface</string>
+    <string name="title_pref_ipv6_enabled">Activer IPv6</string>
+    <string name="summary_pref_ipv6_enabled">Ajouter une adresse et des routes IPv6 à l’interface VPN.</string>
 
-    <string name="title_pref_prefer_ipv6">Prefer IPv6</string>
-    <string name="summary_pref_prefer_ipv6">Prefer IPv6 addresses when resolving domain names</string>
+    <string name="title_pref_prefer_ipv6">Préférer IPv6</string>
+    <string name="summary_pref_prefer_ipv6">Préférer les adresses IPv6 lors de la résolution des noms de domaine.</string>
 
-    <string name="title_pref_remote_dns">Remote DNS (UDP/TCP/HTTPS/QUIC, optional)</string>
+    <string name="title_pref_remote_dns">DNS distant (UDP/TCP/HTTPS/QUIC, facultatif)</string>
     <string name="summary_pref_remote_dns" translatable="false">DNS</string>
 
-    <string name="title_pref_vpn_dns">VPN DNS (IPv4/IPv6 only)</string>
-    <string name="title_pref_vpn_bypass_lan">Bypass LAN in VPN mode</string>
+    <string name="title_pref_vpn_dns">DNS du VPN (IPv4/IPv6 uniquement)</string>
+    <string name="title_pref_vpn_bypass_lan">Contourner le réseau local en mode VPN</string>
 
-    <string name="title_pref_vpn_interface_address">VPN Interface Address</string>
+    <string name="title_pref_vpn_interface_address">Adresse de l’interface VPN</string>
 
-    <string name="title_pref_vpn_mtu">VPN MTU (default 1500)</string>
+    <string name="title_pref_vpn_mtu">MTU du VPN (1500 par défaut)</string>
 
 
-    <string name="title_pref_domestic_dns">Direct DNS (optional)</string>
+    <string name="title_pref_domestic_dns">DNS direct (facultatif)</string>
     <string name="summary_pref_domestic_dns" translatable="false">DNS</string>
 
-    <string name="title_pref_dns_hosts">DNS host mappings (format: domain:address,…)</string>
+    <string name="title_pref_dns_hosts">Correspondances DNS (format : domaine:adresse,…)</string>
     <string name="summary_pref_dns_hosts">domain:address,…</string>
 
-    <string name="title_pref_delay_test_url">Real delay test URL</string>
+    <string name="title_pref_delay_test_url">URL du test de latence réel</string>
     <string name="summary_pref_delay_test_url" translatable="false">URL</string>
-    <string name="title_pref_real_ping_concurrency">Concurrent real-delay tests</string>
+    <string name="title_pref_real_ping_concurrency">Nombre de tests de latence simultanés</string>
 
-    <string name="title_pref_ip_api_url">Current connection info test URL</string>
+    <string name="title_pref_ip_api_url">URL de test des informations de connexion</string>
     <string name="summary_pref_ip_api_url" translatable="false">URL</string>
 
-    <string name="title_pref_proxy_sharing_enabled">Allow connections from the LAN</string>
-    <string name="summary_pref_proxy_sharing_enabled">Other devices can connect to proxy by your IP address through local proxy. Only enable in trusted networks to avoid unauthorized connections</string>
+    <string name="title_pref_proxy_sharing_enabled">Autoriser les connexions depuis le réseau local</string>
+    <string name="summary_pref_proxy_sharing_enabled">Les autres appareils peuvent se connecter au proxy local via votre adresse IP. N’activez cette option que sur un réseau de confiance pour éviter les accès non autorisés.</string>
     <string name="toast_warning_pref_proxysharing_short">Allow connections from the LAN. Make sure you are in a trusted network</string>
 
-    <string name="title_pref_socks_port">Local proxy port</string>
-    <string name="title_pref_enable_local_proxy">Enable local proxy</string>
-    <string name="summary_pref_enable_local_proxy">When disabled, no SOCKS proxy is available, so subscription updates and similar actions cannot use the proxy</string>
+    <string name="title_pref_socks_port">Port du proxy local</string>
+    <string name="title_pref_enable_local_proxy">Activer le proxy local</string>
+    <string name="summary_pref_enable_local_proxy">Si cette option est désactivée, aucun proxy SOCKS n’est disponible ; les mises à jour d’abonnements et les opérations similaires ne peuvent pas l’utiliser.</string>
     <string name="title_pref_socks_enable_udp" translatable="false">SOCKS5 UDP</string>
-    <string name="summary_pref_socks_enable_udp">SOCKS5 authentication is not fully secure when using UDP.</string>
+    <string name="summary_pref_socks_enable_udp">L’authentification SOCKS5 n’est pas entièrement sécurisée avec UDP.</string>
     <string name="summary_pref_socks_port">Local proxy port</string>
-    <string name="title_pref_dynamic_socks_port">Enable dynamic local proxy port</string>
-    <string name="summary_pref_dynamic_socks_port">Use a random local proxy port for each inbound</string>
-    <string name="title_pref_socks_username">Local proxy username (optional)</string>
+    <string name="title_pref_dynamic_socks_port">Activer le port dynamique du proxy local</string>
+    <string name="summary_pref_dynamic_socks_port">Utiliser un port local aléatoire pour chaque entrée.</string>
+    <string name="title_pref_socks_username">Nom d’utilisateur du proxy local (facultatif)</string>
     <string name="summary_pref_socks_username">Username</string>
-    <string name="title_pref_socks_password">Local proxy password (optional)</string>
+    <string name="title_pref_socks_password">Mot de passe du proxy local (facultatif)</string>
     <string name="summary_pref_socks_password">Password</string>
 
     <string name="title_pref_local_dns_port">Local DNS port</string>
     <string name="summary_pref_local_dns_port">Local DNS port</string>
 
-    <string name="title_pref_confirm_remove">Delete config confirmation</string>
-    <string name="summary_pref_confirm_remove">Whether deleting a config requires a second confirmation by the user</string>
+    <string name="title_pref_confirm_remove">Confirmation de suppression des configurations</string>
+    <string name="summary_pref_confirm_remove">Demander une seconde confirmation avant de supprimer une configuration.</string>
 
 
-    <string name="title_pref_append_http_proxy">Add HTTP proxy to VPN</string>
-    <string name="summary_pref_append_http_proxy">Allow browsers and supported apps to use the HTTP proxy directly instead of the virtual network interface (Android 10+).</string>
+    <string name="title_pref_append_http_proxy">Ajouter le proxy HTTP au VPN</string>
+    <string name="summary_pref_append_http_proxy">Permettre aux navigateurs et applications compatibles d’utiliser directement le proxy HTTP au lieu de l’interface réseau virtuelle (Android 10+).</string>
 
-    <string name="title_pref_double_column_display">Use two-column layout</string>
-    <string name="summary_pref_double_column_display">Display the profile list in two columns to fit more content on screen.</string>
+    <string name="title_pref_double_column_display">Afficher deux colonnes</string>
+    <string name="summary_pref_double_column_display">Afficher les profils sur deux colonnes pour en voir davantage à l’écran.</string>
 
-    <string name="title_pref_group_all_display">Show an "All" group tab</string>
-    <string name="summary_pref_group_all_display">Combine profiles from every subscription group in one tab.</string>
+    <string name="title_pref_group_all_display">Afficher un onglet « Tous »</string>
+    <string name="summary_pref_group_all_display">Regrouper dans un même onglet les profils de tous les groupes d’abonnement.</string>
 
     <!-- AboutActivity -->
     <string name="title_pref_feedback">Feedback</string>
@@ -407,25 +407,25 @@
     <string name="summary_pref_auto_update_subscription">Update your subscriptions automatically at set intervals in the background. Depending on the device, this feature may not always work</string>
     <string name="title_pref_auto_update_interval">Automatic update interval (minutes; minimum 15)</string>
 
-    <string name="title_core_loglevel">Log Level</string>
-    <string name="title_outbound_domain_resolve_method">Outbound domain resolution</string>
+    <string name="title_core_loglevel">Niveau de journalisation</string>
+    <string name="title_outbound_domain_resolve_method">Résolution des domaines sortants</string>
     <string name="title_mode">Mode</string>
-    <string name="title_mode_help">Click me for more help</string>
+    <string name="title_mode_help">Touchez pour obtenir plus d’aide</string>
     <string name="title_language">Langue</string>
     <string name="title_ui_settings">Apparence</string>
     <string name="title_pref_ui_mode_night">Mode d’affichage</string>
-    <string name="title_pref_dynamic_color">Enable dynamic color</string>
-    <string name="summary_pref_dynamic_color">Only works on Android 12+ devices</string>
-    <string name="title_pref_use_hev_tunnel">Use Hev TUN</string>
-    <string name="summary_pref_use_hev_tunnel">When enabled, TUN will use hev-socks5-tunnel; otherwise, it will use xray-core.</string>
-    <string name="title_pref_hev_tunnel_loglevel">Hev TUN log level</string>
-    <string name="title_pref_hev_tunnel_rw_timeout">Hev TUN read/write timeout (seconds; TCP/UDP defaults: 300/60)</string>
-    <string name="title_mode_settings">Mode Settings</string>
-    <string name="title_root_mode_enabled">Enable root mode (root users)</string>
-    <string name="summary_root_mode_enabled">Use root access for low-level transparent proxying. Root mode handles network traffic directly instead of using the Android VPN service. Standard mode, per-app routing, and VPN-related settings do not apply while root mode is enabled.</string>
-    <string name="toast_root_required">Root access is required for this feature</string>
-    <string name="title_root_lan_sharing">Share VPN with LAN / tethered devices (root users)</string>
-    <string name="summary_root_lan_sharing">Route traffic from Wi-Fi hotspot and USB-tethered devices through the VPN.</string>
+    <string name="title_pref_dynamic_color">Activer les couleurs dynamiques</string>
+    <string name="summary_pref_dynamic_color">Fonctionne uniquement sur Android 12 et versions ultérieures.</string>
+    <string name="title_pref_use_hev_tunnel">Utiliser Hev TUN</string>
+    <string name="summary_pref_use_hev_tunnel">Si activé, TUN utilise hev-socks5-tunnel ; sinon, il utilise le cœur Xray.</string>
+    <string name="title_pref_hev_tunnel_loglevel">Niveau de journalisation Hev TUN</string>
+    <string name="title_pref_hev_tunnel_rw_timeout">Délai de lecture/écriture Hev TUN (secondes ; valeurs TCP/UDP : 300/60)</string>
+    <string name="title_mode_settings">Paramètres du mode</string>
+    <string name="title_root_mode_enabled">Activer le mode root (appareils avec root)</string>
+    <string name="summary_root_mode_enabled">Utiliser l’accès root pour le proxy transparent de bas niveau. Ce mode traite directement le trafic réseau au lieu d’utiliser le service VPN Android. Le mode standard, le routage par application et les réglages VPN ne s’appliquent pas lorsque le mode root est activé.</string>
+    <string name="toast_root_required">L’accès root est nécessaire pour cette fonction.</string>
+    <string name="title_root_lan_sharing">Partager le VPN avec le réseau local et les appareils connectés (root)</string>
+    <string name="summary_root_lan_sharing">Faire passer par le VPN le trafic du point d’accès Wi-Fi et des appareils connectés en USB.</string>
 
     <string name="title_logcat" translatable="false">Logcat</string>
     <string name="logcat_copy">Copy</string>
@@ -534,20 +534,20 @@
 
     <string name="import_subscription_success">Subscription imported successfully</string>
     <string name="import_subscription_failure">Import subscription failed</string>
-    <string name="title_fragment_settings">Fragment Settings</string>
-    <string name="title_pref_fragment_packets">Fragment Packets</string>
-    <string name="title_pref_fragment_length">Fragment Length (min-max)</string>
-    <string name="title_pref_fragment_interval">Fragment Interval (min-max)</string>
-    <string name="title_pref_fragment_enabled">Enable Fragment</string>
-    <string name="title_pref_fragment_maxsplit">Fragment Max Split</string>
-    <string name="title_observatory_settings">Observatory Settings</string>
-    <string name="title_pref_observatory_least_ping_interval">leastPing Interval</string>
-    <string name="title_pref_observatory_least_load_interval">leastLoad Interval</string>
-    <string name="title_pref_observatory_least_load_method">leastLoad HTTP method</string>
-    <string name="title_pref_observatory_least_load_sampling">leastLoad Sampling</string>
-    <string name="title_pref_observatory_least_load_timeout">leastLoad Timeout</string>
-    <string name="toast_invalid_observatory_duration">Invalid duration. Use a value like 3m or 30s.</string>
-    <string name="toast_invalid_observatory_sampling">Invalid sampling. Use a positive number.</string>
+    <string name="title_fragment_settings">Paramètres Fragment</string>
+    <string name="title_pref_fragment_packets">Paquets Fragment</string>
+    <string name="title_pref_fragment_length">Longueur Fragment (min-max)</string>
+    <string name="title_pref_fragment_interval">Intervalle Fragment (min-max)</string>
+    <string name="title_pref_fragment_enabled">Activer Fragment</string>
+    <string name="title_pref_fragment_maxsplit">Nombre maximal de divisions Fragment</string>
+    <string name="title_observatory_settings">Paramètres Observatory</string>
+    <string name="title_pref_observatory_least_ping_interval">Intervalle leastPing</string>
+    <string name="title_pref_observatory_least_load_interval">Intervalle leastLoad</string>
+    <string name="title_pref_observatory_least_load_method">Méthode HTTP leastLoad</string>
+    <string name="title_pref_observatory_least_load_sampling">Échantillonnage leastLoad</string>
+    <string name="title_pref_observatory_least_load_timeout">Délai maximal leastLoad</string>
+    <string name="toast_invalid_observatory_duration">Durée invalide. Utilisez une valeur comme 3m ou 30s.</string>
+    <string name="toast_invalid_observatory_sampling">Échantillonnage invalide. Utilisez un nombre positif.</string>
 
     <string name="update_check_for_update">Check for update</string>
     <string name="update_already_latest_version">Already on the latest version</string>
@@ -599,7 +599,7 @@
 
     <string-array name="mode_entries">
         <item>VPN</item>
-        <item>Proxy only</item>
+        <item>Proxy uniquement</item>
     </string-array>
 
     <string-array name="browser_dialer_mode">
@@ -621,15 +621,15 @@
     <string name="routing_preset_russia_whitelist">Russia Whitelist</string>
 
     <string-array name="vpn_bypass_lan">
-        <item>Follow config</item>
-        <item>Bypass</item>
-        <item>Not Bypass</item>
+        <item>Suivre la configuration</item>
+        <item>Contourner</item>
+        <item>Ne pas contourner</item>
     </string-array>
 
     <string-array name="outbound_domain_resolve_method">
-        <item>Do not resolve</item>
-        <item>Resolve and add to DNS Hosts</item>
-        <item>Resolve and replace domain</item>
+        <item>Ne pas résoudre</item>
+        <item>Résoudre et ajouter aux hôtes DNS</item>
+        <item>Résoudre et remplacer le domaine</item>
     </string-array>
 
     <string-array name="policy_group_type">
