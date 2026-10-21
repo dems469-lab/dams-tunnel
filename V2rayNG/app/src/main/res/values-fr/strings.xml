@@ -71,7 +71,7 @@
     <string name="action_stop_service">Stop service</string>
     <string name="action_ok">OK</string>
     <string name="action_cancel">Annuler</string>
-    <string name="migration_fail">Data migration failed!</string>
+    <string name="migration_fail">Échec de la migration des données.</string>
     <string name="pull_down_to_refresh">Please pull down to refresh!</string>
 
     <!-- Notifications -->
@@ -575,12 +575,12 @@
     <string name="title_configuration_restore">Restaurer la configuration</string>
     <string name="title_profile_storage_cleanup">Réparer le stockage des profils</string>
     <string name="summary_profile_storage_cleanup">Supprimer les données de profil inutilisées</string>
-    <string name="message_profile_storage_cleanup">Delete profile data that is no longer used by any group? Selected profiles and data that cannot be safely classified will be kept.</string>
+    <string name="message_profile_storage_cleanup">Supprimer les données de profil qui ne sont utilisées par aucun groupe ? Les profils sélectionnés et les données impossibles à classer avec certitude seront conservés.</string>
     <string name="toast_profile_storage_cleanup">Profils inutilisés supprimés : %1$d</string>
     <string name="toast_profile_storage_cleanup_skipped">Impossible de déterminer sans risque quels profils sont inutilisés. Aucun élément n’a été supprimé.</string>
     <string name="title_configuration_share">Partager la configuration</string>
     <string name="title_webdav_config_setting">Paramètres WebDAV</string>
-    <string name="title_webdav_config_setting_unknown">Please configure WebDAV first.</string>
+    <string name="title_webdav_config_setting_unknown">Veuillez d’abord configurer WebDAV.</string>
     <string name="title_webdav_url">WebDAV server URL</string>
     <string name="title_webdav_user">Username</string>
     <string name="title_webdav_pass">Password</string>
