@@ -431,11 +431,6 @@
     <string name="toast_invalid_observatory_sampling">Yanlış müddət. Müsbət ədəddən istifadə edin.</string>
 
     <string name="update_check_for_update">Yenilənmələri yoxla</string>
-    <string name="update_already_latest_version">Artıq ən son versiyadadır</string>
-    <string name="update_new_version_found">Yeni versiya tapıldı: %s</string>
-    <string name="update_now">İndi yenilə</string>
-    <string name="update_check_pre_release">Sınaq versiyalarını yoxla</string>
-    <string name="update_checking_for_update">Yenilənmələr yoxlanılır…</string>
 
     <string name="title_policy_group_type">Siyasət qrupu növü</string>
     <string name="title_policy_group_subscription_id">Abunəlik qrupundan</string>

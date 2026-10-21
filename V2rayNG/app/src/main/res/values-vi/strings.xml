@@ -428,11 +428,6 @@
     <string name="toast_invalid_observatory_sampling">Lấy mẫu không hợp lệ. Dùng một số dương.</string>
 
     <string name="update_check_for_update">Kiểm tra bản cập nhật</string>
-    <string name="update_already_latest_version">Đã dùng phiên bản mới nhất</string>
-    <string name="update_new_version_found">Đã tìm thấy phiên bản mới: %s</string>
-    <string name="update_now">Cập nhật ngay</string>
-    <string name="update_check_pre_release">Kiểm tra bản phát hành thử</string>
-    <string name="update_checking_for_update">Đang kiểm tra bản cập nhật…</string>
 
     <string name="title_policy_group_type">Loại nhóm chính sách</string>
     <string name="title_policy_group_subscription_id">Từ nhóm đăng ký</string>

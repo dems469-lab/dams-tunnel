@@ -430,11 +430,6 @@
     <string name="toast_invalid_observatory_sampling">অবৈধ স্যাম্পলিং। একটি ধনাত্মক সংখ্যা ব্যবহার করুন।</string>
 
     <string name="update_check_for_update">আপডেট পরীক্ষা করুন</string>
-    <string name="update_already_latest_version">ইতিমধ্যে সর্বশেষ সংস্করণ ব্যবহার করছেন</string>
-    <string name="update_new_version_found">নতুন সংস্করণ পাওয়া গেছে: %s</string>
-    <string name="update_now">এখনই আপডেট করুন</string>
-    <string name="update_check_pre_release">প্রাক্‌-রিলিজ পরীক্ষা করুন</string>
-    <string name="update_checking_for_update">আপডেট পরীক্ষা করা হচ্ছে…</string>
 
     <string name="title_policy_group_type">নীতি গ্রুপের ধরন</string>
     <string name="title_policy_group_subscription_id">সাবস্ক্রিপশন গ্রুপ থেকে</string>
