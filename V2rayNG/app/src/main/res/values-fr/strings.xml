@@ -674,7 +674,7 @@
     <string name="acc_delete">Supprimer</string>
     <string name="acc_save">Enregistrer</string>
     <string name="acc_update_subscriptions">Mettre à jour les abonnements</string>
-    <string name="acc_per_app_proxy_information">Per-app proxy information</string>
+    <string name="acc_per_app_proxy_information">Informations sur le proxy par application</string>
     <string name="permission_camera">Camera</string>
     <string name="permission_notification">Notification</string>
     <string name="permission_local_network">Local network</string>
