@@ -67,7 +67,7 @@
     <string name="app_tile_first_use">Ajoutez une configuration dans l’application avant d’utiliser cette fonction.</string>
     <string name="navigation_drawer_open">Open navigation drawer</string>
     <string name="navigation_drawer_close">Close navigation drawer</string>
-    <string name="migration_success">Data migration succeeded!</string>
+    <string name="migration_success">Migration des données réussie !</string>
     <string name="action_stop_service">Stop service</string>
     <string name="action_ok">OK</string>
     <string name="action_cancel">Annuler</string>
@@ -79,13 +79,13 @@
     <string name="notification_channel_subscription_updates">Subscription updates</string>
     <string name="notification_channel_connection_checks">Connection checks</string>
     <string name="notification_action_stop_v2ray">Stop</string>
-    <string name="toast_permission_denied">Permission denied</string>
-    <string name="toast_permission_denied_notification">Notification permission denied</string>
+    <string name="toast_permission_denied">Autorisation refusée</string>
+    <string name="toast_permission_denied_notification">Autorisation d’afficher des notifications refusée</string>
     <string name="notification_action_more">Tap for more</string>
-    <string name="toast_services_start">Starting service</string>
-    <string name="toast_services_stop">Stopping service</string>
+    <string name="toast_services_start">Démarrage du service</string>
+    <string name="toast_services_stop">Arrêt du service</string>
     <string name="toast_services_success">Service démarré avec succès</string>
-    <string name="toast_services_failure">Failed to start service</string>
+    <string name="toast_services_failure">Échec du démarrage du service</string>
 
     <!--ServerActivity-->
     <string name="title_server">Config</string>
@@ -128,12 +128,12 @@
     <string name="menu_item_import_config_manually_trojan">Ajouter [Trojan]</string>
     <string name="menu_item_import_config_manually_wireguard">Ajouter [WireGuard]</string>
     <string name="menu_item_import_config_manually_hysteria2">Ajouter [Hysteria2]</string>
-    <string name="confirm_delete_visible_profiles">Are you sure you want to delete all profiles currently shown?</string>
-    <string name="confirm_delete_duplicate_profiles">Are you sure you want to delete all duplicate profiles currently shown?</string>
-    <string name="confirm_delete_invalid_profiles">Please test the profiles first. Are you sure you want to delete all invalid profiles currently shown?</string>
+    <string name="confirm_delete_visible_profiles">Voulez-vous vraiment supprimer tous les profils affichés ?</string>
+    <string name="confirm_delete_duplicate_profiles">Voulez-vous vraiment supprimer tous les profils en double affichés ?</string>
+    <string name="confirm_delete_invalid_profiles">Testez d’abord les profils. Voulez-vous vraiment supprimer tous les profils invalides affichés ?</string>
     <string name="confirm_delete_profile">Voulez-vous supprimer ce profil ?</string>
-    <string name="confirm_delete_policy_group">Are you sure you want to delete this policy group?</string>
-    <string name="confirm_delete_proxy_chain_member">Are you sure you want to delete this chain member?</string>
+    <string name="confirm_delete_policy_group">Voulez-vous vraiment supprimer ce groupe de règles ?</string>
+    <string name="confirm_delete_proxy_chain_member">Voulez-vous vraiment supprimer ce membre de la chaîne ?</string>
     <string name="confirm_delete_routing_rule">Voulez-vous vraiment supprimer cette règle de routage ?</string>
     <string name="confirm_delete_subscription_group">Voulez-vous vraiment supprimer ce groupe d’abonnements ?</string>
     <string name="confirm_delete_asset_file">Voulez-vous vraiment supprimer ce fichier de ressources ?</string>
@@ -189,8 +189,8 @@
     <string name="server_lab_remote_dns">remoteDNS (optional, comma-separated IPv4/IPv6)</string>
     <string name="server_lab_kcp_mtu">mKCP MTU (optional, default 1350)</string>
     <string name="server_lab_kcp_tti">mKCP TTI (optional, default 50 ms)</string>
-    <string name="toast_success">Success</string>
-    <string name="toast_failure">Failure</string>
+    <string name="toast_success">Réussite</string>
+    <string name="toast_failure">Échec</string>
     <string name="dams_file_invalid">Le fichier Dams est invalide, expiré ou le mot de passe est incorrect.</string>
     <string name="backup_file_too_large">Le fichier dépasse la limite autorisée de 5 Mio.</string>
     <string name="title_dams_export">Exporter un fichier .dams protégé</string>
@@ -209,19 +209,19 @@
     <string name="title_dams_expiry">Date d\'expiration (facultatif)</string>
     <string name="dams_no_expiry">Aucune expiration</string>
     <string name="title_dams_export_action">Exporter la configuration complète (.dams)</string>
-    <string name="toast_none_data">No data available</string>
-    <string name="toast_incorrect_protocol">Incorrect protocol</string>
-    <string name="toast_decoding_failed">Decoding failed</string>
+    <string name="toast_none_data">Aucune donnée disponible</string>
+    <string name="toast_incorrect_protocol">Protocole incorrect</string>
+    <string name="toast_decoding_failed">Échec du décodage</string>
     <string name="title_file_chooser">Select a config</string>
-    <string name="toast_require_file_manager">Please install a file manager.</string>
+    <string name="toast_require_file_manager">Veuillez installer un gestionnaire de fichiers.</string>
     <string name="server_customize_config">Customize config</string>
-    <string name="toast_config_file_invalid">Invalid config</string>
+    <string name="toast_config_file_invalid">Configuration invalide</string>
     <string name="server_lab_content">Content</string>
-    <string name="toast_none_data_clipboard">There is no data in the clipboard</string>
+    <string name="toast_none_data_clipboard">Le presse-papiers ne contient aucune donnée</string>
     <string name="toast_invalid_url">URL invalide</string>
-    <string name="toast_insecure_url_protocol">Do not use an insecure HTTP subscription URL</string>
+    <string name="toast_insecure_url_protocol">N’utilisez pas d’URL HTTP non sécurisée pour un abonnement.</string>
     <string name="server_lab_need_inbound">Make sure the inbound port matches the settings</string>
-    <string name="toast_malformed_json">Invalid configuration.</string>
+    <string name="toast_malformed_json">Configuration invalide.</string>
     <string name="server_lab_request_host6">Host (SNI) (optional)</string>
     <string name="toast_action_not_allowed">Action non autorisée</string>
     <string name="toast_disconnect_before_delete">Déconnectez-vous d\'abord avant de supprimer ce profil</string>
@@ -242,8 +242,8 @@
     <string name="toast_allow_insecure_deprecated">Ce nœud utilise une connexion non chiffrée. Des intermédiaires réseau peuvent voir vos communications.\nPour des raisons de sécurité, ce type de nœud ne peut pas être utilisé avec Xray Core 26.2.6 ou ultérieur.\nPour un nœud que vous gérez, activez un chiffrement tel que TLS ou épinglez le certificat avec pinnedCA256.\nPour un nœud fourni par un opérateur, demandez une mise à niveau sécurisée ou choisissez un fournisseur plus attentif à la sécurité.\nPour en savoir plus, consultez https://github.com/2dust/v2rayN/discussions/9460</string>
     <string name="toast_allow_insecure_warning">Attention : ce profil utilise TLS insecure. La connexion reste autorisée, mais le certificat n’est pas vérifié.</string>
     <string name="pinned_ca256_action_fetch">Fetch certificate fingerprint</string>
-    <string name="toast_fetch_cert_sha256_success">Certificate fingerprint fetched successfully</string>
-    <string name="toast_fetch_cert_sha256_failed">Failed to fetch certificate fingerprint</string>
+    <string name="toast_fetch_cert_sha256_success">Empreinte du certificat récupérée.</string>
+    <string name="toast_fetch_cert_sha256_failed">Impossible de récupérer l’empreinte du certificat.</string>
 
     <!-- UserAssetActivity -->
     <string name="toast_asset_copy_failed">Échec de la copie du fichier. Veuillez utiliser le gestionnaire de fichiers.</string>
@@ -358,7 +358,7 @@
 
     <string name="title_pref_proxy_sharing_enabled">Autoriser les connexions depuis le réseau local</string>
     <string name="summary_pref_proxy_sharing_enabled">Les autres appareils peuvent se connecter au proxy local via votre adresse IP. N’activez cette option que sur un réseau de confiance pour éviter les accès non autorisés.</string>
-    <string name="toast_warning_pref_proxysharing_short">Allow connections from the LAN. Make sure you are in a trusted network</string>
+    <string name="toast_warning_pref_proxysharing_short">Les connexions depuis le réseau local sont autorisées. Vérifiez que vous utilisez un réseau de confiance.</string>
 
     <string name="title_pref_socks_port">Port du proxy local</string>
     <string name="title_pref_enable_local_proxy">Activer le proxy local</string>
@@ -393,7 +393,7 @@
     <string name="title_pref_feedback">Feedback</string>
     <string name="summary_pref_feedback">Suggest improvements or report bugs on GitHub</string>
     <string name="summary_pref_tg_group">Join the Telegram group</string>
-    <string name="toast_tg_app_not_found">Telegram app not found</string>
+    <string name="toast_tg_app_not_found">Application Telegram introuvable</string>
     <string name="title_privacy_policy">Politique de confidentialité</string>
     <string name="title_qr_code">QR code</string>
     <string name="title_about">À propos</string>
@@ -473,11 +473,11 @@
     </plurals>
     <string name="title_update_subscription_result">%1$d configurations mises à jour (%2$d réussies, %3$d échecs, %4$d ignorées)</string>
     <string name="title_update_subscription_no_subscription">Aucun abonnement</string>
-    <string name="toast_server_not_found_in_group">Selected server not found in current group</string>
+    <string name="toast_server_not_found_in_group">Le serveur sélectionné est introuvable dans le groupe actuel.</string>
     <string name="title_locate_selected_config">Afficher la configuration sélectionnée</string>
 
     <string name="tasker_start_service">Start Service</string>
-    <string name="tasker_setting_confirm">Confirm</string>
+    <string name="tasker_setting_confirm">Confirmer</string>
 
     <!-- RoutingSettingActivity -->
     <string name="routing_settings_domain_strategy">Stratégie de domaine</string>
@@ -510,9 +510,9 @@
     <string name="connection_test_testing_count">Testing %d configs…</string>
     <string name="connection_test_available">Connexion réussie en %1$s</string>
     <string name="server_test_delay_value">%1$d ms</string>
-    <string name="connection_test_error">Connection test failed: %s</string>
+    <string name="connection_test_error">Échec du test de connexion : %s</string>
     <string name="connection_test_fail">Internet unavailable</string>
-    <string name="connection_test_error_status_code">Error code: #%d</string>
+    <string name="connection_test_error_status_code">Code d’erreur : #%d</string>
     <string name="connection_connected">Connecté ✅</string>
     <string name="connection_not_connected">Non connecté</string>
     <string name="connection_connecting">Connexion en cours…</string>
@@ -532,8 +532,8 @@
     <string name="connection_verification_failed">Connexion échouée : aucun trafic vérifié après le démarrage.</string>
     <string name="connection_running_task_left">Tests running: %s</string>
 
-    <string name="import_subscription_success">Subscription imported successfully</string>
-    <string name="import_subscription_failure">Import subscription failed</string>
+    <string name="import_subscription_success">Abonnement importé avec succès</string>
+    <string name="import_subscription_failure">Échec de l’importation de l’abonnement</string>
     <string name="title_fragment_settings">Paramètres Fragment</string>
     <string name="title_pref_fragment_packets">Paquets Fragment</string>
     <string name="title_pref_fragment_length">Longueur Fragment (min-max)</string>
@@ -567,7 +567,7 @@
     <string name="server_proxy_chain_member_unselected">Select a member</string>
     <string name="server_proxy_chain_members_unselected">Please select a member for each chain row</string>
     <string name="server_proxy_chain_members_insufficient">Insufficient members</string>
-    <string name="server_proxy_chain_members_invalid">Invalid chain members: %1$s</string>
+    <string name="server_proxy_chain_members_invalid">Membres de chaîne invalides : %1$s</string>
 
     <!-- BackupActivity -->
     <string name="title_configuration_backup_restore">Sauvegarde et restauration</string>
@@ -576,8 +576,8 @@
     <string name="title_profile_storage_cleanup">Réparer le stockage des profils</string>
     <string name="summary_profile_storage_cleanup">Supprimer les données de profil inutilisées</string>
     <string name="message_profile_storage_cleanup">Delete profile data that is no longer used by any group? Selected profiles and data that cannot be safely classified will be kept.</string>
-    <string name="toast_profile_storage_cleanup">Unused profiles removed: %1$d</string>
-    <string name="toast_profile_storage_cleanup_skipped">Profile storage could not be safely classified. Nothing was removed.</string>
+    <string name="toast_profile_storage_cleanup">Profils inutilisés supprimés : %1$d</string>
+    <string name="toast_profile_storage_cleanup_skipped">Impossible de déterminer sans risque quels profils sont inutilisés. Aucun élément n’a été supprimé.</string>
     <string name="title_configuration_share">Partager la configuration</string>
     <string name="title_webdav_config_setting">Paramètres WebDAV</string>
     <string name="title_webdav_config_setting_unknown">Please configure WebDAV first.</string>
@@ -643,9 +643,9 @@
     <string name="backup_location_webdav" translatable="false">WebDAV</string>
 
     <string name="acc_refresh">Refresh log</string>
-    <string name="toast_permission_denied_for">%1$s permission denied</string>
+    <string name="toast_permission_denied_for">Autorisation %1$s refusée</string>
     <string name="acc_add_subscription">Ajouter un abonnement</string>
-    <string name="toast_malformed_json_detail">Invalid configuration: %1$s</string>
+    <string name="toast_malformed_json_detail">Configuration invalide : %1$s</string>
     <string name="acc_add_asset">Ajouter une source de ressources</string>
     <string name="acc_download_file">Télécharger les fichiers de ressources</string>
     <string name="acc_qr_code">QR code</string>
