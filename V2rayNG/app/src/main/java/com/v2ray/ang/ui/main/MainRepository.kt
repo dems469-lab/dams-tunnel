@@ -40,6 +40,16 @@ class MainRepository(
         ThemeManager.setThemeMode(mode)
     }
 
+    override fun isEmptyPerAppProxySelectionDangerous(): Boolean = shouldWarnEmptyPerAppSelection(
+        enabled = MmkvManager.decodeSettingsBool(AppConfig.PREF_PER_APP_PROXY, false),
+        bypassMode = MmkvManager.decodeSettingsBool(AppConfig.PREF_BYPASS_APPS, false),
+        selectedPackages = MmkvManager.decodeSettingsStringSet(AppConfig.PREF_PER_APP_PROXY_SET).orEmpty(),
+    )
+
+    override fun setPerAppProxyEnabled(enabled: Boolean) {
+        MmkvManager.encodeSettings(AppConfig.PREF_PER_APP_PROXY, enabled)
+    }
+
     private val localizedContext: Context
         get() = AppLocaleManager.localizedContext(app)
 

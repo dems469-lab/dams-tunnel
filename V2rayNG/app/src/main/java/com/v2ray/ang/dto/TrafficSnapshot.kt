@@ -8,4 +8,5 @@ data class TrafficSnapshot(
     val downlinkBytesPerSecond: Long = 0L,
     val uplinkTotalBytes: Long = 0L,
     val downlinkTotalBytes: Long = 0L,
+    val available: Boolean = false,
 ) : Serializable

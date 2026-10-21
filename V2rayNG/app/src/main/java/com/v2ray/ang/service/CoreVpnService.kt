@@ -166,8 +166,8 @@ class CoreVpnService : VpnService(), ServiceControl {
     private fun configureVpnService(): Boolean {
         val builder = Builder()
 
-        // Mode bloquant Android : si l'interface VPN tombe, les paquets ne
-        // repartent pas directement sur le réseau physique. API 29+ uniquement.
+        // setBlocking ne configure que le mode de lecture du descripteur TUN ; cela ne
+        // correspond pas au VPN toujours activé ni au verrouillage système Android.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
             MmkvManager.decodeSettingsBool(AppConfig.PREF_KILL_SWITCH, false) == true
         ) {

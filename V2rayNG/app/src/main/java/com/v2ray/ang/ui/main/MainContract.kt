@@ -5,12 +5,27 @@ import com.v2ray.ang.dto.GroupMapItem
 import com.v2ray.ang.dto.LocateTarget
 import com.v2ray.ang.dto.TrafficSnapshot
 
+internal fun shouldWarnEmptyPerAppSelection(
+    enabled: Boolean,
+    bypassMode: Boolean,
+    selectedPackages: Set<String>,
+): Boolean = enabled && !bypassMode && selectedPackages.isEmpty()
+
 data class ConnectionDiagnostic(
     val networkAvailable: Boolean? = null,
     val serverReachable: Boolean? = null,
     val tunnelVerified: Boolean? = null,
     val pingMillis: Long? = null,
 )
+
+internal fun diagnosticFromCoreProbe(networkAvailable: Boolean, delayMillis: Long): ConnectionDiagnostic =
+    ConnectionDiagnostic(
+        networkAvailable = networkAvailable,
+        serverReachable = delayMillis >= 0L,
+        // A probe by Xray does not prove that another app's packets traverse TUN.
+        tunnelVerified = null,
+        pingMillis = delayMillis.takeIf { it >= 0L },
+    )
 
 /** Locale-neutral state formatted only when it reaches the main UI. */
 sealed interface MainStatus {

@@ -10,7 +10,15 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
+import androidx.compose.material3.AlertDialog as ComposeAlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.lifecycleScope
 import com.v2ray.ang.AngApplication
 import com.v2ray.ang.AppConfig
@@ -168,13 +176,23 @@ class MainActivity : HelperBaseComponentActivity() {
 
     @Composable
     override fun ScreenContent() {
+        var showEmptyPerAppWarning by rememberSaveable { mutableStateOf(false) }
         BackHandler { moveTaskToBack(false) }
         MainScreen(
             mainViewModel = mainViewModel,
             logcatViewModel = logcatViewModel,
             onAction = { action ->
                 when (action) {
-                    MainAction.ToggleService -> handleFabAction()
+                    MainAction.ToggleService -> {
+                        val state = mainViewModel.uiState.value
+                        if (!shouldStopServiceOnToggle(state.isRunning, state.status) &&
+                            mainViewModel.shouldWarnEmptyPerAppProxySelection()
+                        ) {
+                            showEmptyPerAppWarning = true
+                        } else {
+                            handleFabAction()
+                        }
+                    }
                     MainAction.TestCurrentServer -> handleLayoutTestClick()
                     MainAction.ImportQRcode -> importQRcode()
                     MainAction.ImportClipboard -> importClipboard()
@@ -195,6 +213,26 @@ class MainActivity : HelperBaseComponentActivity() {
             },
             onNavigate = { route -> navigateTo(route) },
         )
+        if (showEmptyPerAppWarning) {
+            ComposeAlertDialog(
+                onDismissRequest = { showEmptyPerAppWarning = false },
+                title = { Text(stringResource(R.string.per_app_empty_warning_title)) },
+                text = { Text(stringResource(R.string.per_app_empty_warning_message)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showEmptyPerAppWarning = false
+                        mainViewModel.useGlobalProxyMode()
+                        requestServiceStart()
+                    }) { Text(stringResource(R.string.per_app_empty_use_global)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showEmptyPerAppWarning = false
+                        navigateTo(MainDestination.PerAppProxy)
+                    }) { Text(stringResource(R.string.per_app_empty_choose_apps)) }
+                },
+            )
+        }
     }
 
     private fun shareToClipboard(guid: String): Boolean =

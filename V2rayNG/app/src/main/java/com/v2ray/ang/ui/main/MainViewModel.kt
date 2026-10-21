@@ -171,11 +171,12 @@ class MainViewModel(
                         isTesting = testRequests.isTesting,
                         status = MainStatus.ConnectionTest(event.result),
                         connectionDelayMillis = event.result.delayMillis.takeIf { delay -> delay >= 0L },
-                        diagnostic = it.diagnostic?.copy(
-                            serverReachable = event.result.delayMillis >= 0L,
-                            tunnelVerified = event.result.delayMillis >= 0L,
-                            pingMillis = event.result.delayMillis.takeIf { delay -> delay >= 0L },
-                        ),
+                        diagnostic = it.diagnostic?.let { diagnostic ->
+                            diagnosticFromCoreProbe(
+                                networkAvailable = diagnostic.networkAvailable == true,
+                                delayMillis = event.result.delayMillis,
+                            )
+                        },
                     )
                 }
             }
@@ -377,6 +378,10 @@ class MainViewModel(
             )
         }
     }
+
+    fun shouldWarnEmptyPerAppProxySelection(): Boolean = dataSource.isEmptyPerAppProxySelectionDangerous()
+
+    fun useGlobalProxyMode() = dataSource.setPerAppProxyEnabled(false)
 
     // ---------- Group & server loading ----------
     private suspend fun buildServersCache(guids: List<String>): List<ServersCache> =

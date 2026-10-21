@@ -268,23 +268,25 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
             Locale.getDefault()
         ).format(System.currentTimeMillis())
         val folderName = "${appName}_$dateFormatted"
-        val backupDir = cacheDir.absolutePath + "/$folderName"
-        val outputZipFilePath = "${cacheDir.absolutePath}/$folderName.zip"
-
-        val count = MMKV.backupAllToDirectory(backupDir)
-        if (count <= 0) {
-            return Pair(false, "")
-        }
-
-        return if (ZipUtil.zipFromFolder(backupDir, outputZipFilePath)) {
-            val zipFile = File(outputZipFilePath)
-            if (zipFile.length() > BackupFileSize.MAX_BYTES) {
+        val backupDir = File(cacheDir, folderName)
+        val zipFile = File(cacheDir, "$folderName.zip")
+        try {
+            if (MMKV.backupAllToDirectory(backupDir.absolutePath) <= 0) {
+                return Pair(false, "")
+            }
+            if (!ZipUtil.zipFromFolder(backupDir.absolutePath, zipFile.absolutePath)) {
                 zipFile.delete()
+                return Pair(false, "")
+            }
+            if (zipFile.length() > BackupFileSize.MAX_BYTES) {
                 throw BackupFileTooLargeException()
             }
-            Pair(true, outputZipFilePath)
-        } else {
-            Pair(false, "")
+            Pair(true, zipFile.absolutePath)
+        } catch (failure: Exception) {
+            zipFile.delete()
+            throw failure
+        } finally {
+            backupDir.deleteRecursively()
         }
     }
 
@@ -297,10 +299,33 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                     return@withContext false
                 }
 
-                val count = MMKV.restoreAllFromDirectory(backupDir.absolutePath)
-                SettingsChangeManager.makeSetupGroupTab()
-                SettingsChangeManager.makeRestartService()
-                count > 0
+                val safetyCopyDir = File(cacheDir, "rollback_${System.currentTimeMillis()}")
+                try {
+                    restoreWithRollback(
+                        createSafetyCopy = {
+                            withContext(Dispatchers.IO) {
+                                MMKV.backupAllToDirectory(safetyCopyDir.absolutePath) > 0
+                            }
+                        },
+                        restoreImport = {
+                            withContext(Dispatchers.IO) {
+                                MMKV.restoreAllFromDirectory(backupDir.absolutePath) > 0
+                            }
+                        },
+                        restoreSafetyCopy = {
+                            withContext(Dispatchers.IO) {
+                                MMKV.restoreAllFromDirectory(safetyCopyDir.absolutePath) > 0
+                            }
+                        },
+                    ).also { restored ->
+                        if (restored) {
+                            SettingsChangeManager.makeSetupGroupTab()
+                            SettingsChangeManager.makeRestartService()
+                        }
+                    }
+                } finally {
+                    safetyCopyDir.deleteRecursively()
+                }
             } finally {
                 backupDir.deleteRecursively()
             }

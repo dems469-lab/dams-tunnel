@@ -22,6 +22,8 @@ interface MainDataSource : Closeable {
     fun getDoubleColumnDisplay(): Boolean
     fun isGroupAllDisplayEnabled(): Boolean
     fun setThemeMode(mode: String)
+    fun isEmptyPerAppProxySelectionDangerous(): Boolean
+    fun setPerAppProxyEnabled(enabled: Boolean)
 
     fun getString(resId: Int): String
     fun getString(resId: Int, vararg formatArgs: Any): String

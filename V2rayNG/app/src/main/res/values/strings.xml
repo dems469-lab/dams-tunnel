@@ -279,6 +279,10 @@
     <string name="title_core_settings">Core Settings</string>
     <string name="title_vpn_settings">VPN Settings</string>
     <string name="title_pref_per_app_proxy">Per-app proxy</string>
+    <string name="per_app_empty_warning_title">No applications selected</string>
+    <string name="per_app_empty_warning_message">The selection is empty. In Android VPN mode all apps may use the tunnel; in root mode no selected app is routed into it. Choose global mode or select apps before continuing.</string>
+    <string name="per_app_empty_use_global">Use global mode</string>
+    <string name="per_app_empty_choose_apps">Choose applications</string>
     <string name="summary_pref_per_app_proxy">General: checked apps use the proxy, and unchecked apps connect directly;\nBypass mode: checked apps connect directly, and unchecked apps use the proxy.\nThe option to automatically select apps that should use the proxy is in the menu.</string>
     <string name="title_pref_is_booted">Connect after device boot</string>
     <string name="summary_pref_is_booted">Automatically connect to the selected server after the device starts. Android may restrict background starts.</string>
@@ -517,8 +521,8 @@
     <string name="connection_not_connected">Not connected</string>
     <string name="connection_connecting">Connexion en cours…</string>
     <string name="connection_reconnecting">Reconnexion en cours…</string>
-    <string name="title_pref_kill_switch">Blocage anti-fuite</string>
-    <string name="summary_pref_kill_switch">Bloquer le trafic si le tunnel VPN est interrompu.</string>
+    <string name="title_pref_kill_switch">Blocking TUN interface mode</string>
+    <string name="summary_pref_kill_switch">Uses blocking reads on the VPN interface descriptor. This doesn\'t enable Android Always-on VPN or system lockdown.</string>
     <string name="title_battery_optimization">Optimisation de la batterie</string>
     <string name="summary_battery_optimization">Autoriser Dams Tunnel à rester actif en arrière-plan.</string>
     <string name="title_app_lock">Verrouillage de l’application</string>
@@ -527,7 +531,7 @@
     <string name="app_lock_not_available">Configurez d’abord un verrouillage d’écran Android.</string>
     <string name="diagnostic_network">Réseau du téléphone</string>
     <string name="diagnostic_server">Serveur</string>
-    <string name="diagnostic_tunnel">Tunnel vérifié</string>
+    <string name="diagnostic_tunnel">Application routing (not verified)</string>
     <string name="diagnostic_network_unavailable">Internet du téléphone indisponible.</string>
     <string name="connection_verification_failed">Connexion échouée : aucun trafic vérifié après le démarrage.</string>
     <string name="connection_running_task_left">Tests running: %s</string>
@@ -549,12 +553,10 @@
     <string name="toast_invalid_observatory_duration">Invalid duration. Use a value like 3m or 30s.</string>
     <string name="toast_invalid_observatory_sampling">Invalid sampling. Use a positive number.</string>
 
-    <string name="update_check_for_update">Check for update</string>
-    <string name="update_already_latest_version">Already on the latest version</string>
-    <string name="update_new_version_found">New version found: %s</string>
-    <string name="update_now">Update now</string>
-    <string name="update_check_pre_release">Check pre-release versions</string>
-    <string name="update_checking_for_update">Checking for update…</string>
+    <string name="update_check_for_update">Updates</string>
+    <string name="dams_update_version">Dams Tunnel v%1$s</string>
+    <string name="dams_update_view_releases">View releases</string>
+    <string name="dams_update_security_warning">Install only versions published on this page; updates from other projects aren\'t compatible.</string>
 
     <string name="title_policy_group_type">Policy group type</string>
     <string name="title_policy_group_subscription_id">From subscription group</string>

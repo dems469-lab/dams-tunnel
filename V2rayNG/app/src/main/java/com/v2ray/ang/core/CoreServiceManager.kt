@@ -56,6 +56,7 @@ object CoreServiceManager {
     private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
     private val mMsgReceive = ReceiveMessageHandler()
     private var currentConfig: ProfileItem? = null
+    private var currentOutboundTags: Set<String> = emptySet()
     private var browserDialer: IDialerService? = null
     private var networkMonitor: NetworkMonitor? = null
     private val connectionTestScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -169,6 +170,8 @@ object CoreServiceManager {
         if (!result.status) {
             error(result.errorMessage.ifBlank { "Failed to get V2Ray config" })
         }
+
+        currentOutboundTags = outboundTagsFromConfig(result.content)
 
         currentConfig = config
         var tunFd = vpnInterface?.fd ?: 0
@@ -389,14 +392,14 @@ object CoreServiceManager {
                 // QueryAllOutboundTrafficStats reads and resets Xray's counters.
                 // Device-wide counters include unrelated apps and must not be
                 // presented as tunnel traffic.
-                val uplink = stats.filter { it.direction == AppConfig.UPLINK }.sumOf { it.value }
-                val downlink = stats.filter { it.direction == AppConfig.DOWNLINK }.sumOf { it.value }
-                val seconds = ((now - previousTime).coerceAtLeast(1L)) / 1000.0
-                val snapshot = TrafficSnapshot(
-                    uplinkBytesPerSecond = ((uplink / seconds).toLong()).coerceAtLeast(0L),
-                    downlinkBytesPerSecond = ((downlink / seconds).toLong()).coerceAtLeast(0L),
-                    uplinkTotalBytes = _trafficSnapshot.value.uplinkTotalBytes + uplink,
-                    downlinkTotalBytes = _trafficSnapshot.value.downlinkTotalBytes + downlink,
+                val snapshot = trafficSnapshotFromStats(
+                    stats = stats,
+                    elapsedMillis = now - previousTime,
+                    previous = _trafficSnapshot.value,
+                ) ?: TrafficSnapshot(
+                    uplinkTotalBytes = _trafficSnapshot.value.uplinkTotalBytes,
+                    downlinkTotalBytes = _trafficSnapshot.value.downlinkTotalBytes,
+                    available = false,
                 )
                 previousTime = now
                 _trafficSnapshot.value = snapshot
@@ -446,6 +449,7 @@ object CoreServiceManager {
 
         if (isRunning()) error("Core loop still running after stopLoop returned")
         currentVpnInterface = null
+        currentOutboundTags = emptySet()
         onCoreStopped()
 
         // Close existing browser dialer
@@ -537,7 +541,8 @@ object CoreServiceManager {
     fun queryAllOutboundTrafficStats(diagnosticRead: Int? = null): List<OutboundTrafficStat> {
         if (!isRunning()) return emptyList()
         return try {
-            val tags = linkedSetOf(AppConfig.TAG_PROXY, AppConfig.TAG_DIRECT)
+            val tags = currentOutboundTags + AppConfig.TAG_DIRECT
+            if (currentOutboundTags.isEmpty()) return emptyList()
             val values = mutableListOf<OutboundTrafficStat>()
             tags.forEach { tag ->
                 values += OutboundTrafficStat(tag, AppConfig.UPLINK, coreController.queryStats(tag, AppConfig.UPLINK))

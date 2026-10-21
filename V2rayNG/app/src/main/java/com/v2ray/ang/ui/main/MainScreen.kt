@@ -304,6 +304,7 @@ fun MainScreen(
                     delayMillis = homeSessionPing(uiState.isRunning, uiState.connectionDelayMillis),
                     downloadBytesPerSecond = traffic.downlinkBytesPerSecond,
                     uploadBytesPerSecond = traffic.uplinkBytesPerSecond,
+                    trafficAvailable = traffic.available,
                     trafficHistory = uiState.trafficHistory,
                     diagnostic = uiState.diagnostic,
                     onOpenServers = { selectedTab = DamsTab.Configs },
@@ -466,6 +467,7 @@ private fun DamsDashboard(
     delayMillis: Long?,
     downloadBytesPerSecond: Long,
     uploadBytesPerSecond: Long,
+    trafficAvailable: Boolean,
     trafficHistory: List<com.v2ray.ang.dto.TrafficSnapshot>,
     diagnostic: ConnectionDiagnostic?,
     onOpenServers: () -> Unit,
@@ -611,19 +613,19 @@ private fun DamsDashboard(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_latency), latency, onTestConnection)
-                        DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_download), if (isRunning) downloadBytesPerSecond.toSpeedString() else "—")
+                        DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_download), trafficMetric(isRunning, trafficAvailable, downloadBytesPerSecond))
                     }
-                    DashboardMetric(Modifier.fillMaxWidth(), stringResource(R.string.dams_metric_upload), if (isRunning) uploadBytesPerSecond.toSpeedString() else "—")
+                    DashboardMetric(Modifier.fillMaxWidth(), stringResource(R.string.dams_metric_upload), trafficMetric(isRunning, trafficAvailable, uploadBytesPerSecond))
                 }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_latency), latency, onTestConnection)
-                    DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_download), if (isRunning) downloadBytesPerSecond.toSpeedString() else "—")
-                    DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_upload), if (isRunning) uploadBytesPerSecond.toSpeedString() else "—")
+                    DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_download), trafficMetric(isRunning, trafficAvailable, downloadBytesPerSecond))
+                    DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_upload), trafficMetric(isRunning, trafficAvailable, uploadBytesPerSecond))
                 }
             }
         }
-        if (isRunning && trafficHistory.size > 1) {
+        if (isRunning && trafficAvailable && trafficHistory.size > 1) {
             val graphColor = MaterialTheme.colorScheme.secondary
             val uploadGraphColor = MaterialTheme.colorScheme.primary
             Card(
@@ -713,6 +715,13 @@ private fun DashboardMetric(
             Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
+}
+
+@Composable
+private fun trafficMetric(isRunning: Boolean, available: Boolean, bytesPerSecond: Long): String = when {
+    !isRunning -> "—"
+    !available -> stringResource(R.string.dams_metric_unavailable)
+    else -> bytesPerSecond.toSpeedString()
 }
 
 @Composable
