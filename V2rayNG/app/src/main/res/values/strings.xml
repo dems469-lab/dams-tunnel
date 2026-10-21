@@ -6,6 +6,14 @@
     <string name="ip_finder_assistant_label">Assistant de test IP Finder</string>
     <string name="ip_finder_drawer_entry" translatable="false">IP Finder (bêta)</string>
     <string name="ip_finder_test_entry" translatable="false">IP Finder (test)</string>
+    <string name="ip_finder_brand" translatable="false">DAMS TUNNEL  /  NETWORK TOOLS</string>
+    <string name="ip_finder_status_ready" translatable="false">READY</string>
+    <string name="ip_finder_status_searching" translatable="false">SEARCHING</string>
+    <string name="ip_finder_cellular_ip_label" translatable="false">CURRENT CELLULAR IP</string>
+    <string name="ip_finder_wifi_warning" translatable="false">Wi-Fi is active; only the cellular address is evaluated.</string>
+    <string name="ip_finder_settings_title" translatable="false">Search settings</string>
+    <string name="ip_finder_progress_title" translatable="false">Search progress</string>
+    <string name="ip_finder_timeline_empty" translatable="false">No activity yet. Start a search to see its timeline here.</string>
     <string name="ip_finder_intro" translatable="false">Ce test effectue un seul cycle du mode avion pour vérifier l’adresse IP attribuée au réseau mobile. Android considère Dams Tunnel comme un assistant ; l’application ne lit jamais votre écran. Le rôle est demandé uniquement pour basculer le mode avion. Le service de reconnaissance déclaré ne capture pas d’audio et ne traite aucune dictée. Pour revenir à votre assistant précédent, ouvrez les réglages des applications par défaut et sélectionnez-le.</string>
     <string name="ip_finder_diagnostic_title" translatable="false">Diagnostic de l’assistant</string>
     <string name="ip_finder_diagnostic_declared" translatable="false">Service déclaré : %1$s</string>

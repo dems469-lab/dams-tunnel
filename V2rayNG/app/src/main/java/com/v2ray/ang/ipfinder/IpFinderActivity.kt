@@ -39,13 +39,17 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -56,7 +60,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -848,138 +854,208 @@ private fun IpFinderSetupScreen(
         modifier = Modifier.imePadding(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-        Button(
-            onClick = onStop,
-            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 16.dp)
-        ) {
-            Text(stringResource(R.string.ip_finder_stop))
+            Button(
+                onClick = onStop,
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Text(stringResource(R.string.ip_finder_stop))
+            }
         }
-    }) { innerPadding ->
+    ) { innerPadding ->
         Column(
-            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(innerPadding).verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(innerPadding)
+                .verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.ip_finder_back)) }
-            Text(stringResource(R.string.ip_finder_test_entry), style = MaterialTheme.typography.headlineSmall)
-            Text(stringResource(R.string.ip_finder_intro), style = MaterialTheme.typography.bodyLarge)
-            Text(stringResource(R.string.ip_finder_diagnostic_title), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.ip_finder_diagnostic_declared, stringResource(if (assistantServiceDeclared) R.string.ip_finder_yes else R.string.ip_finder_no)))
-            Text(stringResource(R.string.ip_finder_diagnostic_resolved, stringResource(if (assistantServiceResolved) R.string.ip_finder_yes else R.string.ip_finder_no)))
-            Text(stringResource(R.string.ip_finder_diagnostic_role, stringResource(if (assistantActive) R.string.ip_finder_yes else R.string.ip_finder_no)))
-            Text(stringResource(R.string.ip_finder_diagnostic_current, currentAssistant))
-            Text(stringResource(if (assistantActive) R.string.ip_finder_assistant_active else R.string.ip_finder_assistant_inactive))
-            Button(onClick = onEnableAssistant, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.ip_finder_enable_assistant))
-            }
-            OutlinedButton(onClick = onAssistantSettings, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.ip_finder_restore_assistant))
-            }
-            Text(stringResource(if (vpnActive) R.string.ip_finder_vpn_active else R.string.ip_finder_vpn_inactive))
-            Text(stringResource(if (wifiActive) R.string.ip_finder_wifi_active else R.string.ip_finder_wifi_inactive))
-            Text(stringResource(R.string.ip_finder_cellular_ip, cellularIp ?: "—"))
-            Text(cellularIpVerdict ?: stringResource(R.string.ip_finder_rules_match_no_ip))
-            OutlinedTextField(
-                value = rulesText,
-                onValueChange = onRulesChanged,
-                label = { Text(stringResource(R.string.ip_finder_rules_label)) },
-                supportingText = { Text(stringResource(R.string.ip_finder_rules_help)) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 140.dp, max = 240.dp),
-                minLines = 5,
-                maxLines = 8,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.None,
-                    autoCorrect = false,
-                    keyboardType = KeyboardType.Text
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onBack) { Text(stringResource(R.string.ip_finder_back)) }
+                Spacer(Modifier.weight(1f))
+                IpFinderPill(
+                    text = stringResource(if (running) R.string.ip_finder_status_searching else R.string.ip_finder_status_ready),
+                    highlighted = running
                 )
-            )
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { showResetConfirmation = true }) {
-                    Text(stringResource(R.string.ip_finder_rules_reset))
-                }
-                TextButton(onClick = { showPrefixConfirmation = true }) {
-                    Text(stringResource(R.string.ip_finder_rules_prefix))
-                }
             }
-            when (parsedRules.inputError) {
-                IpRuleInputError.TOO_MANY_RULES -> Text(stringResource(R.string.ip_finder_rules_too_many))
-                IpRuleInputError.TEXT_TOO_LARGE -> Text(stringResource(R.string.ip_finder_rules_too_large))
-                null -> {
-                    Text(stringResource(R.string.ip_finder_rules_count, rulesResult.activeRuleCount))
-                    parsedRules.ignoredRules.take(MAX_VISIBLE_IGNORED_RULES).forEach { ignored ->
-                        Text(stringResource(R.string.ip_finder_rules_ignored_line, ignored.source, ignored.lineNumber))
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.ip_finder_brand), style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.ip_finder_test_entry), style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.ip_finder_intro), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            IpFinderPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.ip_finder_cellular_ip_label),
+                            style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.weight(1f))
+                        IpFinderPill(
+                            text = stringResource(if (wifiActive) R.string.ip_finder_wifi_active else R.string.ip_finder_wifi_inactive),
+                            highlighted = wifiActive
+                        )
                     }
-                    val remainingIgnored = parsedRules.ignoredRules.size - MAX_VISIBLE_IGNORED_RULES
-                    if (remainingIgnored > 0) Text(stringResource(R.string.ip_finder_rules_ignored_more, remainingIgnored))
-                    if (parsedRules.validRules.isEmpty()) Text(stringResource(R.string.ip_finder_rules_none_valid))
+                    Text(cellularIp ?: "—", style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(cellularIpVerdict ?: stringResource(R.string.ip_finder_rules_match_no_ip),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        IpFinderPill(
+                            text = stringResource(if (vpnActive) R.string.ip_finder_vpn_active else R.string.ip_finder_vpn_inactive),
+                            highlighted = vpnActive
+                        )
+                        if (wifiActive) Text(stringResource(R.string.ip_finder_wifi_warning),
+                            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
-            OutlinedTextField(
-                value = cyclesText,
-                onValueChange = onCyclesChanged,
-                label = { Text(stringResource(R.string.ip_finder_cycles_label)) },
-                isError = !cyclesValidation.isValid,
-                supportingText = {
-                    cyclesValidation.error?.let { Text(stringResource(loopNumberErrorText(it))) }
-                },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = pauseText,
-                onValueChange = onPauseChanged,
-                label = { Text(stringResource(R.string.ip_finder_pause_label)) },
-                isError = !pauseValidation.isValid,
-                supportingText = {
-                    pauseValidation.error?.let { Text(stringResource(loopNumberErrorText(it))) }
-                },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Checkbox(checked = autoConnectVpn, onCheckedChange = onAutoConnectVpnChanged)
-                Text(
-                    stringResource(R.string.ip_finder_auto_connect_vpn),
-                    modifier = Modifier.padding(top = 12.dp)
-                )
-            }
-            Text(stringResource(R.string.ip_finder_attempt, attempt, totalCycles))
-            Text(stringResource(R.string.ip_finder_background_running_notice), color = MaterialTheme.colorScheme.secondary)
-            Button(onClick = onStart, enabled = !running && assistantActive &&
-                parsedRules.inputError == null && parsedRules.validRules.isNotEmpty() &&
-                cyclesValidation.isValid && pauseValidation.isValid, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.ip_finder_start_cycle))
-            }
-            resultText?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-            if (retryVpnVisible) {
-                Button(onClick = onRetryVpn, enabled = !running, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.ip_finder_connect_vpn_retry))
+
+            IpFinderPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    IpFinderSectionTitle(stringResource(R.string.ip_finder_diagnostic_title))
+                    Text(stringResource(R.string.ip_finder_diagnostic_declared, stringResource(if (assistantServiceDeclared) R.string.ip_finder_yes else R.string.ip_finder_no)), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.ip_finder_diagnostic_resolved, stringResource(if (assistantServiceResolved) R.string.ip_finder_yes else R.string.ip_finder_no)), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.ip_finder_diagnostic_role, stringResource(if (assistantActive) R.string.ip_finder_yes else R.string.ip_finder_no)), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.ip_finder_diagnostic_current, currentAssistant), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(if (assistantActive) R.string.ip_finder_assistant_active else R.string.ip_finder_assistant_inactive),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                    Button(onClick = onEnableAssistant, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                        Text(stringResource(R.string.ip_finder_enable_assistant))
+                    }
+                    OutlinedButton(onClick = onAssistantSettings, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                        Text(stringResource(R.string.ip_finder_restore_assistant))
+                    }
                 }
             }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(stringResource(R.string.ip_finder_timeline), style = MaterialTheme.typography.titleMedium)
+
+            IpFinderPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    IpFinderSectionTitle(stringResource(R.string.ip_finder_rules_label))
+                    Text(stringResource(R.string.ip_finder_rules_help), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(
+                        value = rulesText,
+                        onValueChange = onRulesChanged,
+                        label = { Text(stringResource(R.string.ip_finder_rules_label)) },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 132.dp, max = 220.dp),
+                        minLines = 5,
+                        maxLines = 8,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
+                            autoCorrect = false,
+                            keyboardType = KeyboardType.Text
+                        ),
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = { showResetConfirmation = true }) { Text(stringResource(R.string.ip_finder_rules_reset)) }
+                        TextButton(onClick = { showPrefixConfirmation = true }) { Text(stringResource(R.string.ip_finder_rules_prefix)) }
+                    }
+                    when (parsedRules.inputError) {
+                        IpRuleInputError.TOO_MANY_RULES -> Text(stringResource(R.string.ip_finder_rules_too_many), color = MaterialTheme.colorScheme.error)
+                        IpRuleInputError.TEXT_TOO_LARGE -> Text(stringResource(R.string.ip_finder_rules_too_large), color = MaterialTheme.colorScheme.error)
+                        null -> {
+                            IpFinderPill(text = stringResource(R.string.ip_finder_rules_count, rulesResult.activeRuleCount), highlighted = true)
+                            parsedRules.ignoredRules.take(MAX_VISIBLE_IGNORED_RULES).forEach { ignored ->
+                                Text(stringResource(R.string.ip_finder_rules_ignored_line, ignored.source, ignored.lineNumber),
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            }
+                            val remainingIgnored = parsedRules.ignoredRules.size - MAX_VISIBLE_IGNORED_RULES
+                            if (remainingIgnored > 0) Text(stringResource(R.string.ip_finder_rules_ignored_more, remainingIgnored))
+                            if (parsedRules.validRules.isEmpty()) Text(stringResource(R.string.ip_finder_rules_none_valid), color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            }
+
+            IpFinderPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    IpFinderSectionTitle(stringResource(R.string.ip_finder_settings_title))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = cyclesText, onValueChange = onCyclesChanged,
+                            label = { Text(stringResource(R.string.ip_finder_cycles_label)) },
+                            isError = !cyclesValidation.isValid,
+                            supportingText = { cyclesValidation.error?.let { Text(stringResource(loopNumberErrorText(it))) } },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)
+                        )
+                        OutlinedTextField(
+                            value = pauseText, onValueChange = onPauseChanged,
+                            label = { Text(stringResource(R.string.ip_finder_pause_label)) },
+                            isError = !pauseValidation.isValid,
+                            supportingText = { pauseValidation.error?.let { Text(stringResource(loopNumberErrorText(it))) } },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.ip_finder_auto_connect_vpn), modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium)
+                        Switch(checked = autoConnectVpn, onCheckedChange = onAutoConnectVpnChanged)
+                    }
+                }
+            }
+
+            IpFinderPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IpFinderSectionTitle(stringResource(R.string.ip_finder_progress_title))
+                        Spacer(Modifier.weight(1f))
+                        IpFinderPill(text = stringResource(R.string.ip_finder_attempt, attempt, totalCycles), highlighted = running)
+                    }
+                    Text(stringResource(R.string.ip_finder_background_running_notice),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(
+                        onClick = onStart,
+                        enabled = !running && assistantActive && parsedRules.inputError == null &&
+                            parsedRules.validRules.isNotEmpty() && cyclesValidation.isValid && pauseValidation.isValid,
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)
+                    ) { Text(stringResource(R.string.ip_finder_start_cycle)) }
+                    resultText?.let {
+                        Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(12.dp)) {
+                            Text(it, modifier = Modifier.padding(14.dp), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    if (retryVpnVisible) {
+                        OutlinedButton(onClick = onRetryVpn, enabled = !running, modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)) { Text(stringResource(R.string.ip_finder_connect_vpn_retry)) }
+                    }
+                }
+            }
+
+            IpFinderPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        IpFinderSectionTitle(stringResource(R.string.ip_finder_timeline))
+                        Spacer(Modifier.weight(1f))
                 TextButton(onClick = onClearTimeline, enabled = timeline.isNotEmpty()) {
                     Text(stringResource(R.string.ip_finder_clear_timeline))
                 }
-            }
-            val visibleTimeline = timeline.takeLast(IP_FINDER_VISIBLE_TIMELINE_LINES)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 180.dp)
-                    .verticalScroll(timelineScrollState),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                visibleTimeline.forEach { (elapsed, textId) ->
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        Text("+${elapsed / 1000}s", modifier = Modifier.padding(end = 10.dp))
-                        Text(textId)
+                    }
+                    val visibleTimeline = timeline.takeLast(IP_FINDER_VISIBLE_TIMELINE_LINES)
+                    if (visibleTimeline.isEmpty()) {
+                        Text(stringResource(R.string.ip_finder_timeline_empty), style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp).verticalScroll(timelineScrollState),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            visibleTimeline.forEach { (elapsed, textId) ->
+                                Row(verticalAlignment = Alignment.Top) {
+                                    IpFinderPill(text = "+${elapsed / 1000}s", highlighted = false)
+                                    Text(textId, modifier = Modifier.weight(1f).padding(start = 10.dp, top = 4.dp),
+                                        style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
                     }
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
         }
     }
     if (showResetConfirmation) {
@@ -1040,6 +1116,39 @@ private fun IpFinderSetupScreen(
             dismissButton = {
                 TextButton(onClick = onCancelRestoreAirplane) { Text(stringResource(R.string.ip_finder_cancel)) }
             }
+        )
+    }
+}
+
+@Composable
+private fun IpFinderPanel(content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) { content() }
+    }
+}
+
+@Composable
+private fun IpFinderSectionTitle(title: String) {
+    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+}
+
+@Composable
+private fun IpFinderPill(text: String, highlighted: Boolean) {
+    Surface(
+        color = if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(50)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = if (highlighted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium
         )
     }
 }
