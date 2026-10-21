@@ -46,6 +46,23 @@ internal fun hasSelectedProfile(guid: String?): Boolean = !guid.isNullOrBlank()
 internal fun shouldStopServiceOnToggle(isRunning: Boolean, status: MainStatus): Boolean =
     isRunning || status == MainStatus.Connecting || status == MainStatus.Reconnecting
 
+internal fun homeSessionPing(isConnected: Boolean, sessionPingMillis: Long?): Long? =
+    sessionPingMillis.takeIf { isConnected }
+
+internal fun clearEphemeralConnectionData(
+    state: MainUiState,
+    status: MainStatus,
+    showPendingDiagnostic: Boolean = false,
+): MainUiState = state.copy(
+    isRunning = false,
+    isTesting = false,
+    status = status,
+    connectionDelayMillis = null,
+    traffic = TrafficSnapshot(),
+    trafficHistory = emptyList(),
+    diagnostic = if (showPendingDiagnostic) ConnectionDiagnostic() else null,
+)
+
 /**
  * Main UI state
  */

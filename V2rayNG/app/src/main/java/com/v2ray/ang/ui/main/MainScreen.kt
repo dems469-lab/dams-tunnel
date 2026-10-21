@@ -265,7 +265,9 @@ fun MainScreen(
                     selectedServerName = selectedServer?.profile?.remarks,
                     selectedServerAddress = selectedServer?.profile?.server,
                     protocolName = selectedServer?.profile?.configType?.protocolScheme?.uppercase(),
-                    delayMillis = uiState.connectionDelayMillis ?: selectedServer?.testDelayMillis,
+                    // L'accueil n'affiche que le ping de la session active, jamais
+                    // le dernier résultat de test enregistré dans le profil.
+                    delayMillis = homeSessionPing(uiState.isRunning, uiState.connectionDelayMillis),
                     downloadBytesPerSecond = traffic.downlinkBytesPerSecond,
                     uploadBytesPerSecond = traffic.uplinkBytesPerSecond,
                     trafficHistory = uiState.trafficHistory,

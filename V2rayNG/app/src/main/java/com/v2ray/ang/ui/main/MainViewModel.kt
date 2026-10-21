@@ -129,11 +129,13 @@ class MainViewModel(
 
     private fun handleServiceEvent(event: MainServiceEvent) {
         when (event) {
-            MainServiceEvent.StateConnecting -> _uiState.update {
-                it.copy(status = MainStatus.Connecting, isRunning = false)
+            MainServiceEvent.StateConnecting -> {
+                testRequests.invalidateCurrent()
+                _uiState.update { clearEphemeralConnectionData(it, MainStatus.Connecting, showPendingDiagnostic = true) }
             }
-            MainServiceEvent.StateReconnecting -> _uiState.update {
-                it.copy(status = MainStatus.Reconnecting, isRunning = false)
+            MainServiceEvent.StateReconnecting -> {
+                testRequests.invalidateCurrent()
+                _uiState.update { clearEphemeralConnectionData(it, MainStatus.Reconnecting, showPendingDiagnostic = true) }
             }
             MainServiceEvent.StateRunning -> updateRunningState(true, clearTestingText = false)
             MainServiceEvent.StateNotRunning -> updateRunningState(false, clearTestingText = false)
@@ -150,18 +152,14 @@ class MainViewModel(
                     toastError(R.string.toast_services_failure)
                 }
                 updateRunningState(false)
+                _uiState.update { clearEphemeralConnectionData(it, MainStatus.Disconnected) }
             }
 
             MainServiceEvent.StateStopSuccess -> _uiState.update {
-                it.copy(
-                    isRunning = false,
-                    status = MainStatus.Disconnected,
-                    traffic = com.v2ray.ang.dto.TrafficSnapshot(),
-                    trafficHistory = emptyList(),
-                )
+                clearEphemeralConnectionData(it, MainStatus.Disconnected)
             }
             is MainServiceEvent.TrafficUpdate -> _uiState.update {
-                it.copy(
+                if (!it.isRunning) it else it.copy(
                     traffic = event.snapshot,
                     trafficHistory = (it.trafficHistory + event.snapshot).takeLast(30),
                 )
@@ -809,7 +807,13 @@ class MainViewModel(
 
     fun updateSelectedGuid(guid: String) {
         dataSource.setSelectServer(guid)
-        _uiState.update { it.copy(selectedGuid = guid) }
+        _uiState.update {
+            if (it.selectedGuid == guid) it else it.copy(
+                selectedGuid = guid,
+                connectionDelayMillis = null,
+                diagnostic = null,
+            )
+        }
     }
 
     fun refreshSelectedGuid() {
@@ -990,9 +994,9 @@ class MainViewModel(
     private fun updateRunningState(running: Boolean, clearTestingText: Boolean = true) {
         if (!running || clearTestingText) testRequests.invalidateCurrent()
         _uiState.update { state ->
+            if (!running) return@update clearEphemeralConnectionData(state, MainStatus.Disconnected)
             state.copy(
                 isRunning = running,
-                connectionDelayMillis = if (running) state.connectionDelayMillis else null,
                 isTesting = testRequests.isTesting,
                 status = if (!clearTestingText && state.isRunning == running) state.status
                 else if (running) MainStatus.Connected else MainStatus.Disconnected
