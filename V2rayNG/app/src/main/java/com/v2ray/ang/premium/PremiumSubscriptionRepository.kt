@@ -116,16 +116,6 @@ class PremiumSubscriptionRepository internal constructor(
         }
     }
 
-    private fun hasInternetCapability(context: Context): Boolean {
-        return runCatching {
-            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-                ?: return false
-            val network = connectivityManager.activeNetwork ?: return false
-            connectivityManager.getNetworkCapabilities(network)
-                ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-        }.getOrDefault(false)
-    }
-
     private companion object {
         fun configuredBaseUrls(): String = buildString {
             append(BuildConfig.PREMIUM_BASE_URLS)
@@ -135,4 +125,14 @@ class PremiumSubscriptionRepository internal constructor(
             }
         }
     }
+}
+
+private fun hasInternetCapability(context: Context): Boolean {
+    return runCatching {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+        val network = connectivityManager.activeNetwork ?: return false
+        connectivityManager.getNetworkCapabilities(network)
+            ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    }.getOrDefault(false)
 }
