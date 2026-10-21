@@ -428,9 +428,9 @@
     <string name="summary_root_lan_sharing">Faire passer par le VPN le trafic du point d’accès Wi-Fi et des appareils connectés en USB.</string>
 
     <string name="title_logcat" translatable="false">Logcat</string>
-    <string name="logcat_copy">Copy</string>
-    <string name="logcat_clear">Clear</string>
-    <string name="logcat_share">Share log</string>
+    <string name="logcat_copy">Copier</string>
+    <string name="logcat_clear">Effacer</string>
+    <string name="logcat_share">Partager le journal</string>
     <string name="title_service_restart">Redémarrer le service</string>
     <string name="title_del_all_config">Supprimer les configurations</string>
     <string name="title_del_duplicate_config">Supprimer les configurations en doublon</string>
@@ -649,8 +649,8 @@
     <string name="acc_add_asset">Add asset source</string>
     <string name="acc_download_file">Download asset files</string>
     <string name="acc_qr_code">QR code</string>
-    <string name="acc_copy_log">Copy log</string>
-    <string name="acc_clear_log">Clear log</string>
+    <string name="acc_copy_log">Copier le journal</string>
+    <string name="acc_clear_log">Effacer le journal</string>
     <string name="acc_add_rule">Ajouter une règle de routage</string>
     <string name="acc_start">Connecter</string>
     <string name="acc_stop">Déconnecter</string>
@@ -660,7 +660,7 @@
     <string name="acc_more">Plus d’options</string>
     <string name="acc_selected_server">Selected</string>
     <string name="acc_share_subscription">Partager le lien de l’abonnement</string>
-    <string name="acc_share_log">Share log</string>
+    <string name="acc_share_log">Partager le journal</string>
     <string name="acc_remove">Remove proxy chain member</string>
     <string name="acc_add_member">Add proxy chain member</string>
     <string name="acc_start_scanner">Start QR scanner</string>
