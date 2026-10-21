@@ -639,11 +639,8 @@ object MmkvManager {
         }
     }
 
-    /**
-     * Supprime le groupe réservé Premium. À appeler uniquement après confirmation d'expiration
-     * par PremiumSubscriptionRepository (HTTP 403/404 unanimement confirmé ou date échue).
-     */
-    internal fun removePremiumGroupProfilesAfterConfirmedExpiration(): Int = synchronized(mainStorage) {
+    /** Supprime uniquement le groupe Premium, sur expiration différée ou action manuelle. */
+    internal fun removePremiumGroupProfiles(): Int = synchronized(mainStorage) {
         mainStorage.lock()
         try {
             val guids = (decodeServerList(PremiumGroup.ID) + profileFullStorage.allKeys().orEmpty()

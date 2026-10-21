@@ -29,8 +29,10 @@ class PremiumSubscriptionRepository internal constructor(
     private val tokenStore: PremiumTokenStore = PremiumTokenStore(context),
     private val client: PremiumSubscriptionClient = PremiumSubscriptionClient(endpointPolicy),
     private val importProfiles: (String) -> Int = AngConfigManager::importPremiumSubscriptionContent,
-    private val removeExpiredProfiles: () -> Int = MmkvManager::removePremiumGroupProfilesAfterConfirmedExpiration,
+    private val removeExpiredProfiles: () -> Int = MmkvManager::removePremiumGroupProfiles,
     private val nowEpochSeconds: () -> Long = { System.currentTimeMillis() / 1000L },
+    private val expiryStateStore: PremiumExpiryStateStore = PremiumExpiryStateStore(),
+    private val nowMillis: () -> Long = System::currentTimeMillis,
 ) {
     suspend fun activate(codeOrUrl: String): PremiumActivationResult {
         if (!BuildConfig.PREMIUM_ENABLED) return PremiumActivationResult.Disabled
@@ -58,6 +60,16 @@ class PremiumSubscriptionRepository internal constructor(
 
     fun clear() = tokenStore.clear()
 
+    fun expiryState(): PremiumExpiryState = expiryStateStore.load()
+
+    /** Suppression explicitement demandée : ne touche qu'aux profils du groupe Premium. */
+    fun removeSubscriptionManually(): Int {
+        val removedProfiles = removeExpiredProfiles()
+        tokenStore.clear()
+        expiryStateStore.clear()
+        return removedProfiles
+    }
+
     private suspend fun applyFetchResult(
         token: String,
         persistTokenOnSuccess: Boolean,
@@ -68,12 +80,14 @@ class PremiumSubscriptionRepository internal constructor(
                 PremiumActivationResult.EmptyOrInvalidResponse
             } else {
                 if (persistTokenOnSuccess) tokenStore.saveToken(token)
+                expiryStateStore.save(PremiumExpiryPolicy.recordActive(expiryStateStore.load()).state)
                 PremiumActivationResult.Imported(count, fetched.userInfo)
             }
         }
         PremiumFetchResult.ConfirmedExpired -> {
-            removeExpiredProfiles()
-            tokenStore.clear()
+            val evaluation = PremiumExpiryPolicy.recordExpiration(expiryStateStore.load(), nowMillis())
+            if (evaluation.action == PremiumExpiryAction.DELETE_PROFILES) removeExpiredProfiles()
+            expiryStateStore.save(evaluation.state)
             PremiumActivationResult.Expired
         }
         PremiumFetchResult.EmptyResponse -> PremiumActivationResult.EmptyOrInvalidResponse

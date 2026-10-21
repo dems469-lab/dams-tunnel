@@ -41,18 +41,18 @@ class PremiumIsolationPolicyTest {
     }
 
     @Test
-    fun `expiration is confirmed only when every configured endpoint returns expired`() {
+    fun `HTTP expiry is confirmed only when every configured endpoint returns expired`() {
         assertEquals(
-            PremiumFetchResult.ConfirmedExpired,
-            PremiumFetchOutcomePolicy.afterAllEndpoints(
-                listOf(PremiumEndpointOutcome.EXPIRED, PremiumEndpointOutcome.EXPIRED),
+            PremiumExpiryObservation.HTTP_EXPIRED,
+            PremiumExpiryPolicy.aggregate(
+                listOf(PremiumExpiryObservation.HTTP_EXPIRED, PremiumExpiryObservation.HTTP_EXPIRED),
                 endpointCount = 2,
             ),
         )
         assertEquals(
-            PremiumFetchResult.Failed,
-            PremiumFetchOutcomePolicy.afterAllEndpoints(
-                listOf(PremiumEndpointOutcome.EXPIRED, PremiumEndpointOutcome.FAILED),
+            PremiumExpiryObservation.INDETERMINATE,
+            PremiumExpiryPolicy.aggregate(
+                listOf(PremiumExpiryObservation.HTTP_EXPIRED, PremiumExpiryObservation.INDETERMINATE),
                 endpointCount = 2,
             ),
         )
@@ -61,9 +61,9 @@ class PremiumIsolationPolicyTest {
     @Test
     fun `empty response never confirms expiration`() {
         assertEquals(
-            PremiumFetchResult.EmptyResponse,
-            PremiumFetchOutcomePolicy.afterAllEndpoints(
-                listOf(PremiumEndpointOutcome.EXPIRED, PremiumEndpointOutcome.EMPTY),
+            PremiumExpiryObservation.INDETERMINATE,
+            PremiumExpiryPolicy.aggregate(
+                listOf(PremiumExpiryObservation.HTTP_EXPIRED, PremiumExpiryObservation.INDETERMINATE),
                 endpointCount = 2,
             ),
         )
