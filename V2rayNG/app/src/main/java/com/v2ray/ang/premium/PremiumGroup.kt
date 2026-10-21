@@ -12,9 +12,9 @@ internal object PremiumProfilePolicy {
         featureEnabled && profileCount > 0
 
     fun blocksConnection(groupId: String?, subscriptionExpired: Boolean): Boolean =
-        isPremiumGroup(groupId) && subscriptionExpired
+        PremiumIsolationPolicy.isPremiumGroup(groupId) && subscriptionExpired
 
-    fun isShareAllowed(groupId: String?): Boolean = !isPremiumGroup(groupId)
+    fun isShareAllowed(groupId: String?): Boolean = !PremiumIsolationPolicy.isPremiumGroup(groupId)
 
     fun canExportDams(hasPremiumProfiles: Boolean): Boolean = !hasPremiumProfiles
 
