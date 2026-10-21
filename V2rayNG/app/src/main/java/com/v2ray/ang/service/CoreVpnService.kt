@@ -10,6 +10,7 @@ import android.net.ProxyInfo
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.os.PowerManager
 import android.os.StrictMode
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.AppConfig.LOOPBACK
@@ -42,6 +43,7 @@ class CoreVpnService : VpnService(), ServiceControl {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var startJob: Job? = null
     private var stopJob: Job? = null
+    private var vpnWakeLockLease: VpnWakeLockLease? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -68,7 +70,10 @@ class CoreVpnService : VpnService(), ServiceControl {
         serviceScope.launch {
             stopJob?.join()
             if (CoreServiceManager.isRunning()) performStop(closeInterface = true, stopService = false)
-            if (!CoreServiceManager.isRunning()) NotificationManager.cancelNotification()
+            if (!CoreServiceManager.isRunning()) {
+                releaseVpnWakeLock()
+                NotificationManager.cancelNotification()
+            }
             serviceScope.cancel()
         }
     }
@@ -85,9 +90,11 @@ class CoreVpnService : VpnService(), ServiceControl {
             LogUtil.w(AppConfig.TAG, "StartCore-VPN: Start already in progress")
             return START_NOT_STICKY
         }
+        acquireVpnWakeLock()
         LogUtil.i(AppConfig.TAG, "StartCore-VPN: Service command received, systemVpnStart=$isSystemVpnStart")
         if (!setupVpnService()) {
             unlockStart()
+            releaseVpnWakeLock()
             // Stop service if setup fails to avoid infinite restart loops (START_STICKY)
             stopSelf()
             return START_NOT_STICKY
@@ -367,8 +374,48 @@ class CoreVpnService : VpnService(), ServiceControl {
             return
         }
 
+        releaseVpnWakeLock()
         unlockStart()
         if (stopService) stopSelf()
+    }
+
+    /** Garder le CPU du processus daemon actif écran éteint pour traiter le TUN et la reconnexion. */
+    @Synchronized
+    private fun acquireVpnWakeLock() {
+        try {
+            vpnWakeLockLease?.let {
+                it.acquire()
+                return
+            }
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            val wakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "$packageName:VpnTunnel",
+            ).apply { setReferenceCounted(false) }
+            vpnWakeLockLease = VpnWakeLockLease(
+                acquireLock = { if (!wakeLock.isHeld) wakeLock.acquire() },
+                releaseLock = { if (wakeLock.isHeld) wakeLock.release() },
+            ).also { it.acquire() }
+        } catch (e: Exception) {
+            LogUtil.e(
+                AppConfig.TAG,
+                "StartCore-VPN: Failed to acquire screen-off CPU lock for profile ${MmkvManager.getSelectServer().orEmpty()}",
+                e,
+            )
+        }
+    }
+
+    @Synchronized
+    private fun releaseVpnWakeLock() {
+        runCatching { vpnWakeLockLease?.release() }
+            .onFailure {
+                LogUtil.e(
+                    AppConfig.TAG,
+                    "StartCore-VPN: Failed to release screen-off CPU lock for profile ${MmkvManager.getSelectServer().orEmpty()}",
+                    it,
+                )
+            }
+        vpnWakeLockLease = null
     }
 
     fun tryLockStart(): Boolean {
