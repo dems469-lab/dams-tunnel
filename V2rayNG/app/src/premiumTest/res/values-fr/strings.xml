@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name" translatable="false">Dams Tunnel TEST</string>
+    <string name="premium_demo_build_notice">VERSION TEST — données d’abonnement simulées ; aucun serveur d’abonnement n’est contacté.</string>
+    <string name="premium_demo_choose_state">Choisissez un état de démonstration :</string>
+    <string name="premium_demo_active">Simuler un abonnement actif</string>
+    <string name="premium_demo_expired">Simuler un abonnement expiré</string>
+    <string name="premium_demo_quota">Simuler un quota épuisé</string>
 </resources>

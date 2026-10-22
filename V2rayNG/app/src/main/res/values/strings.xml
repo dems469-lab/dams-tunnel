@@ -482,11 +482,6 @@
     <string name="premium_cancel">Cancel</string>
     <string name="premium_reentry_hint">The saved code is unavailable. Enter the code or an authorized subscription URL again.</string>
     <string name="premium_loading">Loading subscription…</string>
-    <string name="premium_demo_build_notice">TEST BUILD — simulated subscription data; no subscription server is contacted.</string>
-    <string name="premium_demo_choose_state">Choose a demonstration state:</string>
-    <string name="premium_demo_active">Simulate active subscription</string>
-    <string name="premium_demo_expired">Simulate expired subscription</string>
-    <string name="premium_demo_quota">Simulate exhausted quota</string>
     <string name="premium_not_activated">Enter your subscription code to activate Premium.</string>
     <string name="premium_date_unknown">Expiration date unavailable</string>
     <string name="premium_profile_badge">Premium</string>

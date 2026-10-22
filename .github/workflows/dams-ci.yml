@@ -56,11 +56,43 @@ jobs:
 
       - name: Run tests and lint
         working-directory: V2rayNG
-        run: ./gradlew testPlaystoreDebugUnitTest lintPlaystoreDebug
+        run: ./gradlew testPlaystoreDebugUnitTest testPlaystorePremiumTestUnitTest lintPlaystoreDebug
+
+      - name: Build standard debug and release APKs for demo isolation checks
+        working-directory: V2rayNG
+        run: ./gradlew :app:assemblePlaystoreDebug :app:assemblePlaystoreRelease
 
       - name: Build isolated Premium test APK (debug signing only)
         working-directory: V2rayNG
         run: ./gradlew :app:assemblePlaystorePremiumTest -PpremiumDemoMode=true
+
+      - name: Verify demonstration code exists only in the TEST APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          contains_test_demo() {
+            local apk="$1"
+            while IFS= read -r dex; do
+              if unzip -p "$apk" "$dex" | strings | grep -Eq \
+                'Lcom/v2ray/ang/premiumtest/PremiumTestVariantExtension;|Lcom/v2ray/ang/premium/PremiumDemoSubscriptionDataSource;|Lcom/v2ray/ang/premium/PremiumDemoScenario;|premium_demo_(build_notice|active|expired|quota)'; then
+                return 0
+              fi
+            done < <(unzip -Z1 "$apk" | grep -E '^classes([0-9]+)?\.dex$' || true)
+            return 1
+          }
+
+          test_apk="$(find V2rayNG/app/build/outputs/apk/playstore/premiumTest -name '*.apk' -print -quit)"
+          test -n "$test_apk"
+          contains_test_demo "$test_apk"
+
+          for variant in debug release; do
+            apk="$(find "V2rayNG/app/build/outputs/apk/playstore/$variant" -name '*.apk' -print -quit)"
+            test -n "$apk"
+            if contains_test_demo "$apk"; then
+              echo "Test-only demonstration implementation leaked into $variant APK: $apk" >&2
+              exit 1
+            fi
+          done
 
       - name: Upload isolated Premium test APK
         uses: actions/upload-artifact@v4

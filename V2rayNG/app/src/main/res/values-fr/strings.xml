@@ -482,11 +482,6 @@
     <string name="premium_cancel">Annuler</string>
     <string name="premium_reentry_hint">Le code enregistré est indisponible. Saisissez à nouveau le code ou une URL d’abonnement autorisée.</string>
     <string name="premium_loading">Chargement de l’abonnement…</string>
-    <string name="premium_demo_build_notice">VERSION TEST — données d’abonnement simulées ; aucun serveur d’abonnement n’est contacté.</string>
-    <string name="premium_demo_choose_state">Choisissez un état de démonstration :</string>
-    <string name="premium_demo_active">Simuler un abonnement actif</string>
-    <string name="premium_demo_expired">Simuler un abonnement expiré</string>
-    <string name="premium_demo_quota">Simuler un quota épuisé</string>
     <string name="premium_not_activated">Saisissez votre code d’abonnement pour activer Premium.</string>
     <string name="premium_date_unknown">Date d’expiration indisponible</string>
     <string name="premium_profile_badge">Premium</string>

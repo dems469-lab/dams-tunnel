@@ -18,9 +18,9 @@ internal class PremiumDemoSubscriptionDataSource(
         scenario = value
     }
 
-    override suspend fun activate(codeOrUrl: String): PremiumActivationResult = imported()
+    override suspend fun activate(codeOrUrl: String): PremiumActivationResult.Imported = imported()
 
-    override suspend fun refreshStoredToken(): PremiumActivationResult = imported()
+    override suspend fun refreshStoredToken(): PremiumActivationResult.Imported = imported()
 
     override fun readStoredTokenState(): PremiumStoredTokenResult = PremiumStoredTokenResult.Present
 
@@ -38,10 +38,7 @@ internal class PremiumDemoSubscriptionDataSource(
 
     override fun removeSubscriptionManually(): Int = 0
 
-    private fun imported(): PremiumActivationResult.Imported = PremiumActivationResult.Imported(
-        profileCount = 3,
-        info = infoForScenario(),
-    )
+    private fun imported() = PremiumActivationResult.Imported(profileCount = 3, info = infoForScenario())
 
     private fun infoForScenario(): PremiumSubscriptionInfo {
         val now = nowEpochSeconds()

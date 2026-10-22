@@ -6,8 +6,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.v2ray.ang.R
 import com.v2ray.ang.premium.PremiumActivationResult
-import com.v2ray.ang.premium.PremiumDemoScenario
-import com.v2ray.ang.premium.PremiumDemoSubscriptionDataSource
 import com.v2ray.ang.premium.PremiumExpiryState
 import com.v2ray.ang.premium.PremiumStoredTokenResult
 import com.v2ray.ang.premium.PremiumSubscriptionDataSource
@@ -33,7 +31,6 @@ data class PremiumSubscriptionUiState(
     @StringRes val messageRes: Int? = null,
     val messageIsError: Boolean = false,
     val showRemoveConfirmation: Boolean = false,
-    val demoScenario: PremiumDemoScenario? = null,
 )
 
 class PremiumSubscriptionViewModel(
@@ -57,7 +54,6 @@ class PremiumSubscriptionViewModel(
                     requiresCodeReentry = token == PremiumStoredTokenResult.ReentryRequired,
                     info = dataSource.subscriptionInfo(),
                     expiry = expiry,
-                    demoScenario = (dataSource as? PremiumDemoSubscriptionDataSource)?.scenario,
                 )
             }
             _uiState.value = loaded
@@ -66,13 +62,6 @@ class PremiumSubscriptionViewModel(
 
     fun onCodeChanged(code: String) {
         _uiState.value = uiState.value.copy(code = code, messageRes = null, messageIsError = false)
-    }
-
-    fun selectDemoScenario(scenario: PremiumDemoScenario) {
-        val demoSource = dataSource as? PremiumDemoSubscriptionDataSource ?: return
-        if (!uiState.value.featureEnabled || uiState.value.isLoading) return
-        demoSource.selectScenario(scenario)
-        loadSavedState()
     }
 
     fun activate() {

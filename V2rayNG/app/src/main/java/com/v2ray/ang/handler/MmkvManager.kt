@@ -28,6 +28,7 @@ import com.v2ray.ang.dto.entities.SubscriptionItem
 import com.v2ray.ang.dto.entities.WebDavConfig
 import com.v2ray.ang.premium.PremiumGroup
 import com.v2ray.ang.premium.PremiumBackupSnapshotFilter
+import com.v2ray.ang.premium.PremiumRestoreSnapshotMerger
 import com.v2ray.ang.premium.PremiumBackupSnapshotStore
 import com.v2ray.ang.premium.PremiumIsolationPolicy
 import com.v2ray.ang.util.JsonUtil
@@ -693,6 +694,46 @@ object MmkvManager {
             }
         })
         opened.values.filterNotNull().forEach(MMKV::sync)
+    }
+
+    /** Préserve les profils Premium de l'appareil avant que MMKV ne remplace ses bases. */
+    internal fun preservePremiumInRestoreSnapshot(currentDirectory: File, importDirectory: File) {
+        fun snapshotStore(directory: File): Pair<PremiumBackupSnapshotStore, MutableMap<String, MMKV?>> {
+            val opened = mutableMapOf<String, MMKV?>()
+            fun storage(id: String, createIfMissing: Boolean = false): MMKV? {
+                if (createIfMissing && opened[id] == null) opened.remove(id)
+                return opened.getOrPut(id) {
+                    if (!createIfMissing && !File(directory, id).isFile) return@getOrPut null
+                    MMKV.mmkvWithID(id, MMKV.MULTI_PROCESS_MODE, null, directory.absolutePath)
+                }
+            }
+            val store = object : PremiumBackupSnapshotStore {
+                override fun keys(database: String): Set<String> =
+                    storage(database)?.allKeys().orEmpty().toSet()
+
+                override fun readString(database: String, key: String): String? =
+                    storage(database)?.decodeString(key)
+
+                override fun remove(database: String, keys: Collection<String>) {
+                    if (keys.isNotEmpty()) storage(database)?.removeValuesForKeys(keys.toTypedArray())
+                }
+
+                override fun writeString(database: String, key: String, value: String) {
+                    val databaseStorage = checkNotNull(storage(database, createIfMissing = true)) {
+                        "Impossible de préparer la base MMKV de restauration"
+                    }
+                    check(databaseStorage.encode(key, value)) {
+                        "Impossible de préserver les profils Premium"
+                    }
+                }
+            }
+            return store to opened
+        }
+
+        val (currentStore, currentOpened) = snapshotStore(currentDirectory)
+        val (importStore, importOpened) = snapshotStore(importDirectory)
+        PremiumRestoreSnapshotMerger.apply(currentStore, importStore)
+        (currentOpened.values + importOpened.values).filterNotNull().forEach(MMKV::sync)
     }
 
     //endregion

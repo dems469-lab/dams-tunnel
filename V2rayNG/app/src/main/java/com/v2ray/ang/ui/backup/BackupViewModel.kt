@@ -310,6 +310,7 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                         },
                         restoreImport = {
                             withContext(Dispatchers.IO) {
+                                MmkvManager.preservePremiumInRestoreSnapshot(safetyCopyDir, backupDir)
                                 MMKV.restoreAllFromDirectory(backupDir.absolutePath) > 0
                             }
                         },

@@ -28,7 +28,6 @@ android {
         versionCode = 751
         versionName = "2.3.11"
         buildConfigField("boolean", "PREMIUM_ENABLED", premiumEnabled.toString())
-        buildConfigField("boolean", "DAMS_PREMIUM_DEMO_MODE", "false")
         buildConfigField("String", "PREMIUM_BASE_URLS", buildConfigString(premiumBaseUrls))
         buildConfigField("String", "PREMIUM_DEBUG_BASE_URL", buildConfigString(""))
 

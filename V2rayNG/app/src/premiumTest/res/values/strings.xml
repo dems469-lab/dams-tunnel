@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name" translatable="false">Dams Tunnel TEST</string>
+    <string name="premium_demo_build_notice">TEST BUILD — simulated subscription data; no subscription server is contacted.</string>
+    <string name="premium_demo_choose_state">Choose a demonstration state:</string>
+    <string name="premium_demo_active">Simulate active subscription</string>
+    <string name="premium_demo_expired">Simulate expired subscription</string>
+    <string name="premium_demo_quota">Simulate exhausted quota</string>
 </resources>

@@ -82,3 +82,78 @@ internal object PremiumBackupSnapshotFilter {
         }
     }
 }
+
+/** Strips Premium data carried by an old archive, then preserves this device's own Premium data. */
+internal object PremiumRestoreSnapshotMerger {
+    private const val MAIN = "MAIN"
+    private const val PROFILE_FULL_CONFIG = "PROFILE_FULL_CONFIG"
+    private const val SERVER_RAW = "SERVER_RAW"
+    private const val SERVER_AFF = "SERVER_AFF"
+    private const val PREMIUM_SERVER_LIST = "SUB_SERVERS_${PremiumGroup.ID}"
+    private const val SUB_IDS = "SUB_IDS"
+
+    private val premiumSettings = setOf(
+        "premium_expiry_state_v1",
+        "premium_subscription_info_v1",
+        "pref_premium_internal_enabled",
+    )
+
+    fun apply(current: PremiumBackupSnapshotStore, incoming: PremiumBackupSnapshotStore) {
+        PremiumBackupSnapshotFilter.apply(incoming)
+
+        val listedGuids = decodeStringList(current.readString(MAIN, PREMIUM_SERVER_LIST))
+        val storedGuids = current.keys(PROFILE_FULL_CONFIG).filter { guid ->
+            val json = current.readString(PROFILE_FULL_CONFIG, guid)
+            val isPremium = try {
+                val subscriptionId = json?.let(JsonParser::parseString)?.asJsonObject
+                    ?.get("subscriptionId")?.asString.orEmpty()
+                PremiumIsolationPolicy.isPremiumGroup(subscriptionId)
+            } catch (_: Exception) {
+                false
+            }
+            if (guid in listedGuids && (json == null || !isPremium)) {
+                error("Profil Premium illisible avant la restauration")
+            }
+            isPremium
+        }
+        val premiumGuids = (listedGuids + storedGuids).distinct()
+
+        premiumGuids.forEach { guid ->
+            val config = current.readString(PROFILE_FULL_CONFIG, guid)
+                ?: error("Profil Premium absent de la sauvegarde de sécurité")
+            incoming.writeString(PROFILE_FULL_CONFIG, guid, config)
+            listOf(SERVER_RAW, SERVER_AFF).forEach { database ->
+                current.readString(database, guid)?.let { value ->
+                    incoming.writeString(database, guid, value)
+                }
+            }
+        }
+
+        if (premiumGuids.isNotEmpty() || listedGuids.isNotEmpty()) {
+            val guidArray = com.google.gson.JsonArray()
+            premiumGuids.forEach(guidArray::add)
+            incoming.writeString(MAIN, PREMIUM_SERVER_LIST, guidArray.toString())
+
+            val importedSubIds = decodeStringList(incoming.readString(MAIN, SUB_IDS))
+            val mergedSubIds = (importedSubIds + PremiumGroup.ID).distinct()
+            val subIdArray = com.google.gson.JsonArray()
+            mergedSubIds.forEach(subIdArray::add)
+            incoming.writeString(MAIN, SUB_IDS, subIdArray.toString())
+        }
+
+        premiumSettings.forEach { key ->
+            current.readString("SETTING", key)?.let { value ->
+                incoming.writeString("SETTING", key, value)
+            }
+        }
+    }
+
+    private fun decodeStringList(json: String?): List<String> {
+        if (json.isNullOrBlank()) return emptyList()
+        return try {
+            JsonParser.parseString(json).asJsonArray.map { it.asString }
+        } catch (_: Exception) {
+            error("Index de sauvegarde illisible")
+        }
+    }
+}
