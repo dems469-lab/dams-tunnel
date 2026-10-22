@@ -61,3 +61,11 @@ jobs:
       - name: Build isolated Premium test APK (debug signing only)
         working-directory: V2rayNG
         run: ./gradlew :app:assemblePlaystorePremiumTest -PpremiumDemoMode=true
+
+      - name: Upload isolated Premium test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dams-premium-test-apk
+          path: V2rayNG/app/build/outputs/apk/playstore/premiumTest/*.apk
+          if-no-files-found: error
+          retention-days: 7
