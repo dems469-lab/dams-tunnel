@@ -21,14 +21,39 @@ jobs:
     name: Internal Premium test APK
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-37.0 build-tools;37.0.0 platform-tools ndk;30.0.16248370"
 
       - uses: gradle/actions/setup-gradle@v4
+
+      - name: Set NDK path
+        run: echo "NDK_HOME=$ANDROID_HOME/ndk/30.0.16248370" >> "$GITHUB_ENV"
+
+      - name: Build native tunnel
+        run: bash compile-hevtun.sh
+
+      - name: Download pinned Xray AAR
+        run: |
+          mkdir -p V2rayNG/app/libs
+          curl --fail --location --retry 3 \
+            -o V2rayNG/app/libs/libv2ray.aar \
+            https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.1.23/libv2ray.aar
+          test "$(sha256sum V2rayNG/app/libs/libv2ray.aar | cut -d' ' -f1)" = \
+            17387858d760b6a24b7dc3805eaf8554fe5041f5356945e637fdcbe3cea455fa
+          cp -r libs V2rayNG/app/
 
       - name: Validate test domain
         env:
