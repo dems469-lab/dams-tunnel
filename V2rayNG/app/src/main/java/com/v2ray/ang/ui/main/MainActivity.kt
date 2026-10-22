@@ -212,10 +212,17 @@ class MainActivity : HelperBaseComponentActivity() {
                     is MainAction.EditServer -> editServer(action.guid, action.profile)
                     is MainAction.ShareClipboard -> shareToClipboard(action.guid)
                     is MainAction.ShareFullContent -> shareFullContentAsync(action.guid)
-                    MainAction.ShareDamsFile -> startActivity(
-                        Intent(this, BackupActivity::class.java)
-                            .putExtra(BackupActivity.EXTRA_OPEN_DAMS_EXPORT, true)
-                    )
+                    is MainAction.ShareDamsFile -> {
+                        if (MmkvManager.isPremiumProfileGuid(action.guid)) {
+                            toast(R.string.premium_export_excluded)
+                        } else {
+                            startActivity(
+                                Intent(this, BackupActivity::class.java)
+                                    .putExtra(BackupActivity.EXTRA_OPEN_DAMS_EXPORT, true)
+                                    .putExtra(BackupActivity.EXTRA_DAMS_PROFILE_GUID, action.guid)
+                            )
+                        }
+                    }
                     else -> mainViewModel.onAction(action)
                 }
             },

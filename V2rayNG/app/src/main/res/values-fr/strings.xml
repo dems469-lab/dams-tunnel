@@ -643,6 +643,9 @@
     <string name="share_method_clipboard">Copier le lien du profil</string>
     <string name="share_method_full_content">Copier la configuration complète</string>
     <string name="share_method_dams_file">Partager un fichier .dams protégé</string>
+    <string name="dams_profile_export_title">Exporter le profil sélectionné</string>
+    <string name="dams_profile_export_unsupported">Ce profil dépend d'autres profils et ne peut pas être exporté seul.</string>
+    <string name="dams_profile_export_description">Seul le profil sélectionné sera inclus dans ce fichier protégé par mot de passe. Les autres profils et les détails d'abonnement ne sont pas inclus.</string>
     <string name="action_edit">Edit</string>
     <string name="action_delete">Supprimer</string>
     <string name="action_close">Close</string>

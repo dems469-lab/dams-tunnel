@@ -18,6 +18,7 @@ import com.v2ray.ang.util.BackupFileSize
 import com.v2ray.ang.util.BackupFileTooLargeException
 import com.v2ray.ang.util.readBytesLimited
 import com.v2ray.ang.util.DamsRestoreAttemptPolicy
+import com.v2ray.ang.util.DamsProfileFileCodec
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -137,6 +138,47 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
+    fun prepareDamsProfileForUri(
+        cacheDir: File,
+        targetUri: Uri,
+        profileGuid: String,
+        password: String,
+        expiresAtEpochMillis: Long?,
+    ) {
+        launchLoading {
+            var payloadFile: File? = null
+            var handedOffToExportHandler = false
+            try {
+                if (MmkvManager.isPremiumProfileGuid(profileGuid)) {
+                    toastError(R.string.premium_export_excluded)
+                    return@launchLoading
+                }
+                val profile = MmkvManager.decodeServerConfig(profileGuid)
+                    ?: throw IllegalArgumentException("Selected profile no longer exists")
+                val payload = DamsProfileFileCodec.encode(profile, MmkvManager.decodeServerRaw(profileGuid))
+                val encrypted = DamsFileCodec.encrypt(
+                    payload,
+                    DamsFileCodec.ExportOptions(password, expiresAtEpochMillis),
+                )
+                payloadFile = File(cacheDir, "profile_${System.currentTimeMillis()}.dams")
+                payloadFile.writeBytes(encrypted)
+                _viewModelEvent.send(BackupViewModelEvent.ExportLocal(payloadFile.absolutePath, targetUri))
+                handedOffToExportHandler = true
+            } catch (error: Exception) {
+                LogUtil.e(AppConfig.TAG, "Failed to create protected profile export", error)
+                toastError(
+                    if (error is BackupFileTooLargeException) R.string.backup_file_too_large
+                    else R.string.dams_profile_export_unsupported.takeIf {
+                        error is DamsProfileFileCodec.UnsupportedStandaloneProfileException
+                    }
+                        ?: R.string.toast_failure
+                )
+            } finally {
+                if (!handedOffToExportHandler) payloadFile?.delete()
+            }
+        }
+    }
+
     fun restoreConfiguration(cacheDir: File, zipFile: File) {
         launchLoading {
             try {
@@ -169,8 +211,15 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                 val zipFile = File(cacheDir, "restore_${System.currentTimeMillis()}.zip")
                 withTemporaryFileCleanup(zipFile) {
                     val damsBytes = damsFile.inputStream().use { it.readBytesLimited() }
-                    zipFile.writeBytes(DamsFileCodec.decrypt(damsBytes, password))
-                    val success = performRestore(cacheDir, zipFile)
+                    val decryptedPayload = DamsFileCodec.decrypt(damsBytes, password)
+                    val profilePayload = DamsProfileFileCodec.decode(decryptedPayload)
+                    val success = if (profilePayload != null) {
+                        MmkvManager.importProtectedProfile(profilePayload.profile, profilePayload.rawConfig)
+                        true
+                    } else {
+                        zipFile.writeBytes(decryptedPayload)
+                        performRestore(cacheDir, zipFile)
+                    }
                     if (!success) {
                         throw IllegalStateException("The .dams archive could not be restored")
                     }

@@ -89,7 +89,10 @@ fun ShareMethodDialog(
         isComplexProfile = profile.configType.isComplexType(),
         includeManagementActions = more,
         isPremiumProfile = profile.subscriptionId == PremiumGroup.ID,
-    )
+    ).filterNot { action ->
+        action == ServerMenuAction.ShareDamsFile &&
+            (profile.configType == EConfigType.POLICYGROUP || profile.configType == EConfigType.PROXYCHAIN)
+    }
     SelectListDialog(
         options = menuActions,
         optionText = { stringResource(it.labelRes) },
@@ -99,7 +102,7 @@ fun ShareMethodDialog(
                 ServerMenuAction.ShareQRCode -> onAction(MainAction.ShareQRCode(guid))
                 ServerMenuAction.ShareClipboard -> onAction(MainAction.ShareClipboard(guid))
                 ServerMenuAction.ShareFullContent -> onAction(MainAction.ShareFullContent(guid))
-                ServerMenuAction.ShareDamsFile -> onAction(MainAction.ShareDamsFile)
+                ServerMenuAction.ShareDamsFile -> onAction(MainAction.ShareDamsFile(guid))
                 ServerMenuAction.Edit -> onAction(MainAction.EditServer(guid, profile))
                 ServerMenuAction.Delete -> onRemove(guid, profile.remarks)
             }

@@ -84,6 +84,7 @@ class BackupActivity : HelperBaseComponentActivity() {
     companion object {
         const val EXTRA_DAMS_URI = "extra_dams_uri"
         const val EXTRA_OPEN_DAMS_EXPORT = "extra_open_dams_export"
+        const val EXTRA_DAMS_PROFILE_GUID = "extra_dams_profile_guid"
         private const val DAMS_MAX_ATTEMPTS = 5
     }
 
@@ -208,6 +209,7 @@ class BackupActivity : HelperBaseComponentActivity() {
             onShareClick = { viewModel.shareBackup(cacheDir, getString(R.string.app_name)) },
             onDamsExport = { password, expiry -> exportDams(password, expiry) },
             openDamsExport = intent.getBooleanExtra(EXTRA_OPEN_DAMS_EXPORT, false),
+            isSingleProfileExport = intent.hasExtra(EXTRA_DAMS_PROFILE_GUID),
             onRestoreOptionSelected = { location ->
                 when (location) {
                     BackupLocation.Local -> restoreViaLocal()
@@ -275,15 +277,24 @@ class BackupActivity : HelperBaseComponentActivity() {
     private fun exportDams(password: String, expiresAt: Long?) {
         val dateFormatted = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault())
             .format(System.currentTimeMillis())
-        launchCreateDocument("${getString(R.string.app_name)}_$dateFormatted.dams") { uri ->
+        val profileGuid = intent.getStringExtra(EXTRA_DAMS_PROFILE_GUID)
+        val profileName = profileGuid?.let(MmkvManager::decodeServerConfig)?.remarks
+            ?.replace(Regex("[^A-Za-z0-9._-]"), "_")?.take(40)
+        val fileName = profileName?.let { "${it}_$dateFormatted.dams" }
+            ?: "${getString(R.string.app_name)}_$dateFormatted.dams"
+        launchCreateDocument(fileName) { uri ->
             if (uri != null) {
-                viewModel.prepareDamsBackupForUri(
-                    cacheDir,
-                    getString(R.string.app_name),
-                    uri,
-                    password,
-                    expiresAt,
-                )
+                if (profileGuid != null) {
+                    viewModel.prepareDamsProfileForUri(cacheDir, uri, profileGuid, password, expiresAt)
+                } else {
+                    viewModel.prepareDamsBackupForUri(
+                        cacheDir,
+                        getString(R.string.app_name),
+                        uri,
+                        password,
+                        expiresAt,
+                    )
+                }
             }
         }
     }
@@ -324,6 +335,7 @@ fun BackupScreen(
     onShareClick: () -> Unit,
     onDamsExport: (String, Long?) -> Unit,
     openDamsExport: Boolean = false,
+    isSingleProfileExport: Boolean = false,
     onRestoreOptionSelected: (BackupLocation) -> Unit,
     onCleanupProfiles: () -> Unit,
     onWebDavSave: (WebDavConfig) -> Unit,
@@ -455,6 +467,7 @@ fun BackupScreen(
     }
     if (showDamsExportDialog) {
         DamsExportDialog(
+            isSingleProfileExport = isSingleProfileExport,
             onDismiss = { showDamsExportDialog = false },
             onExport = { password, expiry ->
                 showDamsExportDialog = false
@@ -467,6 +480,7 @@ fun BackupScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DamsExportDialog(
+    isSingleProfileExport: Boolean,
     onDismiss: () -> Unit,
     onExport: (String, Long?) -> Unit,
 ) {
@@ -478,9 +492,14 @@ private fun DamsExportDialog(
     val passwordStrength = DamsPasswordPolicy.strength(password)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.title_dams_export)) },
+        title = {
+            Text(stringResource(if (isSingleProfileExport) R.string.dams_profile_export_title else R.string.title_dams_export))
+        },
         text = {
             Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
+                if (isSingleProfileExport) {
+                    Text(stringResource(R.string.dams_profile_export_description))
+                }
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },

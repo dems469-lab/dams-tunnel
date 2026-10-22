@@ -303,6 +303,23 @@ object MmkvManager {
         return key
     }
 
+    /** Imports one decrypted standalone .dams profile into the local (non-subscription) group. */
+    fun importProtectedProfile(profile: ProfileItem, rawConfig: String?): String {
+        require(profile.configType != com.v2ray.ang.enums.EConfigType.POLICYGROUP &&
+            profile.configType != com.v2ray.ang.enums.EConfigType.PROXYCHAIN) {
+            "Group profiles cannot be imported as a standalone server"
+        }
+        val guid = Utils.getUuid()
+        val localProfile = profile.copy(subscriptionId = "", policyGroupSubscriptionId = null)
+        saveServerProfiles(
+            profiles = mapOf(guid to localProfile),
+            rawConfigs = rawConfig?.let { mapOf(guid to it) }.orEmpty(),
+            subscriptionId = "",
+            append = true,
+        )
+        return guid
+    }
+
     /**
      * Saves a profile batch before publishing its group index and removing replaced payloads.
      *
