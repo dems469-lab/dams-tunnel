@@ -165,10 +165,13 @@ class BackupActivity : HelperBaseComponentActivity() {
                         }
 
                         is BackupViewModel.BackupViewModelEvent.DamsRestoreFailed -> {
-                            if (event.incorrectPassword) pendingDamsUri?.let {
+                            if (event.legacyFullBackup) {
+                                toastError(R.string.dams_legacy_full_backup_rejected)
+                                pendingDamsUri = null
+                            } else if (event.incorrectPassword) pendingDamsUri?.let {
                                 MmkvManager.encodeSettings(damsAttemptKey(it), event.remainingAttempts)
                             }
-                            pendingDamsUri?.let { uri ->
+                            pendingDamsUri?.takeUnless { event.legacyFullBackup }?.let { uri ->
                                 if (event.incorrectPassword && event.remainingAttempts == 0) {
                                     toastError(R.string.dams_attempts_exhausted)
                                 } else if (event.incorrectPassword) {
@@ -275,26 +278,20 @@ class BackupActivity : HelperBaseComponentActivity() {
     }
 
     private fun exportDams(password: String, expiresAt: Long?) {
+        val profileGuid = intent.getStringExtra(EXTRA_DAMS_PROFILE_GUID)
+        if (profileGuid.isNullOrBlank()) {
+            toastError(R.string.toast_failure)
+            return
+        }
         val dateFormatted = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault())
             .format(System.currentTimeMillis())
-        val profileGuid = intent.getStringExtra(EXTRA_DAMS_PROFILE_GUID)
         val profileName = profileGuid?.let(MmkvManager::decodeServerConfig)?.remarks
             ?.replace(Regex("[^A-Za-z0-9._-]"), "_")?.take(40)
         val fileName = profileName?.let { "${it}_$dateFormatted.dams" }
             ?: "${getString(R.string.app_name)}_$dateFormatted.dams"
         launchCreateDocument(fileName) { uri ->
             if (uri != null) {
-                if (profileGuid != null) {
-                    viewModel.prepareDamsProfileForUri(cacheDir, uri, profileGuid, password, expiresAt)
-                } else {
-                    viewModel.prepareDamsBackupForUri(
-                        cacheDir,
-                        getString(R.string.app_name),
-                        uri,
-                        password,
-                        expiresAt,
-                    )
-                }
+                viewModel.prepareDamsProfileForUri(cacheDir, uri, profileGuid, password, expiresAt)
             }
         }
     }
@@ -377,11 +374,6 @@ fun BackupScreen(
                 icon = painterResource(R.drawable.ic_share_24dp),
                 title = stringResource(R.string.title_configuration_share),
                 onClick = { pendingPlaintextBackup = onShareClick }
-            )
-            SettingsMenuItem(
-                icon = painterResource(R.drawable.ic_backup_24dp),
-                title = stringResource(R.string.title_dams_export_action),
-                onClick = { showDamsExportDialog = true }
             )
             SettingsMenuItem(
                 icon = painterResource(R.drawable.ic_restore_24dp),

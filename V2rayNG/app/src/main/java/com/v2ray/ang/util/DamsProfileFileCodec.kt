@@ -17,6 +17,13 @@ object DamsProfileFileCodec {
     )
 
     class UnsupportedStandaloneProfileException : IllegalArgumentException()
+    class LegacyFullBackupException : Exception()
+
+    /** Identifies old encrypted .dams payloads that contain a complete ZIP backup. */
+    fun isLegacyFullBackup(payload: ByteArray): Boolean = payload.size >= 4 &&
+        payload[0] == 0x50.toByte() && payload[1] == 0x4b.toByte() &&
+        (payload[2] == 0x03.toByte() || payload[2] == 0x05.toByte() || payload[2] == 0x07.toByte()) &&
+        (payload[3] == 0x04.toByte() || payload[3] == 0x06.toByte() || payload[3] == 0x08.toByte())
 
     /** Encodes exactly one standalone profile; subscription and group metadata are not exported. */
     fun encode(profile: ProfileItem, rawConfig: String? = null): ByteArray {

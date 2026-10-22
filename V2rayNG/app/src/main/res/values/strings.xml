@@ -218,7 +218,6 @@
     <string name="dams_password_mismatch">Les mots de passe ne correspondent pas.</string>
     <string name="title_dams_expiry">Expiration date (optional)</string>
     <string name="dams_no_expiry">Aucune expiration</string>
-    <string name="title_dams_export_action">Exporter la configuration complète (.dams)</string>
     <string name="toast_none_data">No data available</string>
     <string name="toast_incorrect_protocol">Incorrect protocol</string>
     <string name="toast_decoding_failed">Decoding failed</string>
@@ -646,6 +645,7 @@
     <string name="dams_profile_export_title">Export selected profile</string>
     <string name="dams_profile_export_unsupported">This profile depends on other profiles and cannot be exported alone.</string>
     <string name="dams_profile_export_description">Only the selected profile is included in this password-protected file. Other profiles and subscription details are not included.</string>
+    <string name="dams_legacy_full_backup_rejected">This .dams file contains a full configuration backup. It was not imported to avoid adding every saved profile. Export one profile from the server list instead.</string>
     <string name="action_edit">Edit</string>
     <string name="action_delete">Delete</string>
     <string name="action_close">Close</string>

@@ -36,7 +36,17 @@ class DamsProfileFileCodecTest {
 
     @Test
     fun `full backup payload is not mistaken for a single profile`() {
-        assertNull(DamsProfileFileCodec.decode("PK\u0003\u0004backup".toByteArray()))
+        val oldFullBackup = "PK\u0003\u0004backup".toByteArray()
+        assertNull(DamsProfileFileCodec.decode(oldFullBackup))
+        assertTrue(DamsProfileFileCodec.isLegacyFullBackup(oldFullBackup))
+        assertFalse(DamsProfileFileCodec.isLegacyFullBackup("not a zip".toByteArray()))
+        assertEquals(
+            5,
+            DamsRestoreAttemptPolicy.remainingAfterFailure(
+                5,
+                DamsProfileFileCodec.LegacyFullBackupException(),
+            ),
+        )
     }
 
     @Test

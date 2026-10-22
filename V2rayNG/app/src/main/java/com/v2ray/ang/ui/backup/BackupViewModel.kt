@@ -48,7 +48,11 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
     sealed interface BackupViewModelEvent : ViewModelEvent {
         data class ShareFile(val filePath: String) : BackupViewModelEvent
         data class ExportLocal(val cachePath: String, val targetUri: Uri) : BackupViewModelEvent
-        data class DamsRestoreFailed(val remainingAttempts: Int, val incorrectPassword: Boolean) : BackupViewModelEvent
+        data class DamsRestoreFailed(
+            val remainingAttempts: Int,
+            val incorrectPassword: Boolean,
+            val legacyFullBackup: Boolean = false,
+        ) : BackupViewModelEvent
         object RestoreSuccess : BackupViewModelEvent
     }
 
@@ -102,38 +106,6 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                 }
             } catch (e: BackupFileTooLargeException) {
                 toastError(R.string.backup_file_too_large)
-            }
-        }
-    }
-
-    fun prepareDamsBackupForUri(
-        cacheDir: File,
-        appName: String,
-        targetUri: Uri,
-        password: String,
-        expiresAtEpochMillis: Long?,
-    ) {
-        launchLoading {
-            try {
-                val ret = backupConfigurationToCache(cacheDir, appName)
-                if (!ret.first) {
-                    toastError(R.string.toast_failure)
-                    return@launchLoading
-                }
-                val zipFile = File(ret.second)
-                withTemporaryFileCleanup(zipFile) {
-                    val zipBytes = zipFile.inputStream().use { it.readBytesLimited() }
-                    val damsBytes = DamsFileCodec.encrypt(
-                        zipBytes,
-                        DamsFileCodec.ExportOptions(password, expiresAtEpochMillis),
-                    )
-                    val damsPath = File(cacheDir, "${appName}_${System.currentTimeMillis()}.dams")
-                    damsPath.writeBytes(damsBytes)
-                    _viewModelEvent.send(BackupViewModelEvent.ExportLocal(damsPath.absolutePath, targetUri))
-                }
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "Failed to create Dams export", e)
-                toastError(if (e is BackupFileTooLargeException) R.string.backup_file_too_large else R.string.toast_failure)
             }
         }
     }
@@ -208,22 +180,16 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
     ) {
         launchLoading {
             try {
-                val zipFile = File(cacheDir, "restore_${System.currentTimeMillis()}.zip")
-                withTemporaryFileCleanup(zipFile) {
-                    val damsBytes = damsFile.inputStream().use { it.readBytesLimited() }
-                    val decryptedPayload = DamsFileCodec.decrypt(damsBytes, password)
-                    val profilePayload = DamsProfileFileCodec.decode(decryptedPayload)
-                    val success = if (profilePayload != null) {
-                        MmkvManager.importProtectedProfile(profilePayload.profile, profilePayload.rawConfig)
-                        true
-                    } else {
-                        zipFile.writeBytes(decryptedPayload)
-                        performRestore(cacheDir, zipFile)
+                val damsBytes = damsFile.inputStream().use { it.readBytesLimited() }
+                val decryptedPayload = DamsFileCodec.decrypt(damsBytes, password)
+                val profilePayload = DamsProfileFileCodec.decode(decryptedPayload)
+                if (profilePayload == null) {
+                    if (DamsProfileFileCodec.isLegacyFullBackup(decryptedPayload)) {
+                        throw DamsProfileFileCodec.LegacyFullBackupException()
                     }
-                    if (!success) {
-                        throw IllegalStateException("The .dams archive could not be restored")
-                    }
+                    throw DamsFileCodec.InvalidFileException("Not a protected profile file")
                 }
+                MmkvManager.importProtectedProfile(profilePayload.profile, profilePayload.rawConfig)
                 damsFile.delete()
                 toastSuccess(R.string.toast_success)
                 _viewModelEvent.send(BackupViewModelEvent.RestoreSuccess)
@@ -231,7 +197,13 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                 LogUtil.e(AppConfig.TAG, "Failed to restore Dams export", e)
                 val incorrectPassword = e is DamsFileCodec.IncorrectPasswordException
                 val remaining = DamsRestoreAttemptPolicy.remainingAfterFailure(attemptsRemaining, e)
-                _viewModelEvent.send(BackupViewModelEvent.DamsRestoreFailed(remaining, incorrectPassword))
+                _viewModelEvent.send(
+                    BackupViewModelEvent.DamsRestoreFailed(
+                        remaining,
+                        incorrectPassword,
+                        legacyFullBackup = e is DamsProfileFileCodec.LegacyFullBackupException,
+                    )
+                )
             } finally {
                 damsFile.delete()
             }
