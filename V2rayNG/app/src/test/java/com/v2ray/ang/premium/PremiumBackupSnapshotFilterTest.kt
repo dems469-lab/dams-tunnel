@@ -42,7 +42,7 @@ class PremiumBackupSnapshotFilterTest {
 
         PremiumBackupSnapshotFilter.apply(store)
         val archive = createArchive(store.snapshot)
-        val archiveText = readArchive(archive)
+        val archiveText = readArchive(archive).toString()
 
         assertFalse(archiveText.contains(PremiumGroup.ID))
         assertFalse(archiveText.contains("PREMIUM_PRIVATE_SENTINEL"))
@@ -67,7 +67,10 @@ class PremiumBackupSnapshotFilterTest {
         PremiumBackupSnapshotFilter.apply(store)
 
         assertEquals(original, store.snapshot)
-        assertEquals(createArchive(original), createArchive(store.snapshot))
+        assertEquals(
+            readArchive(createArchive(original)),
+            readArchive(createArchive(store.snapshot)),
+        )
     }
 
     private fun createArchive(snapshot: Map<String, Map<String, String>>): ByteArray {
@@ -85,12 +88,11 @@ class PremiumBackupSnapshotFilterTest {
         return output.toByteArray()
     }
 
-    private fun readArchive(archive: ByteArray): String = ZipInputStream(archive.inputStream()).use { zip ->
-        buildString {
+    private fun readArchive(archive: ByteArray): Map<String, String> = ZipInputStream(archive.inputStream()).use { zip ->
+        buildMap {
             while (true) {
                 val entry = zip.nextEntry ?: break
-                append(entry.name)
-                append(zip.readBytes().toString(Charsets.UTF_8))
+                put(entry.name, zip.readBytes().toString(Charsets.UTF_8))
                 zip.closeEntry()
             }
         }
