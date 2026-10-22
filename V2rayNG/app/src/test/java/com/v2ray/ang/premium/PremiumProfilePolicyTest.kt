@@ -27,9 +27,4 @@ class PremiumProfilePolicyTest {
         assertTrue(PremiumProfilePolicy.isShareAllowed(null))
     }
 
-    @Test
-    fun `Dams backup is refused when it would contain Premium profiles`() {
-        assertTrue(PremiumProfilePolicy.canExportDams(hasPremiumProfiles = false))
-        assertFalse(PremiumProfilePolicy.canExportDams(hasPremiumProfiles = true))
-    }
 }

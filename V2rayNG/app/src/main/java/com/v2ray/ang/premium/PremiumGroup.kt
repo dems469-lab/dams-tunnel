@@ -16,8 +16,6 @@ internal object PremiumProfilePolicy {
 
     fun isShareAllowed(groupId: String?): Boolean = !PremiumIsolationPolicy.isPremiumGroup(groupId)
 
-    fun canExportDams(hasPremiumProfiles: Boolean): Boolean = !hasPremiumProfiles
-
     fun <T> appendVisibleGroup(
         groups: List<T>,
         premiumGroup: T,

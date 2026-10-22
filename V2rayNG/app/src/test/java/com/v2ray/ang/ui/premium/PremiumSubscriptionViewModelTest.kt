@@ -2,10 +2,14 @@ package com.v2ray.ang.ui.premium
 
 import com.v2ray.ang.R
 import com.v2ray.ang.premium.PremiumActivationResult
+import com.v2ray.ang.premium.PremiumDemoScenario
+import com.v2ray.ang.premium.PremiumDemoSubscriptionDataSource
 import com.v2ray.ang.premium.PremiumExpiryState
 import com.v2ray.ang.premium.PremiumStoredTokenResult
 import com.v2ray.ang.premium.PremiumSubscriptionDataSource
 import com.v2ray.ang.premium.PremiumSubscriptionInfo
+import com.v2ray.ang.premium.PremiumSubscriptionInfoParser
+import com.v2ray.ang.premium.PremiumSubscriptionStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -187,6 +191,37 @@ class PremiumSubscriptionViewModelTest {
 
         assertEquals(R.string.premium_error_server, viewModel.uiState.value.messageRes)
         assertFalse(viewModel.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `test build demo source presents active expired and exhausted quota states without networking`() {
+        val source = PremiumDemoSubscriptionDataSource(nowEpochSeconds = { 1_800_000_000L })
+        val viewModel = PremiumSubscriptionViewModel(
+            dataSource = source,
+            featureEnabled = true,
+            operationScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            ioDispatcher = Dispatchers.Unconfined,
+        )
+
+        viewModel.loadSavedState()
+        assertEquals(PremiumDemoScenario.ACTIVE, viewModel.uiState.value.demoScenario)
+        assertEquals(
+            PremiumSubscriptionStatus.ACTIVE,
+            PremiumSubscriptionInfoParser.status(viewModel.uiState.value.info, 1_800_000_000L),
+        )
+
+        viewModel.selectDemoScenario(PremiumDemoScenario.EXPIRED)
+        assertTrue(viewModel.uiState.value.expiry.isExpired)
+        assertEquals(
+            PremiumSubscriptionStatus.EXPIRED,
+            PremiumSubscriptionInfoParser.status(viewModel.uiState.value.info, 1_800_000_000L),
+        )
+
+        viewModel.selectDemoScenario(PremiumDemoScenario.QUOTA_EXHAUSTED)
+        assertEquals(
+            PremiumSubscriptionStatus.QUOTA_EXHAUSTED,
+            PremiumSubscriptionInfoParser.status(viewModel.uiState.value.info, 1_800_000_000L),
+        )
     }
 
     private fun newViewModel(data: FakeDataSource, enabled: Boolean = true) = PremiumSubscriptionViewModel(

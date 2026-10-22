@@ -27,12 +27,15 @@ import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.dto.entities.SubscriptionItem
 import com.v2ray.ang.dto.entities.WebDavConfig
 import com.v2ray.ang.premium.PremiumGroup
+import com.v2ray.ang.premium.PremiumBackupSnapshotFilter
+import com.v2ray.ang.premium.PremiumBackupSnapshotStore
 import com.v2ray.ang.premium.PremiumIsolationPolicy
 import com.v2ray.ang.util.JsonUtil
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import java.io.File
 
 internal class ProfileStorageException(message: String) : IllegalStateException(message)
 
@@ -661,6 +664,36 @@ object MmkvManager {
     fun hasPremiumProfiles(): Boolean =
         decodeServerList(PremiumGroup.ID).isNotEmpty() ||
             profileFullStorage.allKeys().orEmpty().any(::isPremiumProfileGuid)
+
+    /** Filtre uniquement la copie MMKV d'export ; les bases actives ne sont jamais ouvertes ici. */
+    internal fun filterPremiumFromBackupSnapshot(backupDirectory: File) {
+        val opened = mutableMapOf<String, MMKV?>()
+        fun snapshotDatabase(id: String): MMKV? = opened.getOrPut(id) {
+            val fileExists = File(backupDirectory, id).isFile
+            if (!fileExists) return@getOrPut null
+            MMKV.mmkvWithID(id, MMKV.MULTI_PROCESS_MODE, null, backupDirectory.absolutePath)
+        }
+
+        PremiumBackupSnapshotFilter.apply(object : PremiumBackupSnapshotStore {
+            override fun keys(database: String): Set<String> =
+                snapshotDatabase(database)?.allKeys().orEmpty().toSet()
+
+            override fun readString(database: String, key: String): String? =
+                snapshotDatabase(database)?.decodeString(key)
+
+            override fun remove(database: String, keys: Collection<String>) {
+                if (keys.isNotEmpty()) snapshotDatabase(database)?.removeValuesForKeys(keys.toTypedArray())
+            }
+
+            override fun writeString(database: String, key: String, value: String) {
+                val storage = checkNotNull(snapshotDatabase(database)) {
+                    "Base MMKV absente de la copie de sauvegarde"
+                }
+                check(storage.encode(key, value)) { "Impossible de filtrer la copie de sauvegarde" }
+            }
+        })
+        opened.values.filterNotNull().forEach(MMKV::sync)
+    }
 
     //endregion
 

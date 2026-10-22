@@ -44,7 +44,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.v2ray.ang.R
+import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.premium.PremiumExpiryState
+import com.v2ray.ang.premium.PremiumDemoScenario
+import com.v2ray.ang.premium.PremiumDemoSubscriptionDataSource
 import com.v2ray.ang.premium.PremiumFeatureGate
 import com.v2ray.ang.premium.PremiumSubscriptionInfo
 import com.v2ray.ang.premium.PremiumSubscriptionInfoParser
@@ -59,10 +62,13 @@ import kotlin.math.ceil
 
 class PremiumSubscriptionActivity : BaseComponentActivity() {
     private var premiumFeatureEnabled by mutableStateOf(false)
+    private val demoDataSource by lazy {
+        if (BuildConfig.DAMS_PREMIUM_DEMO_MODE) PremiumDemoSubscriptionDataSource() else null
+    }
 
     private val viewModel: PremiumSubscriptionViewModel by viewModels {
         PremiumSubscriptionViewModel.Factory(
-            PremiumSubscriptionRepository(application),
+            demoDataSource ?: PremiumSubscriptionRepository(application),
             premiumFeatureEnabled,
         )
     }
@@ -95,6 +101,7 @@ class PremiumSubscriptionActivity : BaseComponentActivity() {
             onRemove = viewModel::requestRemove,
             onDismissRemove = viewModel::dismissRemoveConfirmation,
             onConfirmRemove = viewModel::confirmRemove,
+            onSelectDemoScenario = viewModel::selectDemoScenario,
             onBack = { finish() },
         )
     }
@@ -109,6 +116,7 @@ private fun PremiumSubscriptionScreen(
     onRemove: () -> Unit,
     onDismissRemove: () -> Unit,
     onConfirmRemove: () -> Unit,
+    onSelectDemoScenario: (PremiumDemoScenario) -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -151,6 +159,27 @@ private fun PremiumSubscriptionScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            if (state.demoScenario != null) {
+                Text(
+                    text = stringResource(R.string.premium_demo_build_notice),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(stringResource(R.string.premium_demo_choose_state))
+                OutlinedButton(
+                    onClick = { onSelectDemoScenario(PremiumDemoScenario.ACTIVE) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.premium_demo_active)) }
+                OutlinedButton(
+                    onClick = { onSelectDemoScenario(PremiumDemoScenario.EXPIRED) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.premium_demo_expired)) }
+                OutlinedButton(
+                    onClick = { onSelectDemoScenario(PremiumDemoScenario.QUOTA_EXHAUSTED) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.premium_demo_quota)) }
+            }
+
             if (state.requiresCodeReentry) {
                 Text(
                     text = stringResource(R.string.premium_reentry_hint),

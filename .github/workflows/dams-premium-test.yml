@@ -7,6 +7,11 @@ on:
         description: HTTPS base URL for the internal test subscription server
         required: true
         type: string
+      demo_mode:
+        description: Use simulated subscription states without network access
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -34,19 +39,20 @@ jobs:
             exit 1
           fi
 
-      - name: Build internal debug APK with Premium enabled
+      - name: Build isolated internal TEST APK
         working-directory: V2rayNG
         env:
           TEST_DOMAIN: ${{ inputs.test_domain }}
+          DEMO_MODE: ${{ inputs.demo_mode }}
         run: |
-          ./gradlew --no-daemon :app:assemblePlaystoreDebug \
-            -PpremiumEnabled=true \
-            -PpremiumDebugBaseUrl="$TEST_DOMAIN"
+          ./gradlew --no-daemon :app:assemblePlaystorePremiumTest \
+            -PpremiumDebugBaseUrl="$TEST_DOMAIN" \
+            -PpremiumDemoMode="$DEMO_MODE"
 
       - name: Mark APK as internal test build
         run: |
           mkdir -p artifacts/premium-test
-          find V2rayNG/app/build/outputs/apk/playstore/debug -maxdepth 1 -name '*.apk' -print -quit \
+          find V2rayNG/app/build/outputs/apk/playstore/premiumTest -maxdepth 1 -name '*universal.apk' -print -quit \
             | xargs -r -I '{}' cp '{}' artifacts/premium-test/dams-tunnel-premium-test.apk
           test -s artifacts/premium-test/dams-tunnel-premium-test.apk
 

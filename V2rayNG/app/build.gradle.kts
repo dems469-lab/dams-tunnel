@@ -8,6 +8,9 @@ plugins {
 val premiumEnabledProperty = providers.gradleProperty("premiumEnabled").orElse("false").get()
 val premiumEnabled = premiumEnabledProperty.toBooleanStrictOrNull()
     ?: error("premiumEnabled doit valoir true ou false")
+val premiumDemoModeProperty = providers.gradleProperty("premiumDemoMode").orElse("true").get()
+val premiumDemoMode = premiumDemoModeProperty.toBooleanStrictOrNull()
+    ?: error("premiumDemoMode doit valoir true ou false")
 val premiumBaseUrls = providers.gradleProperty("premiumBaseUrls").orElse("").get()
 val premiumDebugBaseUrl = providers.gradleProperty("premiumDebugBaseUrl").orElse("").get()
 
@@ -25,6 +28,7 @@ android {
         versionCode = 751
         versionName = "2.3.11"
         buildConfigField("boolean", "PREMIUM_ENABLED", premiumEnabled.toString())
+        buildConfigField("boolean", "DAMS_PREMIUM_DEMO_MODE", "false")
         buildConfigField("String", "PREMIUM_BASE_URLS", buildConfigString(premiumBaseUrls))
         buildConfigField("String", "PREMIUM_DEBUG_BASE_URL", buildConfigString(""))
 
@@ -73,6 +77,14 @@ android {
     buildTypes {
         debug {
             buildConfigField("String", "PREMIUM_DEBUG_BASE_URL", buildConfigString(premiumDebugBaseUrl))
+        }
+        create("premiumTest") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".test"
+            versionNameSuffix = "-test"
+            buildConfigField("boolean", "PREMIUM_ENABLED", "true")
+            buildConfigField("boolean", "DAMS_PREMIUM_DEMO_MODE", premiumDemoMode.toString())
+            matchingFallbacks += listOf("debug")
         }
         release {
             isMinifyEnabled = false
