@@ -57,3 +57,7 @@ jobs:
       - name: Run tests and lint
         working-directory: V2rayNG
         run: ./gradlew testPlaystoreDebugUnitTest lintPlaystoreDebug
+
+      - name: Build isolated Premium test APK (debug signing only)
+        working-directory: V2rayNG
+        run: ./gradlew :app:assemblePlaystorePremiumTest -PpremiumDemoMode=true
