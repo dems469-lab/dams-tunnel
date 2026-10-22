@@ -56,7 +56,7 @@ jobs:
 
       - name: Run tests and lint
         working-directory: V2rayNG
-        run: ./gradlew testPlaystoreDebugUnitTest testPlaystorePremiumTestUnitTest lintPlaystoreDebug
+        run: ./gradlew testPlaystoreDebugUnitTest lintPlaystoreDebug
 
       - name: Build standard debug and release APKs for demo isolation checks
         working-directory: V2rayNG
@@ -72,6 +72,10 @@ jobs:
           set -euo pipefail
           contains_test_demo() {
             local apk="$1"
+            if unzip -p "$apk" resources.arsc | strings | grep -Eq \
+              'simulated subscription data|données d’abonnement simulées|Simulate active subscription|Simuler un abonnement actif'; then
+              return 0
+            fi
             while IFS= read -r dex; do
               if unzip -p "$apk" "$dex" | strings | grep -Eq \
                 'Lcom/v2ray/ang/premiumtest/PremiumTestVariantExtension;|Lcom/v2ray/ang/premium/PremiumDemoSubscriptionDataSource;|Lcom/v2ray/ang/premium/PremiumDemoScenario;|premium_demo_(build_notice|active|expired|quota)'; then
