@@ -903,13 +903,28 @@ private fun IpFinderSetupScreen(
                         fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Text(cellularIpVerdict ?: stringResource(R.string.ip_finder_rules_match_no_ip),
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         IpFinderPill(
                             text = stringResource(if (vpnActive) R.string.ip_finder_vpn_active else R.string.ip_finder_vpn_inactive),
                             highlighted = vpnActive
                         )
-                        if (wifiActive) Text(stringResource(R.string.ip_finder_wifi_warning),
-                            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                        if (wifiActive) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                shape = RoundedCornerShape(10.dp),
+                            ) {
+                                Text(
+                                    stringResource(R.string.ip_finder_wifi_warning),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                )
+                            }
+                        }
                     }
                 }
             }

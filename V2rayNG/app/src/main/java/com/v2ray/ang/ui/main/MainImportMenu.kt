@@ -66,6 +66,15 @@ internal fun serverMenuActions(
 fun ImportMenuContent(onAction: (MainAction) -> Unit) = AppDropdownMenuItems(
     items = ImportMenuAction.entries,
     labelRes = { it.labelRes },
+    iconRes = {
+        when (it) {
+            ImportMenuAction.QRCode -> R.drawable.ic_qu_scan_24dp
+            ImportMenuAction.Clipboard -> R.drawable.ic_copy
+            ImportMenuAction.LocalFile -> R.drawable.ic_file_24dp
+            ImportMenuAction.PolicyGroup, ImportMenuAction.ProxyChain -> R.drawable.ic_routing_24dp
+            else -> R.drawable.ic_add_24dp
+        }
+    },
     onSelected = { onAction(it.action) }
 )
 
@@ -73,6 +82,20 @@ fun ImportMenuContent(onAction: (MainAction) -> Unit) = AppDropdownMenuItems(
 fun MoreMenuContent(onSelected: (MainMoreMenuAction) -> Unit) = AppDropdownMenuItems(
     items = MainMoreMenuAction.entries,
     labelRes = { it.labelRes },
+    iconRes = {
+        when (it) {
+            MainMoreMenuAction.RestartService -> R.drawable.ic_restore_24dp
+            MainMoreMenuAction.DeleteAll,
+            MainMoreMenuAction.DeleteDuplicate,
+            MainMoreMenuAction.DeleteInvalid -> R.drawable.ic_delete_24dp
+            MainMoreMenuAction.ExportAll -> R.drawable.ic_save_24dp
+            MainMoreMenuAction.LocateSelected -> R.drawable.ic_search_24dp
+            MainMoreMenuAction.SortByTestResults -> R.drawable.ic_select_all_24dp
+            MainMoreMenuAction.TestAll,
+            MainMoreMenuAction.TestAllRealPing -> R.drawable.ic_flash_on_24dp
+            MainMoreMenuAction.UpdateSubscriptions -> R.drawable.ic_cloud_download_24dp
+        }
+    },
     onSelected = onSelected
 )
 

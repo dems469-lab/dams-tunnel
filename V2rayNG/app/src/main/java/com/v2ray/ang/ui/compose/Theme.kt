@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -23,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -114,10 +116,33 @@ private val DamsShapes = Shapes(
     extraLarge = RoundedCornerShape(16.dp),
 )
 
-private val DamsTypography = Typography().run {
-    copy(
-        bodySmall = bodySmall.copy(fontFamily = FontFamily.Monospace),
-        labelSmall = labelSmall.copy(fontFamily = FontFamily.Monospace),
+private fun damsTypography(style: String): Typography {
+    val base = Typography()
+    val family = when (style) {
+        "1", "5", "8" -> FontFamily.SansSerif
+        "2", "6" -> FontFamily.Serif
+        "3", "7" -> FontFamily.Monospace
+        "4" -> FontFamily.Cursive
+        else -> FontFamily.Default
+    }
+    val weight = when (style) {
+        "5", "8" -> androidx.compose.ui.text.font.FontWeight.SemiBold
+        "6" -> androidx.compose.ui.text.font.FontWeight.Medium
+        else -> androidx.compose.ui.text.font.FontWeight.Normal
+    }
+    val spacing = when (style) {
+        "3", "7" -> 0.8.sp
+        "4" -> 0.2.sp
+        "8", "9" -> 0.5.sp
+        else -> 0.sp
+    }
+    return base.copy(
+        displaySmall = base.displaySmall.copy(fontFamily = family, fontWeight = weight, letterSpacing = spacing),
+        titleMedium = base.titleMedium.copy(fontFamily = family, fontWeight = weight, letterSpacing = spacing),
+        bodyMedium = base.bodyMedium.copy(fontFamily = family, letterSpacing = spacing),
+        bodySmall = base.bodySmall.copy(fontFamily = family, letterSpacing = spacing),
+        labelLarge = base.labelLarge.copy(fontFamily = family, fontWeight = weight, letterSpacing = spacing),
+        labelSmall = base.labelSmall.copy(fontFamily = family, letterSpacing = spacing),
     )
 }
 
@@ -150,6 +175,14 @@ object ThemeManager {
         MmkvManager.decodeSettingsBool(AppConfig.PREF_DYNAMIC_COLOR, true)
     )
     val dynamicColorEnabled: StateFlow<Boolean> = _dynamicColorEnabled.asStateFlow()
+    private val _palette = MutableStateFlow(
+        MmkvManager.decodeSettingsString(AppConfig.PREF_DAMS_THEME_PALETTE, "0") ?: "0"
+    )
+    val palette: StateFlow<String> = _palette.asStateFlow()
+    private val _typographyStyle = MutableStateFlow(
+        MmkvManager.decodeSettingsString(AppConfig.PREF_DAMS_TYPOGRAPHY_STYLE, "0") ?: "0"
+    )
+    val typographyStyle: StateFlow<String> = _typographyStyle.asStateFlow()
 
     fun setThemeMode(mode: String) {
         MmkvManager.encodeSettings(AppConfig.PREF_UI_MODE_NIGHT, mode)
@@ -161,11 +194,25 @@ object ThemeManager {
         _dynamicColorEnabled.value = enabled
     }
 
+    fun setPalette(value: String) {
+        MmkvManager.encodeSettings(AppConfig.PREF_DAMS_THEME_PALETTE, value)
+        _palette.value = value
+    }
+
+    fun setTypographyStyle(value: String) {
+        MmkvManager.encodeSettings(AppConfig.PREF_DAMS_TYPOGRAPHY_STYLE, value)
+        _typographyStyle.value = value
+    }
+
     fun refresh() {
         _themeMode.value =
             MmkvManager.decodeSettingsString(AppConfig.PREF_UI_MODE_NIGHT, "0") ?: "0"
         _dynamicColorEnabled.value =
             MmkvManager.decodeSettingsBool(AppConfig.PREF_DYNAMIC_COLOR, true)
+        _palette.value =
+            MmkvManager.decodeSettingsString(AppConfig.PREF_DAMS_THEME_PALETTE, "0") ?: "0"
+        _typographyStyle.value =
+            MmkvManager.decodeSettingsString(AppConfig.PREF_DAMS_TYPOGRAPHY_STYLE, "0") ?: "0"
     }
 }
 
@@ -187,15 +234,18 @@ fun AppTheme(
     content: @Composable () -> Unit
 ) {
     val dynamicColor by ThemeManager.dynamicColorEnabled.collectAsState()
+    val palette by ThemeManager.palette.collectAsState()
+    val typographyStyle by ThemeManager.typographyStyle.collectAsState()
     val context = LocalContext.current
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+    val baseColorScheme = when {
+        dynamicColor && palette == "0" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
         darkTheme -> DarkColor
         else -> LightColor
     }
+    val colorScheme = applyDamsPalette(baseColorScheme, palette, darkTheme)
     val snackbarController = rememberAppSnackbarController()
 
     val view = LocalView.current
@@ -216,7 +266,7 @@ fun AppTheme(
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = DamsTypography,
+            typography = damsTypography(typographyStyle),
             shapes = DamsShapes,
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -226,4 +276,21 @@ fun AppTheme(
             }
         }
     }
+}
+
+private fun applyDamsPalette(base: ColorScheme, palette: String, darkTheme: Boolean): ColorScheme {
+    if (palette == "0") return base
+    val colors = when (palette) {
+        "1" -> Triple(Color(0xFFFFC857), Color(0xFFF4A261), Color(0xFFFFE08A))
+        "2" -> Triple(Color(0xFF38BDF8), Color(0xFF2DD4BF), Color(0xFF60A5FA))
+        "3" -> Triple(Color(0xFF34D399), Color(0xFF22C55E), Color(0xFF67E8F9))
+        "4" -> Triple(Color(0xFF2563EB), Color(0xFF0891B2), Color(0xFF7C3AED))
+        else -> return base
+    }
+    return base.copy(
+        primary = colors.first,
+        secondary = colors.second,
+        tertiary = colors.third,
+        onPrimary = if (darkTheme) Color(0xFF08111F) else Color.White,
+    )
 }

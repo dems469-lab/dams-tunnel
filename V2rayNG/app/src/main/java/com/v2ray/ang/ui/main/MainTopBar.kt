@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
@@ -83,6 +84,7 @@ fun MainTopBar(
                     scrollState = importMenuScrollState,
                     containerColor = MaterialTheme.colorScheme.surface,
                     modifier = Modifier
+                        .widthIn(min = 260.dp, max = 360.dp)
                         .heightIn(max = maxMenuHeight)
                         .verticalScrollbar(importMenuScrollState)
                 ) {
@@ -104,6 +106,7 @@ fun MainTopBar(
                     scrollState = moreMenuScrollState,
                     containerColor = MaterialTheme.colorScheme.surface,
                     modifier = Modifier
+                        .widthIn(min = 280.dp, max = 380.dp)
                         .heightIn(max = maxMenuHeight)
                         .verticalScrollbar(moreMenuScrollState)
                 ) {

@@ -63,6 +63,8 @@ object AppConfig {
     const val PREF_APP_LOCALE_MIGRATED = "pref_app_locale_migrated"
     const val PREF_UI_MODE_NIGHT = "pref_ui_mode_night"
     const val PREF_DYNAMIC_COLOR = "pref_dynamic_color"
+    const val PREF_DAMS_THEME_PALETTE = "pref_dams_theme_palette"
+    const val PREF_DAMS_TYPOGRAPHY_STYLE = "pref_dams_typography_style"
     const val PREF_DAMS_BRANDING_MIGRATED = "pref_dams_branding_migrated"
     const val PREF_DAMS_DARK_THEME_MIGRATED = "pref_dams_dark_theme_migrated"
     const val PREF_IPV6_ENABLED = "pref_ipv6_enabled"

@@ -20,6 +20,8 @@ object SettingsChangeManager {
         AppConfig.PREF_LANGUAGE,
         AppConfig.PREF_UI_MODE_NIGHT,
         AppConfig.PREF_DYNAMIC_COLOR,
+        AppConfig.PREF_DAMS_THEME_PALETTE,
+        AppConfig.PREF_DAMS_TYPOGRAPHY_STYLE,
         AppConfig.PREF_IS_BOOTED,
     )
 

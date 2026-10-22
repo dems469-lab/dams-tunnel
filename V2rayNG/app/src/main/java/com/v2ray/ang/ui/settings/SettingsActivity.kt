@@ -225,6 +225,12 @@ fun SettingsScreen(
     val languageValues = stringArrayResource(R.array.language_select_value).toList()
     val uiModeNightEntries = stringArrayResource(R.array.ui_mode_night).toList()
     val uiModeNightValues = stringArrayResource(R.array.ui_mode_night_value).toList()
+    val paletteEntries = stringArrayResource(R.array.dams_theme_palette).toList()
+    val paletteValues = stringArrayResource(R.array.dams_theme_palette_value).toList()
+    val typographyEntries = stringArrayResource(R.array.dams_typography_style).toList()
+    val typographyValues = stringArrayResource(R.array.dams_typography_style_value).toList()
+    var palette by rememberMmkvString(AppConfig.PREF_DAMS_THEME_PALETTE, "0")
+    var typographyStyle by rememberMmkvString(AppConfig.PREF_DAMS_TYPOGRAPHY_STYLE, "0")
     val bypassLanEntries = stringArrayResource(R.array.vpn_bypass_lan).toList()
     val bypassLanValues = stringArrayResource(R.array.vpn_bypass_lan_value).toList()
     val interfaceAddrEntries = stringArrayResource(R.array.vpn_interface_address).toList()
@@ -340,6 +346,26 @@ fun SettingsScreen(
                     onSelected = {
                         uiModeNight = it
                         ThemeManager.setThemeMode(it)
+                    }
+                )
+                SettingsListItem(
+                    title = stringResource(R.string.title_pref_dams_theme_palette),
+                    entries = paletteEntries,
+                    values = paletteValues,
+                    selectedValue = palette,
+                    onSelected = {
+                        palette = it
+                        ThemeManager.setPalette(it)
+                    }
+                )
+                SettingsListItem(
+                    title = stringResource(R.string.title_pref_dams_typography_style),
+                    entries = typographyEntries,
+                    values = typographyValues,
+                    selectedValue = typographyStyle,
+                    onSelected = {
+                        typographyStyle = it
+                        ThemeManager.setTypographyStyle(it)
                     }
                 )
             }
