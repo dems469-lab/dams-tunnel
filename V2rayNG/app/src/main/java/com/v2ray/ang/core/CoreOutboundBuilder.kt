@@ -555,9 +555,8 @@ object CoreOutboundBuilder {
      */
     fun populateTlsSettings(streamSettings: OutboundBean.StreamSettingsBean, profileItem: ProfileItem, sniExt: String?) {
         val streamSecurity = profileItem.security.orEmpty()
-        // Legacy provider profiles commonly omit the insecure flag while relying on the
-        // permissive TLS behavior of older Xray cores. Preserve that compatibility by
-        // treating a missing flag as enabled unless a certificate pin is supplied.
+        // Keep the historical behavior for stored profiles that omit the flag. New
+        // profiles are initialized with insecure=false before reaching the core.
         val allowInsecure = profileItem.insecure == true && profileItem.pinnedCA256.isNullOrEmpty()
         val sni = resolveTlsServerName(profileItem, sniExt)
 

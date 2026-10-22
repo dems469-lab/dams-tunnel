@@ -230,7 +230,9 @@ class ServerUiState(
                 browserDialerMode = initialConfig.browserDialerMode ?: "",
                 streamSecurity = initialConfig.security ?: "",
                 sni = initialConfig.sni ?: "",
-                allowInsecure = initialConfig.insecure == true,
+                // A missing value is kept compatible for an already stored profile.
+                // New profiles are initialized with insecure=false in BaseServerActivity.
+                allowInsecure = initialConfig.insecure != false,
                 fingerPrint = initialConfig.fingerPrint ?: "",
                 alpn = initialConfig.alpn ?: "",
                 publicKeyReality = initialConfig.publicKey ?: "",
