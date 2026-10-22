@@ -102,6 +102,7 @@ data class MainUiState(
     ),
     val trafficHistory: List<TrafficSnapshot> = emptyList(),
     val diagnostic: ConnectionDiagnostic? = null,
+    val mobileIp: String? = null,
     val locateTarget: LocateTarget? = null,
     val confirmRemove: Boolean = false,
     val doubleColumnDisplay: Boolean = false,

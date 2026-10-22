@@ -121,6 +121,8 @@
     <string name="dams_metric_unavailable">Indisponible</string>
     <string name="dams_mobile_daily_usage_title">Consommation mobile aujourd’hui</string>
     <string name="dams_mobile_daily_usage_value">Téléchargement %1$s · Téléversement %2$s</string>
+    <string name="dams_mobile_ip_title">IP mobile</string>
+    <string name="dams_mobile_ip_source">Réseau cellulaire uniquement</string>
     <string name="dams_server_group">Groupe de serveurs</string>
     <string name="menu_item_add_config">Ajouter une configuration</string>
     <string name="menu_item_save_config">Enregistrer la configuration</string>

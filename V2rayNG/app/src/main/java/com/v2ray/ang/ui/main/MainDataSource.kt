@@ -7,10 +7,12 @@ import com.v2ray.ang.dto.entities.ServerAffiliationInfo
 import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.dto.entities.SubscriptionItem
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import java.io.Closeable
 
 interface MainDataSource : Closeable {
     val mainServiceEvent: Flow<MainServiceEvent>
+    val mobileIp: StateFlow<String?>
 
     fun getSelectedSubscriptionId(): String
     fun setSelectedSubscriptionId(id: String)

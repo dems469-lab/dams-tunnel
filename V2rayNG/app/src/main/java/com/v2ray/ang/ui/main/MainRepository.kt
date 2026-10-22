@@ -33,6 +33,7 @@ import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.atomic.AtomicBoolean
 
 class MainRepository(
@@ -57,6 +58,9 @@ class MainRepository(
         get() = AppLocaleManager.localizedContext(app)
 
     private val closed = AtomicBoolean(false)
+    private val mobileIpMonitor = MobileIpMonitor(app)
+
+    override val mobileIp: StateFlow<String?> = mobileIpMonitor.mobileIp
 
     // Probe results are finite and must remain lossless until the ViewModel coalesces them.
     private val mainServiceEventChannel = Channel<MainServiceEvent>(Channel.UNLIMITED)
@@ -105,6 +109,7 @@ class MainRepository(
     }
 
     init {
+        mobileIpMonitor.start()
         ContextCompat.registerReceiver(
             app,
             serviceReceiver,
@@ -126,6 +131,7 @@ class MainRepository(
         }.onFailure {
             LogUtil.e(AppConfig.TAG, "Failed to unregister main service receiver", it)
         }
+        mobileIpMonitor.close()
         mainServiceEventChannel.close()
     }
 

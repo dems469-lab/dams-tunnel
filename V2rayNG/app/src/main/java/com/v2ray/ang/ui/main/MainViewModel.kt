@@ -120,6 +120,11 @@ class MainViewModel(
 
     // ---------- Service events ----------
     init {
+        viewModelScope.launch {
+            dataSource.mobileIp.collect { ip ->
+                _uiState.update { it.copy(mobileIp = ip) }
+            }
+        }
         collectServiceEvents()
         setupGroupTab()
     }

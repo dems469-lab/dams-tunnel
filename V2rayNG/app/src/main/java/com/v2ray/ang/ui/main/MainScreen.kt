@@ -64,6 +64,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextOverflow
@@ -313,6 +314,7 @@ fun MainScreen(
                     mobileDailyUplinkBytes = traffic.mobileDailyUplinkBytes,
                     mobileDailyDownlinkBytes = traffic.mobileDailyDownlinkBytes,
                     trafficHistory = uiState.trafficHistory,
+                    mobileIp = uiState.mobileIp,
                     diagnostic = uiState.diagnostic,
                     onOpenServers = { selectedTab = DamsTab.Configs },
                     onTestConnection = { onAction(MainAction.TestCurrentServer) },
@@ -479,6 +481,7 @@ private fun DamsDashboard(
     mobileDailyUplinkBytes: Long,
     mobileDailyDownlinkBytes: Long,
     trafficHistory: List<com.v2ray.ang.dto.TrafficSnapshot>,
+    mobileIp: String?,
     diagnostic: ConnectionDiagnostic?,
     onOpenServers: () -> Unit,
     onTestConnection: () -> Unit,
@@ -610,6 +613,35 @@ private fun DamsDashboard(
                     )
                 }
                 Text("›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineMedium)
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = MaterialTheme.shapes.large,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
+                Text(
+                    text = stringResource(R.string.dams_mobile_ip_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = mobileIp ?: stringResource(R.string.dams_metric_unavailable),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(R.string.dams_mobile_ip_source),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 
