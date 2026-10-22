@@ -204,6 +204,7 @@
     <string name="dams_file_invalid">Le fichier Dams est invalide, expiré ou le mot de passe est incorrect.</string>
     <string name="backup_file_too_large">Le fichier dépasse la limite autorisée de 5 Mio.</string>
     <string name="title_dams_export">Exporter un fichier .dams protégé</string>
+    <string name="title_dams_export_action">Exporter la configuration complète (.dams)</string>
     <string name="title_dams_password">Mot de passe</string>
     <string name="title_dams_password_confirm">Confirmer le mot de passe</string>
     <string name="title_dams_restore_attempts">Import .dams — protection locale limitée : %1$d tentatives restantes</string>
