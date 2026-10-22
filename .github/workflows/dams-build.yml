@@ -120,3 +120,17 @@ jobs:
           name: dams-release-apks
           path: V2rayNG/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
+
+      - name: Upload APK universel séparément
+        uses: actions/upload-artifact@v4
+        with:
+          name: dams-universal-apk
+          path: V2rayNG/app/build/outputs/apk/playstore/release/*_universal.apk
+          if-no-files-found: error
+
+      - name: Upload APK arm64 séparément
+        uses: actions/upload-artifact@v4
+        with:
+          name: dams-arm64-apk
+          path: V2rayNG/app/build/outputs/apk/playstore/release/*_arm64-v8a.apk
+          if-no-files-found: error
