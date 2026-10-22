@@ -278,7 +278,8 @@ object CoreServiceManager {
             while (isActive && !userStopped && isRunning()) {
                 // Vérification courte : une coupure doit déclencher la reconnexion
                 // avant que l'utilisateur ne perçoive un tunnel abandonné.
-                delay(2_000L)
+                // Détecter une coupure rapidement sans attendre deux secondes complètes.
+                delay(1_000L)
                 if (!isRunning() || userStopped) break
                 val reachable = try {
                     measureDelayWithFallback() >= 0L

@@ -558,7 +558,7 @@ object CoreOutboundBuilder {
         // Legacy provider profiles commonly omit the insecure flag while relying on the
         // permissive TLS behavior of older Xray cores. Preserve that compatibility by
         // treating a missing flag as enabled unless a certificate pin is supplied.
-        val allowInsecure = profileItem.insecure != false && profileItem.pinnedCA256.isNullOrEmpty()
+        val allowInsecure = profileItem.insecure == true && profileItem.pinnedCA256.isNullOrEmpty()
         val sni = resolveTlsServerName(profileItem, sniExt)
 
         streamSettings.security = streamSecurity.nullIfBlank()

@@ -102,6 +102,7 @@ fun MainScreen(
     val groups = uiState.groups
     val isLoading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     val isRunning = uiState.isRunning
+    val isConnected = uiState.status == MainStatus.Connected
     val canStopService = shouldStopServiceOnToggle(uiState.isRunning, uiState.status)
     val displayText = mainViewModel.formatStatus(uiState.status)
     val selectedGuid = uiState.selectedGuid
@@ -297,6 +298,7 @@ fun MainScreen(
                     contentPadding = innerPadding,
                     displayText = displayText,
                     isRunning = isRunning,
+                    isConnected = isConnected,
                     canStopService = canStopService,
                     groupName = groups.firstOrNull { it.id == uiState.selectedGroupId }?.remarks,
                     selectedServerName = selectedServer?.profile?.remarks,
@@ -464,6 +466,7 @@ private fun DamsDashboard(
     contentPadding: PaddingValues,
     displayText: String,
     isRunning: Boolean,
+    isConnected: Boolean,
     canStopService: Boolean,
     groupName: String?,
     selectedServerName: String?,
@@ -506,11 +509,11 @@ private fun DamsDashboard(
         )
 
         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 4.dp)) {
-            if (isRunning) {
+            if (isConnected) {
                 Box(
                     modifier = Modifier
                         .size(204.dp)
-                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f), CircleShape)
+                        .background(Color(0xFF22C55E).copy(alpha = 0.14f), CircleShape)
                 ) {}
             }
             Surface(
@@ -518,8 +521,8 @@ private fun DamsDashboard(
                     .size(188.dp)
                     .clip(CircleShape)
                     .border(
-                        width = if (isRunning) 2.dp else 1.dp,
-                        color = if (isRunning) MaterialTheme.colorScheme.secondary else Color(0xFF1E4A8A),
+                        width = if (isConnected) 2.dp else 1.dp,
+                        color = if (isConnected) Color(0xFF22C55E) else Color(0xFF1E4A8A),
                         shape = CircleShape,
                     )
                     .clickable(role = Role.Button, onClick = onToggleConnection)
@@ -536,7 +539,7 @@ private fun DamsDashboard(
                         painter = painterResource(R.drawable.ic_power_24dp),
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
-                        tint = if (isRunning) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (isConnected) Color(0xFF22C55E) else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -632,6 +635,12 @@ private fun DamsDashboard(
                 }
             }
         }
+        Text(
+            text = stringResource(R.string.dams_tunnel_traffic_note),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+        )
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

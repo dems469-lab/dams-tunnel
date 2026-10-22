@@ -230,7 +230,7 @@ class ServerUiState(
                 browserDialerMode = initialConfig.browserDialerMode ?: "",
                 streamSecurity = initialConfig.security ?: "",
                 sni = initialConfig.sni ?: "",
-                allowInsecure = initialConfig.insecure != false,
+                allowInsecure = initialConfig.insecure == true,
                 fingerPrint = initialConfig.fingerPrint ?: "",
                 alpn = initialConfig.alpn ?: "",
                 publicKeyReality = initialConfig.publicKey ?: "",

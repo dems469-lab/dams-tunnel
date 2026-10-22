@@ -109,6 +109,8 @@ class MainViewModel(
     private var selectedGroupLoadJob: Job? = null
     private var reloadJob: Job? = null
     private var testResultFlushJob: Job? = null
+    /** Vrai uniquement après une demande explicite de connexion depuis l'écran principal. */
+    private var showStartSuccessToast = false
     private val pendingTestResults = linkedMapOf<String, Long>()
 
     private val testRequests = MainTestRequests()
@@ -143,12 +145,16 @@ class MainViewModel(
             MainServiceEvent.StateRunning -> updateRunningState(true, clearTestingText = false)
             MainServiceEvent.StateNotRunning -> updateRunningState(false, clearTestingText = false)
             MainServiceEvent.StateStartSuccess -> {
-                toastSuccess(R.string.toast_services_success)
+                if (showStartSuccessToast) {
+                    showStartSuccessToast = false
+                    toastSuccess(R.string.toast_services_success)
+                }
                 updateRunningState(true)
                 testCurrentServerRealPing()
             }
 
             is MainServiceEvent.StateStartFailure -> {
+                showStartSuccessToast = false
                 if (!event.message.isNullOrBlank()) {
                     toastError(event.message)
                 } else {
@@ -158,8 +164,9 @@ class MainViewModel(
                 _uiState.update { clearEphemeralConnectionData(it, MainStatus.Disconnected) }
             }
 
-            MainServiceEvent.StateStopSuccess -> _uiState.update {
-                clearEphemeralConnectionData(it, MainStatus.Disconnected)
+            MainServiceEvent.StateStopSuccess -> {
+                showStartSuccessToast = false
+                _uiState.update { clearEphemeralConnectionData(it, MainStatus.Disconnected) }
             }
             is MainServiceEvent.TrafficUpdate -> _uiState.update {
                 if (!it.isRunning) it else it.copy(
@@ -839,6 +846,10 @@ class MainViewModel(
                 diagnostic = null,
             )
         }
+    }
+
+    fun markManualStartRequested() {
+        showStartSuccessToast = true
     }
 
     fun refreshSelectedGuid() {

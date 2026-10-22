@@ -350,6 +350,7 @@ class MainActivity : HelperBaseComponentActivity() {
         ) {
             checkAndRequestPermission(PermissionType.ACCESS_LOCAL_NETWORK) {}
         }
+        mainViewModel.markManualStartRequested()
         LauncherManager.startService(this)
     }
 

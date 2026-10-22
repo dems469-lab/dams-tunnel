@@ -205,7 +205,11 @@ class CoreVpnService : VpnService(), ServiceControl {
 
         // Create a new interface using the builder and save the parameters
         try {
-            mInterface = builder.establish()!!
+            mInterface = builder.establish() ?: run {
+                LogUtil.e(AppConfig.TAG, "StartCore-VPN: Permission VPN refusée ou interface indisponible")
+                stopAllService()
+                return false
+            }
             isRunning = true
             return true
         } catch (e: Exception) {

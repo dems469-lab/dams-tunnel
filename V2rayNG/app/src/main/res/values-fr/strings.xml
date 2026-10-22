@@ -117,6 +117,7 @@
     <string name="dams_metric_protocol">Protocole</string>
     <string name="dams_metric_download">Téléchargement</string>
     <string name="dams_metric_upload">Téléversement</string>
+    <string name="dams_tunnel_traffic_note">Débits du tunnel Xray uniquement ; le trafic global de l’appareil peut être différent.</string>
     <string name="dams_metric_unavailable">Indisponible</string>
     <string name="dams_mobile_daily_usage_title">Consommation mobile aujourd’hui</string>
     <string name="dams_mobile_daily_usage_value">Téléchargement %1$s · Téléversement %2$s</string>
