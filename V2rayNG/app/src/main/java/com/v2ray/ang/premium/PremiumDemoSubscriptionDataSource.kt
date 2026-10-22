@@ -1,7 +1,7 @@
 package com.v2ray.ang.premium
 
 /** Scénarios locaux réservés au build TEST ; cette source n'effectue aucun accès réseau. */
-internal enum class PremiumDemoScenario {
+enum class PremiumDemoScenario {
     ACTIVE,
     EXPIRED,
     QUOTA_EXHAUSTED,
