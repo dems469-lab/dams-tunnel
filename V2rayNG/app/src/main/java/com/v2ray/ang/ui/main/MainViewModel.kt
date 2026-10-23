@@ -448,9 +448,24 @@ class MainViewModel(
 
     private fun updateGroupUi(groupId: String, servers: List<ServersCache>) {
         val filteredServers = applyKeywordFilter(servers)
+        val orderedServers = if (groupId.startsWith("dams-public-")) {
+            val byGuid = filteredServers.associateBy { it.guid }
+            rankConfigs(
+                filteredServers.map { server ->
+                    RankedConfig(
+                        guid = server.guid,
+                        profile = server.profile,
+                        completeness = assessConfigCompleteness(server.profile),
+                        delayMillis = server.testDelayMillis,
+                    )
+                }
+            ).mapNotNull { byGuid[it.guid] }
+        } else {
+            filteredServers
+        }
         mutableServerGroupState(groupId).value = ServerGroupUiState(
-            servers = filteredServers,
-            rows = buildServerRows(groupId, filteredServers)
+            servers = orderedServers,
+            rows = buildServerRows(groupId, orderedServers)
         )
     }
 

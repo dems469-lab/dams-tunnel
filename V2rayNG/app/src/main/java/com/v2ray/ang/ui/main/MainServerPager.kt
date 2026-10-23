@@ -314,6 +314,12 @@ private fun ServerListItem(
     } else {
         null
     }
+    val completenessLabel = when (row.completeness.status) {
+        ConfigCompletenessStatus.COMPLETE -> stringResource(R.string.config_status_complete)
+        ConfigCompletenessStatus.PARTIAL -> stringResource(R.string.config_status_partial)
+        ConfigCompletenessStatus.INVALID -> stringResource(R.string.config_status_invalid)
+        ConfigCompletenessStatus.UNVERIFIED -> stringResource(R.string.config_status_unverified)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -414,7 +420,7 @@ private fun ServerListItem(
             Spacer(modifier = Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    row.typeDescription,
+                    "$completenessLabel · ${row.typeDescription}",
                     modifier = Modifier.weight(1f, fill = false),
                     style = MaterialTheme.typography.bodySmall,
                     color = colorConfigType,

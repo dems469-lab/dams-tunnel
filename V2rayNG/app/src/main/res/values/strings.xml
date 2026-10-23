@@ -847,4 +847,8 @@
     <string name="default_server_switch_title">Switch to a faster server when necessary</string>
     <string name="default_server_switch_summary">Only the default group is considered, using recent tests and the same protocol.</string>
     <string name="default_server_switched">A faster compatible server was selected.</string>
+    <string name="config_status_complete">Complete</string>
+    <string name="config_status_partial">Partial</string>
+    <string name="config_status_invalid">Invalid</string>
+    <string name="config_status_unverified">Not verified</string>
 </resources>

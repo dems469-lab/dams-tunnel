@@ -12,6 +12,7 @@ internal data class ServerRowUiModel(
     val remarks: String,
     val statistics: String,
     val typeDescription: String,
+    val completeness: ConfigCompleteness,
     val testDelayMillis: Long,
     val subscriptionBadge: String,
     val isPremiumProfile: Boolean,
@@ -34,6 +35,7 @@ internal fun buildServerRowUiModel(
         statistics = profile.description.nullIfBlank()
             ?: AngConfigManager.generateDescription(profile),
         typeDescription = serverProtocolDescription(profile),
+        completeness = assessConfigCompleteness(profile),
         testDelayMillis = server.testDelayMillis,
         subscriptionBadge = subscriptionRemarks.firstOrNull()?.toString().orEmpty(),
         isPremiumProfile = com.v2ray.ang.premium.PremiumGroup.ID == profile.subscriptionId,

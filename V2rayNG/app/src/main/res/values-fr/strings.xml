@@ -846,4 +846,8 @@
     <string name="default_server_switch_title">Basculer automatiquement vers un serveur plus rapide si nécessaire</string>
     <string name="default_server_switch_summary">Seul le groupe par défaut est concerné, selon les tests récents et le même protocole.</string>
     <string name="default_server_switched">Un serveur compatible plus rapide a été sélectionné.</string>
+    <string name="config_status_complete">Complète</string>
+    <string name="config_status_partial">Partielle</string>
+    <string name="config_status_invalid">Invalide</string>
+    <string name="config_status_unverified">Non vérifiée</string>
 </resources>
