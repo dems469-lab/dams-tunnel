@@ -214,7 +214,7 @@
     <string name="dams_password_incorrect">Mot de passe incorrect. Réessayez.</string>
     <string name="dams_attempts_exhausted">La limite locale de tentatives est atteinte.</string>
     <string name="dams_restore_failed">Le mot de passe est accepté, mais la restauration a échoué. Le fichier d’origine reste intact.</string>
-    <string name="dams_password_too_short">12 caractères minimum requis.</string>
+    <string name="dams_password_too_short">4 caractères minimum requis.</string>
     <string name="dams_password_strength_acceptable">Mot de passe acceptable.</string>
     <string name="dams_password_strength_strong">Mot de passe fort.</string>
     <string name="title_unencrypted_backup_warning">Sauvegarde non chiffrée</string>

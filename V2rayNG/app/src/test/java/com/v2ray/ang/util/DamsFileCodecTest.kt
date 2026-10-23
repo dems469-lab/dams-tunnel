@@ -74,12 +74,12 @@ class DamsFileCodecTest {
     }
 
     @Test
-    fun `export rejects passwords shorter than twelve characters`() {
+    fun `export rejects passwords shorter than four characters`() {
         assertThrows(IllegalArgumentException::class.java) {
-            DamsFileCodec.encrypt(byteArrayOf(1), DamsFileCodec.ExportOptions("short-pass"))
+            DamsFileCodec.encrypt(byteArrayOf(1), DamsFileCodec.ExportOptions("123"))
         }
-        assertTrue(DamsPasswordPolicy.strength("12345678901") == DamsPasswordPolicy.Strength.TOO_SHORT)
-        assertTrue(DamsPasswordPolicy.strength("123456789012") == DamsPasswordPolicy.Strength.ACCEPTABLE)
+        assertTrue(DamsPasswordPolicy.strength("123") == DamsPasswordPolicy.Strength.TOO_SHORT)
+        assertTrue(DamsPasswordPolicy.strength("1234") == DamsPasswordPolicy.Strength.ACCEPTABLE)
         assertTrue(DamsPasswordPolicy.strength("SafePassword123456") == DamsPasswordPolicy.Strength.STRONG)
     }
 

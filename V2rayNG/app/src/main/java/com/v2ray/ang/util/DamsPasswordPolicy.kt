@@ -2,7 +2,8 @@ package com.v2ray.ang.util
 
 /** Politique simple d'export .dams, également appliquée par le codec. */
 object DamsPasswordPolicy {
-    const val MIN_LENGTH = 12
+    /** Minimum demandé pour les fichiers .dams importés/exportés. */
+    const val MIN_LENGTH = 4
 
     enum class Strength { TOO_SHORT, ACCEPTABLE, STRONG }
 
