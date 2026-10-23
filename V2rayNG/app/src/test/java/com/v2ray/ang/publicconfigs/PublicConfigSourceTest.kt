@@ -16,4 +16,12 @@ class PublicConfigSourceTest {
         val external = PublicConfigSource("x", "x", "x", "http://example.com/configs", emptySet())
         assertTrue(!PublicConfigSources.isAllowed(external))
     }
+
+    @Test
+    fun `filtre les sources par protocole sans inventer de categorie`() {
+        val result = filterPublicConfigSources(PublicConfigSources.all, "", "VLESS")
+        assertTrue(result.isNotEmpty())
+        assertTrue(result.all { it.protocols.contains("VLESS") })
+        assertTrue(filterPublicConfigSources(PublicConfigSources.all, "", "SSH").isEmpty())
+    }
 }

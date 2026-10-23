@@ -850,4 +850,6 @@
     <string name="config_status_partial">Partielle</string>
     <string name="config_status_invalid">Invalide</string>
     <string name="config_status_unverified">Non vérifiée</string>
+    <string name="public_configs_all_protocols">Tous les protocoles</string>
+    <string name="public_configs_source_count">%1$d sources publiques</string>
 </resources>

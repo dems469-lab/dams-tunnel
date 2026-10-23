@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -22,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -109,10 +112,10 @@ private fun PublicConfigsScreen(
     onRefresh: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
-    val sources = remember(query) {
-        PublicConfigSources.all.filter { source ->
-            query.isBlank() || source.name.contains(query, true) || source.protocols.any { it.contains(query, true) }
-        }
+    var selectedProtocol by remember { mutableStateOf<String?>(null) }
+    val protocols = remember { PublicConfigSources.all.flatMap { it.protocols }.distinct().sorted() }
+    val sources = remember(query, selectedProtocol) {
+        filterPublicConfigSources(PublicConfigSources.all, query, selectedProtocol)
     }
     Scaffold(topBar = { AppTopBar(title = stringResource(R.string.public_configs_title), onBackClick = onBack) }) { padding ->
         Column(
@@ -129,6 +132,28 @@ private fun PublicConfigsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 label = { Text(stringResource(R.string.public_configs_search)) },
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(
+                    selected = selectedProtocol == null,
+                    onClick = { selectedProtocol = null },
+                    label = { Text(stringResource(R.string.public_configs_all_protocols)) },
+                )
+                protocols.forEach { protocol ->
+                    FilterChip(
+                        selected = selectedProtocol == protocol,
+                        onClick = { selectedProtocol = protocol },
+                        label = { Text(protocol) },
+                    )
+                }
+            }
+            Text(
+                text = stringResource(R.string.public_configs_source_count, sources.size),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(sources, key = { it.id }) { source ->

@@ -851,4 +851,6 @@
     <string name="config_status_partial">Partial</string>
     <string name="config_status_invalid">Invalid</string>
     <string name="config_status_unverified">Not verified</string>
+    <string name="public_configs_all_protocols">All protocols</string>
+    <string name="public_configs_source_count">%1$d public sources</string>
 </resources>

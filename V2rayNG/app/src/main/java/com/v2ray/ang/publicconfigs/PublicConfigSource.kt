@@ -30,3 +30,17 @@ object PublicConfigSources {
         it.id == source.id && it.url == source.url
     }
 }
+
+fun filterPublicConfigSources(
+    sources: List<PublicConfigSource>,
+    query: String,
+    protocol: String?,
+): List<PublicConfigSource> {
+    val normalizedQuery = query.trim()
+    return sources.filter { source ->
+        (protocol == null || source.protocols.contains(protocol)) &&
+                (normalizedQuery.isBlank() ||
+                        source.name.contains(normalizedQuery, true) ||
+                        source.protocols.any { it.contains(normalizedQuery, true) })
+    }
+}
