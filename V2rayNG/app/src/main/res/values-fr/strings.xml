@@ -852,4 +852,16 @@
     <string name="config_status_unverified">Non vérifiée</string>
     <string name="public_configs_all_protocols">Tous les protocoles</string>
     <string name="public_configs_source_count">%1$d sources publiques</string>
+    <string name="free_servers_menu">Serveurs gratuits</string>
+    <string name="free_servers_title">Serveurs gratuits</string>
+    <string name="free_servers_description">Les serveurs publics ne sont pas vérifiés. Sélectionnez-en un pour l’utiliser depuis l’accueil.</string>
+    <string name="free_servers_empty">Aucun serveur public importé.</string>
+    <string name="free_servers_refresh">Actualiser les sources publiques</string>
+    <string name="free_servers_selected">Sélectionné</string>
+    <string name="free_servers_select">Sélectionner</string>
+    <string name="free_servers_remove_provider">Supprimer tous les serveurs de ce fournisseur ?</string>
+    <string name="free_servers_remove_provider_message">Cela supprime uniquement les serveurs importés depuis %1$s.</string>
+    <string name="free_servers_delete">Supprimer</string>
+    <string name="free_servers_cancel">Annuler</string>
+    <string name="free_servers_refresh_success">%1$d serveurs publics actualisés.</string>
 </resources>

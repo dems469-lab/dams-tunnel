@@ -32,6 +32,7 @@ import com.v2ray.ang.ui.compose.verticalScrollbar
 
 enum class MainDestination(@DrawableRes val iconRes: Int, @StringRes val labelRes: Int) {
     Subscriptions(R.drawable.ic_subscriptions_24dp, R.string.title_sub_setting),
+    FreeServers(R.drawable.ic_cloud_download_24dp, R.string.free_servers_menu),
     PremiumSubscription(R.drawable.ic_subscriptions_24dp, R.string.premium_menu_my_subscription),
     PerAppProxy(R.drawable.ic_per_apps_24dp, R.string.per_app_proxy_settings),
     Routing(R.drawable.ic_routing_24dp, R.string.routing_settings_title),
@@ -48,6 +49,7 @@ enum class MainDestination(@DrawableRes val iconRes: Int, @StringRes val labelRe
 
 internal fun primaryDrawerItems(showPremium: Boolean): List<MainDestination> = buildList {
     add(MainDestination.Subscriptions)
+    add(MainDestination.FreeServers)
     if (showPremium) add(MainDestination.PremiumSubscription)
     addAll(
         listOf(

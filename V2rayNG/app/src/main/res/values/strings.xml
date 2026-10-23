@@ -853,4 +853,16 @@
     <string name="config_status_unverified">Not verified</string>
     <string name="public_configs_all_protocols">All protocols</string>
     <string name="public_configs_source_count">%1$d public sources</string>
+    <string name="free_servers_menu">Free servers</string>
+    <string name="free_servers_title">Free servers</string>
+    <string name="free_servers_description">Public servers are unverified. Select one to use it from the home screen.</string>
+    <string name="free_servers_empty">No imported public server.</string>
+    <string name="free_servers_refresh">Refresh public sources</string>
+    <string name="free_servers_selected">Selected</string>
+    <string name="free_servers_select">Select</string>
+    <string name="free_servers_remove_provider">Delete all servers from this provider?</string>
+    <string name="free_servers_remove_provider_message">This removes only the imported servers from %1$s.</string>
+    <string name="free_servers_delete">Delete</string>
+    <string name="free_servers_cancel">Cancel</string>
+    <string name="free_servers_refresh_success">%1$d public servers refreshed.</string>
 </resources>

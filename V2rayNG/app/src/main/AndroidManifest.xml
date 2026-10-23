@@ -208,6 +208,9 @@
             android:name=".publicconfigs.PublicConfigsActivity"
             android:exported="false" />
         <activity
+            android:name=".publicconfigs.FreeServersActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.userasset.UserAssetActivity"
             android:exported="false" />
         <activity

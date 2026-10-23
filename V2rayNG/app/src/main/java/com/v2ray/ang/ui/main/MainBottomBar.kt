@@ -63,7 +63,6 @@ fun MainBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface)
-                .clickable(onClick = { onAction(MainAction.TestCurrentServer) })
                 .let { modifier ->
                     if (includeNavigationBars) modifier.windowInsetsPadding(WindowInsets.navigationBars)
                     else modifier

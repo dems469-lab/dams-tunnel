@@ -325,7 +325,6 @@ fun MainScreen(
                     autoSwitchDefaultServer = autoSwitchDefaultServer,
                     onAutoSwitchDefaultServerChange = { autoSwitchDefaultServer = it },
                     onOpenServers = { selectedTab = DamsTab.Configs },
-                    onTestConnection = { onAction(MainAction.TestCurrentServer) },
                     onToggleConnection = { onAction(MainAction.ToggleService) },
                 )
 
@@ -494,7 +493,6 @@ private fun DamsDashboard(
     autoSwitchDefaultServer: Boolean,
     onAutoSwitchDefaultServerChange: (Boolean) -> Unit,
     onOpenServers: () -> Unit,
-    onTestConnection: () -> Unit,
     onToggleConnection: () -> Unit,
 ) {
     val powerActionLabel = stringResource(if (canStopService) R.string.acc_stop else R.string.acc_start)

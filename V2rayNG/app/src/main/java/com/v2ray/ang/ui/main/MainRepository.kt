@@ -170,7 +170,7 @@ class MainRepository(
                 }
             )
         }
-        result += MmkvManager.decodeSubscriptions()
+        result += MmkvManager.decodeSubscriptions().filterNot { it.guid.startsWith("dams-public-") }
         val premiumProfileCount = MmkvManager.decodeServerList(PremiumGroup.ID).size
         val premiumGroup = SubscriptionCache(
             guid = PremiumGroup.ID,
@@ -189,7 +189,9 @@ class MainRepository(
 
     override fun getServerGuidList(groupId: String): List<String> =
         if (groupId.isEmpty()) {
-            MmkvManager.decodeAllServerList()
+            MmkvManager.decodeAllServerList().filterNot { guid ->
+                MmkvManager.decodeServerConfig(guid)?.subscriptionId?.startsWith("dams-public-") == true
+            }
         } else {
             MmkvManager.decodeServerList(groupId)
         }
