@@ -60,6 +60,8 @@ private data class FreeServer(
 
 private enum class FreeServerSort { COMPLETENESS, LATENCY }
 
+internal fun hasMeasuredFreeServerLatency(delayMillis: Long): Boolean = delayMillis > 0L
+
 private suspend fun loadFreeProviders(sort: FreeServerSort): List<FreeProvider> = withContext(Dispatchers.IO) {
     val publicSubscriptions = MmkvManager.decodeSubscriptions().filter { it.guid.startsWith("dams-public-") }
     publicSubscriptions.mapNotNull { subscription ->
@@ -115,21 +117,19 @@ class FreeServersActivity : BaseComponentActivity() {
         }
     }
 
-    private fun refreshPublicServers() {
-        lifecycleScope.launch {
-            val subscriptions = withContext(Dispatchers.IO) {
-                MmkvManager.decodeSubscriptions().filter { it.guid.startsWith("dams-public-") }
-            }
-            if (subscriptions.isEmpty()) {
-                toastError(R.string.free_servers_empty)
-                return@launch
-            }
-            val count = withContext(Dispatchers.IO) {
-                subscriptions.sumOf { cache -> AngConfigManager.updateConfigViaSub(cache).configCount }
-            }
-            SettingsChangeManager.makeSetupGroupTab()
-            toastSuccess(getString(R.string.free_servers_refresh_success, count))
+    private suspend fun refreshPublicServers() {
+        val subscriptions = withContext(Dispatchers.IO) {
+            MmkvManager.decodeSubscriptions().filter { it.guid.startsWith("dams-public-") }
         }
+        if (subscriptions.isEmpty()) {
+            toastError(R.string.free_servers_empty)
+            return
+        }
+        val count = withContext(Dispatchers.IO) {
+            subscriptions.sumOf { cache -> AngConfigManager.updateConfigViaSub(cache).configCount }
+        }
+        SettingsChangeManager.makeSetupGroupTab()
+        toastSuccess(getString(R.string.free_servers_refresh_success, count))
     }
 }
 
@@ -138,18 +138,20 @@ private fun FreeServersScreen(
     onBack: () -> Unit,
     onSelect: (String) -> Unit,
     onDeleteProvider: (String) -> Unit,
-    onRefresh: () -> Unit,
+    onRefresh: suspend () -> Unit,
 ) {
     var providers by remember { mutableStateOf(emptyList<FreeProvider>()) }
     var loading by remember { mutableStateOf(false) }
+    var refreshing by remember { mutableStateOf(false) }
     var sort by remember { mutableStateOf(FreeServerSort.COMPLETENESS) }
     var deleteTarget by remember { mutableStateOf<FreeProvider?>(null) }
     val scope = rememberCoroutineScope()
 
-    fun load() {
-        scope.launch {
-            loading = true
+    suspend fun load() {
+        loading = true
+        try {
             providers = loadFreeProviders(sort)
+        } finally {
             loading = false
         }
     }
@@ -162,15 +164,27 @@ private fun FreeServersScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(stringResource(R.string.free_servers_description), style = MaterialTheme.typography.bodyMedium)
-            Button(onClick = {
-                onRefresh()
-                scope.launch { kotlinx.coroutines.delay(1_000) ; load() }
-            }) { Text(stringResource(R.string.free_servers_refresh)) }
+            Button(
+                enabled = !refreshing,
+                onClick = {
+                    scope.launch {
+                        refreshing = true
+                        try {
+                            onRefresh()
+                            load()
+                        } finally {
+                            refreshing = false
+                        }
+                    }
+                },
+            ) {
+                Text(stringResource(if (refreshing) R.string.free_servers_loading else R.string.free_servers_refresh))
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { sort = FreeServerSort.COMPLETENESS; load() }) {
+                TextButton(onClick = { sort = FreeServerSort.COMPLETENESS; scope.launch { load() } }) {
                     Text(stringResource(R.string.free_servers_sort_completeness))
                 }
-                TextButton(onClick = { sort = FreeServerSort.LATENCY; load() }) {
+                TextButton(onClick = { sort = FreeServerSort.LATENCY; scope.launch { load() } }) {
                     Text(stringResource(R.string.free_servers_sort_latency))
                 }
             }
@@ -216,7 +230,7 @@ private fun FreeServersScreen(
                                         Text("${server.profile.configType.protocolScheme.uppercase()} · $status", style = MaterialTheme.typography.bodySmall)
                                     }
                                     Text(
-                                        if (server.delayMillis >= 0) "${server.delayMillis} ms" else "—",
+                                        if (hasMeasuredFreeServerLatency(server.delayMillis)) "${server.delayMillis} ms" else "—",
                                         color = MaterialTheme.colorScheme.primary,
                                     )
                                 }
