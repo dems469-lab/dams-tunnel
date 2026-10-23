@@ -362,6 +362,16 @@ object CoreServiceManager {
     /** Essaie une autre configuration du groupe avant d'abandonner la connexion. */
     private suspend fun tryFailover(service: Service): Boolean {
         val failed = currentConfig ?: return false
+        val automaticFailoverEnabled = MmkvManager.decodeSettingsBool(
+            AppConfig.PREF_AUTO_SWITCH_DEFAULT_SERVER,
+            false,
+        )
+        if (!shouldTryDefaultServerFailover(
+                automaticFailoverEnabled,
+                failed.subscriptionId,
+                AppConfig.DEFAULT_SUBSCRIPTION_ID,
+            )
+        ) return false
         val candidates = MmkvManager.decodeServerList(failed.subscriptionId)
             .asSequence()
             .filter { it != MmkvManager.getSelectServer() }
