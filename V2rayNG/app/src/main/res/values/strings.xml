@@ -119,6 +119,10 @@
     <string name="dams_metric_upload">Upload</string>
     <string name="dams_tunnel_traffic_note">Xray tunnel speeds only; total device traffic may differ.</string>
     <string name="dams_metric_unavailable">Unavailable</string>
+    <string name="dams_speedtest_title">Tunnel speed</string>
+    <string name="dams_speedtest_ready">—</string>
+    <string name="dams_speedtest_hint">Tap to test the current server</string>
+    <string name="dams_speedtest_action">Test the current server speed</string>
     <string name="dams_mobile_daily_usage_title">Mobile data used today</string>
     <string name="dams_mobile_daily_usage_value">Download %1$s · Upload %2$s</string>
     <string name="dams_mobile_ip_title">Mobile IP</string>

@@ -645,6 +645,13 @@ private fun DamsDashboard(
             }
         }
 
+        SpeedTestGauge(
+            downloadBytesPerSecond = downloadBytesPerSecond,
+            uploadBytesPerSecond = uploadBytesPerSecond,
+            isActive = isRunning && trafficAvailable,
+            onClick = onTestConnection,
+        )
+
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val latency = when {
                 delayMillis == null || delayMillis == 0L -> "—"
@@ -749,6 +756,64 @@ private fun DamsDashboard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SpeedTestGauge(
+    downloadBytesPerSecond: Long,
+    uploadBytesPerSecond: Long,
+    isActive: Boolean,
+    onClick: () -> Unit,
+) {
+    val totalSpeed = (downloadBytesPerSecond + uploadBytesPerSecond).coerceAtLeast(0L)
+    val progress = if (isActive) {
+        (totalSpeed.toFloat() / (10L * 1024L * 1024L)).coerceIn(0.04f, 1f)
+    } else 0f
+    val label = if (isActive) totalSpeed.toSpeedString() else stringResource(R.string.dams_speedtest_ready)
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val activeColor = MaterialTheme.colorScheme.primary
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = stringResource(R.string.dams_speedtest_action) },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = MaterialTheme.shapes.large,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(stringResource(R.string.dams_speedtest_title), style = MaterialTheme.typography.labelLarge)
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(142.dp).padding(8.dp)) {
+                Canvas(Modifier.fillMaxSize()) {
+                    drawArc(
+                        color = trackColor,
+                        startAngle = 135f,
+                        sweepAngle = 270f,
+                        useCenter = false,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 14f),
+                    )
+                    if (progress > 0f) {
+                        drawArc(
+                            color = activeColor,
+                            startAngle = 135f,
+                            sweepAngle = 270f * progress,
+                            useCenter = false,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 14f),
+                        )
+                    }
+                }
+                Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            Text(
+                stringResource(R.string.dams_speedtest_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
