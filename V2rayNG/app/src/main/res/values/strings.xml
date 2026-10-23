@@ -844,4 +844,7 @@
     <string name="consumption_live_title">Live tunnel</string>
     <string name="consumption_today">Mobile data today</string>
     <string name="consumption_test_button">Test the current server</string>
+    <string name="default_server_switch_title">Switch to a faster server when necessary</string>
+    <string name="default_server_switch_summary">Only the default group is considered, using recent tests and the same protocol.</string>
+    <string name="default_server_switched">A faster compatible server was selected.</string>
 </resources>

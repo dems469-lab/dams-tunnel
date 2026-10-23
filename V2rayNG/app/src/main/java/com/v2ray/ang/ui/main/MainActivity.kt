@@ -363,8 +363,30 @@ class MainActivity : HelperBaseComponentActivity() {
         ) {
             checkAndRequestPermission(PermissionType.ACCESS_LOCAL_NETWORK) {}
         }
+        selectFasterDefaultServerIfRequested()
         mainViewModel.markManualStartRequested()
         LauncherManager.startService(this)
+    }
+
+    private fun selectFasterDefaultServerIfRequested() {
+        if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_AUTO_SWITCH_DEFAULT_SERVER, false)) return
+        val selectedGuid = mainViewModel.uiState.value.selectedGuid ?: return
+        val selected = MmkvManager.decodeServerConfig(selectedGuid) ?: return
+        if (selected.subscriptionId != AppConfig.DEFAULT_SUBSCRIPTION_ID) return
+        val selectedDelay = MmkvManager.decodeServerAffiliationInfo(selectedGuid)?.testDelayMillis ?: -1L
+        val selectedCandidate = ServerPerformanceCandidate(
+            selectedGuid,
+            selected.configType.protocolScheme,
+            selectedDelay,
+        )
+        val candidates = MmkvManager.decodeServerList(AppConfig.DEFAULT_SUBSCRIPTION_ID).mapNotNull { guid ->
+            val profile = MmkvManager.decodeServerConfig(guid) ?: return@mapNotNull null
+            val delay = MmkvManager.decodeServerAffiliationInfo(guid)?.testDelayMillis ?: -1L
+            ServerPerformanceCandidate(guid, profile.configType.protocolScheme, delay)
+        }
+        val replacement = chooseFasterDefaultServer(true, true, selectedCandidate, candidates) ?: return
+        MmkvManager.setSelectServer(replacement.guid)
+        toastSuccess(R.string.default_server_switched)
     }
 
     private fun importManually(createConfigType: Int) {

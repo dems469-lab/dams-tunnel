@@ -843,4 +843,7 @@
     <string name="consumption_live_title">Tunnel en direct</string>
     <string name="consumption_today">Données mobiles aujourd’hui</string>
     <string name="consumption_test_button">Tester le serveur actuel</string>
+    <string name="default_server_switch_title">Basculer automatiquement vers un serveur plus rapide si nécessaire</string>
+    <string name="default_server_switch_summary">Seul le groupe par défaut est concerné, selon les tests récents et le même protocole.</string>
+    <string name="default_server_switched">Un serveur compatible plus rapide a été sélectionné.</string>
 </resources>

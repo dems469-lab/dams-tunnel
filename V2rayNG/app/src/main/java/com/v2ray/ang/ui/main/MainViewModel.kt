@@ -155,7 +155,6 @@ class MainViewModel(
                     toastSuccess(R.string.toast_services_success)
                 }
                 updateRunningState(true)
-                testCurrentServerRealPing()
             }
 
             is MainServiceEvent.StateStartFailure -> {

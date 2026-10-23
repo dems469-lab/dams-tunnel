@@ -77,6 +77,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.v2ray.ang.BuildConfig
+import com.v2ray.ang.AppConfig
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.R
 import com.v2ray.ang.extension.toSpeedString
@@ -84,6 +85,7 @@ import com.v2ray.ang.extension.toTrafficString
 import com.v2ray.ang.ui.compose.QRCodeDialog
 import com.v2ray.ang.ui.logcat.LogcatViewModel
 import com.v2ray.ang.util.PerformanceDiagnostics
+import com.v2ray.ang.handler.MmkvManager
 import android.os.SystemClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -110,6 +112,10 @@ fun MainScreen(
     val doubleColumnDisplay = uiState.doubleColumnDisplay
     val shareQRCodeBitmap = uiState.shareQRCodeBitmap
     val traffic = uiState.traffic
+    var autoSwitchDefaultServer by MmkvManager.rememberMmkvBool(
+        AppConfig.PREF_AUTO_SWITCH_DEFAULT_SERVER,
+        false,
+    )
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -316,6 +322,8 @@ fun MainScreen(
                     trafficHistory = uiState.trafficHistory,
                     mobileIp = uiState.mobileIp,
                     diagnostic = uiState.diagnostic,
+                    autoSwitchDefaultServer = autoSwitchDefaultServer,
+                    onAutoSwitchDefaultServerChange = { autoSwitchDefaultServer = it },
                     onOpenServers = { selectedTab = DamsTab.Configs },
                     onTestConnection = { onAction(MainAction.TestCurrentServer) },
                     onToggleConnection = { onAction(MainAction.ToggleService) },
@@ -483,6 +491,8 @@ private fun DamsDashboard(
     trafficHistory: List<com.v2ray.ang.dto.TrafficSnapshot>,
     mobileIp: String?,
     diagnostic: ConnectionDiagnostic?,
+    autoSwitchDefaultServer: Boolean,
+    onAutoSwitchDefaultServerChange: (Boolean) -> Unit,
     onOpenServers: () -> Unit,
     onTestConnection: () -> Unit,
     onToggleConnection: () -> Unit,
@@ -613,6 +623,37 @@ private fun DamsDashboard(
                     )
                 }
                 Text("›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineMedium)
+            }
+        }
+
+        if (!isRunning) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = MaterialTheme.shapes.large,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.default_server_switch_title),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = stringResource(R.string.default_server_switch_summary),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = autoSwitchDefaultServer,
+                        onCheckedChange = onAutoSwitchDefaultServerChange,
+                    )
+                }
             }
         }
 
