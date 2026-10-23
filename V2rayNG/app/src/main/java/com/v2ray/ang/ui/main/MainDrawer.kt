@@ -49,8 +49,8 @@ enum class MainDestination(@DrawableRes val iconRes: Int, @StringRes val labelRe
 
 internal fun primaryDrawerItems(showPremium: Boolean): List<MainDestination> = buildList {
     add(MainDestination.Subscriptions)
-    add(MainDestination.FreeServers)
     if (showPremium) add(MainDestination.PremiumSubscription)
+    add(MainDestination.FreeServers)
     addAll(
         listOf(
             MainDestination.PerAppProxy,
