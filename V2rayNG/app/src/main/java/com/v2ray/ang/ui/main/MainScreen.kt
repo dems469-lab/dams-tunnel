@@ -772,13 +772,14 @@ private fun SpeedTestGauge(
         (totalSpeed.toFloat() / (10L * 1024L * 1024L)).coerceIn(0.04f, 1f)
     } else 0f
     val label = if (isActive) totalSpeed.toSpeedString() else stringResource(R.string.dams_speedtest_ready)
+    val actionDescription = stringResource(R.string.dams_speedtest_action)
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     val activeColor = MaterialTheme.colorScheme.primary
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = stringResource(R.string.dams_speedtest_action) },
+            .semantics { contentDescription = actionDescription },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = MaterialTheme.shapes.large,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
