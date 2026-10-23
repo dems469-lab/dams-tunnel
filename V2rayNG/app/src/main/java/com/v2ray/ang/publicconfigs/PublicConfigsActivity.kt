@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +53,7 @@ class PublicConfigsActivity : BaseComponentActivity() {
         PublicConfigsScreen(
             onBack = ::finish,
             onImport = ::importSource,
+            onRefresh = ::refreshSources,
         )
     }
 
@@ -81,12 +83,30 @@ class PublicConfigsActivity : BaseComponentActivity() {
             }
         }
     }
+
+    private fun refreshSources() {
+        lifecycleScope.launch {
+            val subscriptions = MmkvManager.decodeSubscriptions().filter { it.guid.startsWith("dams-public-") }
+            if (subscriptions.isEmpty()) {
+                toastError(R.string.public_configs_none_imported)
+                return@launch
+            }
+            val result = withContext(Dispatchers.IO) {
+                subscriptions.fold(0) { count, cache ->
+                    count + AngConfigManager.updateConfigViaSub(cache).configCount
+                }
+            }
+            SettingsChangeManager.makeSetupGroupTab()
+            toastSuccess(getString(R.string.public_configs_refresh_result, result))
+        }
+    }
 }
 
 @Composable
 private fun PublicConfigsScreen(
     onBack: () -> Unit,
     onImport: (PublicConfigSource) -> Unit,
+    onRefresh: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     val sources = remember(query) {
@@ -99,7 +119,10 @@ private fun PublicConfigsScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(stringResource(R.string.public_configs_disclaimer), style = MaterialTheme.typography.bodyMedium)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(stringResource(R.string.public_configs_disclaimer), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = onRefresh) { Text(stringResource(R.string.public_configs_refresh)) }
+            }
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },

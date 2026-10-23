@@ -825,6 +825,9 @@
     <string name="public_configs_import_success">%1$d configurations imported</string>
     <string name="public_configs_import_failed">No valid configuration was imported.</string>
     <string name="public_configs_invalid_source">Public source not allowed.</string>
+    <string name="public_configs_refresh">Refresh</string>
+    <string name="public_configs_none_imported">No public source has been imported.</string>
+    <string name="public_configs_refresh_result">%1$d configurations refreshed</string>
     <string name="tutorials_menu">Tutorials</string>
     <string name="tutorials_title">Tutorials and guides</string>
     <string name="tutorial_setup_title">Initial configuration</string>
@@ -835,4 +838,10 @@
     <string name="tutorial_server_body">For a private server, verify the protocol, host, TLS settings and certificate policy with the server administrator.</string>
     <string name="widget_favorite_title">Favorite connection</string>
     <string name="widget_no_favorite">No configuration selected</string>
+    <string name="consumption_menu">Consumption</string>
+    <string name="consumption_title">Consumption and speed</string>
+    <string name="consumption_description">Live values from the Xray tunnel. They are not the total traffic of the phone.</string>
+    <string name="consumption_live_title">Live tunnel</string>
+    <string name="consumption_today">Mobile data today</string>
+    <string name="consumption_test_button">Test the current server</string>
 </resources>

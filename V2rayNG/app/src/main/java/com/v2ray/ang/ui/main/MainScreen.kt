@@ -645,102 +645,6 @@ private fun DamsDashboard(
             }
         }
 
-        SpeedTestGauge(
-            downloadBytesPerSecond = downloadBytesPerSecond,
-            uploadBytesPerSecond = uploadBytesPerSecond,
-            isActive = isRunning && trafficAvailable,
-            onClick = onTestConnection,
-        )
-
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val latency = when {
-                delayMillis == null || delayMillis == 0L -> "—"
-                delayMillis < 0 -> stringResource(R.string.dams_metric_unavailable)
-                else -> "$delayMillis ms"
-            }
-            if (maxWidth < 360.dp) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_latency), latency, onTestConnection)
-                        DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_download), trafficMetric(isRunning, trafficAvailable, downloadBytesPerSecond))
-                    }
-                    DashboardMetric(Modifier.fillMaxWidth(), stringResource(R.string.dams_metric_upload), trafficMetric(isRunning, trafficAvailable, uploadBytesPerSecond))
-                }
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_latency), latency, onTestConnection)
-                    DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_download), trafficMetric(isRunning, trafficAvailable, downloadBytesPerSecond))
-                    DashboardMetric(Modifier.weight(1f), stringResource(R.string.dams_metric_upload), trafficMetric(isRunning, trafficAvailable, uploadBytesPerSecond))
-                }
-            }
-        }
-        Text(
-            text = stringResource(R.string.dams_tunnel_traffic_note),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = MaterialTheme.shapes.large,
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        ) {
-            Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                Text(
-                    text = stringResource(R.string.dams_mobile_daily_usage_title),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = stringResource(
-                        R.string.dams_mobile_daily_usage_value,
-                        mobileDailyDownlinkBytes.toTrafficString(),
-                        mobileDailyUplinkBytes.toTrafficString(),
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        }
-        if (isRunning && trafficAvailable && trafficHistory.size > 1) {
-            val graphColor = MaterialTheme.colorScheme.secondary
-            val uploadGraphColor = MaterialTheme.colorScheme.primary
-            Card(
-                modifier = Modifier.fillMaxWidth().height(96.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = MaterialTheme.shapes.large,
-            ) {
-                Canvas(Modifier.fillMaxSize().padding(12.dp)) {
-                    val max = trafficHistory.maxOf { maxOf(it.uplinkBytesPerSecond, it.downlinkBytesPerSecond) }
-                        .coerceAtLeast(1L).toFloat()
-                    val downlinkPath = Path()
-                    val uplinkPath = Path()
-                    trafficHistory.forEachIndexed { index, point ->
-                        val x = size.width * index / (trafficHistory.size - 1).toFloat()
-                        val downlinkY = size.height * (1f - point.downlinkBytesPerSecond / max)
-                        val uplinkY = size.height * (1f - point.uplinkBytesPerSecond / max)
-                        if (index == 0) {
-                            downlinkPath.moveTo(x, downlinkY)
-                            uplinkPath.moveTo(x, uplinkY)
-                        } else {
-                            downlinkPath.lineTo(x, downlinkY)
-                            uplinkPath.lineTo(x, uplinkY)
-                        }
-                    }
-                    drawPath(
-                        downlinkPath,
-                        graphColor,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f),
-                    )
-                    drawPath(
-                        uplinkPath,
-                        uploadGraphColor,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f),
-                    )
-                }
-            }
-        }
         diagnostic?.let { result ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -761,65 +665,6 @@ private fun DamsDashboard(
 }
 
 @Composable
-private fun SpeedTestGauge(
-    downloadBytesPerSecond: Long,
-    uploadBytesPerSecond: Long,
-    isActive: Boolean,
-    onClick: () -> Unit,
-) {
-    val totalSpeed = (downloadBytesPerSecond + uploadBytesPerSecond).coerceAtLeast(0L)
-    val progress = if (isActive) {
-        (totalSpeed.toFloat() / (10L * 1024L * 1024L)).coerceIn(0.04f, 1f)
-    } else 0f
-    val label = if (isActive) totalSpeed.toSpeedString() else stringResource(R.string.dams_speedtest_ready)
-    val actionDescription = stringResource(R.string.dams_speedtest_action)
-    val trackColor = MaterialTheme.colorScheme.surfaceVariant
-    val activeColor = MaterialTheme.colorScheme.primary
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = actionDescription },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.large,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(stringResource(R.string.dams_speedtest_title), style = MaterialTheme.typography.labelLarge)
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(142.dp).padding(8.dp)) {
-                Canvas(Modifier.fillMaxSize()) {
-                    drawArc(
-                        color = trackColor,
-                        startAngle = 135f,
-                        sweepAngle = 270f,
-                        useCenter = false,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 14f),
-                    )
-                    if (progress > 0f) {
-                        drawArc(
-                            color = activeColor,
-                            startAngle = 135f,
-                            sweepAngle = 270f * progress,
-                            useCenter = false,
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 14f),
-                        )
-                    }
-                }
-                Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
-            Text(
-                stringResource(R.string.dams_speedtest_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
 private fun DiagnosticRow(label: String, value: Boolean?) {
     val symbol = when (value) {
         true -> "✅"
@@ -827,31 +672,6 @@ private fun DiagnosticRow(label: String, value: Boolean?) {
         null -> "…"
     }
     Text("$symbol  $label", style = MaterialTheme.typography.bodySmall)
-}
-
-@Composable
-private fun DashboardMetric(
-    modifier: Modifier,
-    title: String,
-    value: String,
-    onClick: (() -> Unit)? = null,
-) {
-    Card(
-        modifier = modifier.height(96.dp).then(
-            if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier
-        ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.large,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(10.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }
 }
 
 @Composable

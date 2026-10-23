@@ -41,6 +41,7 @@ import com.v2ray.ang.premium.PremiumFeatureGate
 import com.v2ray.ang.premium.PremiumExpiryStateStore
 import com.v2ray.ang.premium.PremiumProfilePolicy
 import com.v2ray.ang.ui.AboutActivity
+import com.v2ray.ang.ui.ConsumptionActivity
 import com.v2ray.ang.ui.TutorialsActivity
 import com.v2ray.ang.ui.backup.BackupActivity
 import com.v2ray.ang.ui.base.HelperBaseComponentActivity
@@ -78,6 +79,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : HelperBaseComponentActivity() {
+
+    companion object {
+        const val EXTRA_RUN_SPEED_TEST = "com.v2ray.ang.extra.RUN_SPEED_TEST"
+    }
 
     private var premiumFeatureEnabled by mutableStateOf(false)
     private var showPremiumExpiredPrompt by mutableStateOf(false)
@@ -134,6 +139,9 @@ class MainActivity : HelperBaseComponentActivity() {
         mainViewModel.onAction(MainAction.Initialize)
 
         checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {}
+        if (intent.getBooleanExtra(EXTRA_RUN_SPEED_TEST, false)) {
+            window.decorView.post { mainViewModel.testCurrentServerRealPing() }
+        }
     }
 
     override fun onResume() {
@@ -303,6 +311,7 @@ class MainActivity : HelperBaseComponentActivity() {
             MainDestination.UserAssets -> Intent(this, UserAssetActivity::class.java)
             MainDestination.Settings -> Intent(this, SettingsActivity::class.java)
             MainDestination.Logcat -> Intent(this, LogcatActivity::class.java)
+            MainDestination.Consumption -> Intent(this, ConsumptionActivity::class.java)
             MainDestination.Tutorials -> Intent(this, TutorialsActivity::class.java)
             MainDestination.CheckUpdate -> Intent(this, CheckUpdateActivity::class.java)
             MainDestination.BackupRestore -> Intent(this, BackupActivity::class.java)

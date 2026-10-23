@@ -189,6 +189,9 @@
             android:name=".ui.TutorialsActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.ConsumptionActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.routing.RoutingSettingActivity"
             android:exported="false" />
         <activity
