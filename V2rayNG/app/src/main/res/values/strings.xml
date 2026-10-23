@@ -813,4 +813,12 @@
     <string name="ip_finder_notification_found_channel" translatable="false">IP trouvée</string>
     <string name="ip_finder_notification_found_title" translatable="false">Dams Tunnel — IP Finder</string>
 
+    <string name="public_configs_menu">Public sources</string>
+    <string name="public_configs_title">Public configurations</string>
+    <string name="public_configs_disclaimer">Community sources are not verified. Import a source manually; no connection will be started automatically.</string>
+    <string name="public_configs_search">Search for a protocol or source</string>
+    <string name="public_configs_import">Import</string>
+    <string name="public_configs_import_success">%1$d configurations imported</string>
+    <string name="public_configs_import_failed">No valid configuration was imported.</string>
+    <string name="public_configs_invalid_source">Public source not allowed.</string>
 </resources>

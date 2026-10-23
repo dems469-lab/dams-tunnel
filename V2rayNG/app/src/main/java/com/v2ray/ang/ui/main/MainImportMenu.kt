@@ -15,6 +15,7 @@ private enum class ImportMenuAction(@StringRes val labelRes: Int, val action: Ma
     QRCode(R.string.menu_item_import_config_qrcode, MainAction.ImportQRcode),
     Clipboard(R.string.menu_item_import_config_clipboard, MainAction.ImportClipboard),
     LocalFile(R.string.menu_item_import_config_local, MainAction.ImportConfigLocal),
+    PublicSources(R.string.public_configs_menu, MainAction.OpenPublicConfigs),
     PolicyGroup(R.string.menu_item_import_config_policy_group, MainAction.ImportManually(EConfigType.POLICYGROUP.value)),
     ProxyChain(R.string.menu_item_import_config_proxy_chain, MainAction.ImportManually(EConfigType.PROXYCHAIN.value)),
     Vmess(R.string.menu_item_import_config_manually_vmess, MainAction.ImportManually(EConfigType.VMESS.value)),

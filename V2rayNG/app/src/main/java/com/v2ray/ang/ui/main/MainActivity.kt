@@ -36,6 +36,7 @@ import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.ipfinder.IpFinderActivity
 import com.v2ray.ang.ipfinder.IpFinderRecoveryStore
+import com.v2ray.ang.publicconfigs.PublicConfigsActivity
 import com.v2ray.ang.premium.PremiumFeatureGate
 import com.v2ray.ang.premium.PremiumExpiryStateStore
 import com.v2ray.ang.premium.PremiumProfilePolicy
@@ -205,6 +206,7 @@ class MainActivity : HelperBaseComponentActivity() {
                     MainAction.ImportQRcode -> importQRcode()
                     MainAction.ImportClipboard -> importClipboard()
                     MainAction.ImportConfigLocal -> importConfigLocal()
+                    MainAction.OpenPublicConfigs -> startActivity(Intent(this, PublicConfigsActivity::class.java))
                     is MainAction.ImportManually -> importManually(action.type)
                     MainAction.RestartService -> LauncherManager.restartServiceOrStart(this, ::requestServiceStart)
                     MainAction.LocateSelectedServer -> mainViewModel.triggerLocateSelectedServer()
