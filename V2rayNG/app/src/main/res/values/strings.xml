@@ -333,6 +333,8 @@
     <string name="title_pref_diagnostic_traffic_stats">Traffic statistics diagnostics</string>
     <string name="summary_pref_diagnostic_traffic_stats">Show the first three raw Xray traffic-stat reads in Journal. No server address or profile data is included.</string>
     <string name="title_pref_diagnostic_performance">Performance diagnostics</string>
+    <string name="title_pref_vpn_wake_lock">Keep VPN active when the screen is off</string>
+    <string name="summary_pref_vpn_wake_lock">Keep the VPN process awake during an active connection. This can increase battery usage.</string>
     <string name="summary_pref_diagnostic_performance">Record startup, screen first-draw, home refresh rate and Java heap use locally. Disabled by default; no profile or network data is collected.</string>
     <string name="performance_diagnostics_title">Performance diagnostics</string>
 
@@ -857,6 +859,9 @@
     <string name="free_servers_title">Free servers</string>
     <string name="free_servers_description">Public servers are unverified. Select one to use it from the home screen.</string>
     <string name="free_servers_empty">No imported public server.</string>
+    <string name="free_servers_loading">Loading free servers…</string>
+    <string name="free_servers_sort_completeness">Sort by completeness</string>
+    <string name="free_servers_sort_latency">Sort by latency</string>
     <string name="free_servers_refresh">Refresh public sources</string>
     <string name="free_servers_selected">Selected</string>
     <string name="free_servers_select">Select</string>

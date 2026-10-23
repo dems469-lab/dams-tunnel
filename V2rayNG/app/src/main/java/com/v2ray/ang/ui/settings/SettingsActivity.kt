@@ -178,6 +178,7 @@ fun SettingsScreen(
     var speedEnabled by rememberMmkvBool(AppConfig.PREF_SPEED_ENABLED, false)
     var trafficStatsDiagnostics by rememberMmkvBool(AppConfig.PREF_DIAGNOSTIC_TRAFFIC_STATS, false)
     var performanceDiagnostics by rememberMmkvBool(AppConfig.PREF_DIAGNOSTIC_PERFORMANCE, false)
+    var vpnWakeLock by rememberMmkvBool(AppConfig.PREF_VPN_WAKE_LOCK, true)
     var confirmRemove by rememberMmkvBool(AppConfig.PREF_CONFIRM_REMOVE, false)
     var doubleColumnDisplay by rememberMmkvBool(AppConfig.PREF_DOUBLE_COLUMN_DISPLAY, false)
     var groupAllDisplay by rememberMmkvBool(AppConfig.PREF_GROUP_ALL_DISPLAY, false)
@@ -293,6 +294,12 @@ fun SettingsScreen(
                         performanceDiagnostics = it
                         PerformanceDiagnostics.setEnabled(it)
                     }
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.title_pref_vpn_wake_lock),
+                    summary = stringResource(R.string.summary_pref_vpn_wake_lock),
+                    checked = vpnWakeLock,
+                    onCheckedChange = { vpnWakeLock = it }
                 )
                 SettingsSwitchItem(
                     title = stringResource(R.string.title_pref_confirm_remove),

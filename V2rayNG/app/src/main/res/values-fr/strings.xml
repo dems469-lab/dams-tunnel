@@ -332,6 +332,8 @@
     <string name="title_pref_diagnostic_traffic_stats">Diagnostic des statistiques</string>
     <string name="summary_pref_diagnostic_traffic_stats">Affiche dans Journal les trois premières lectures brutes des statistiques Xray. Aucune adresse ni donnée de profil n’est incluse.</string>
     <string name="title_pref_diagnostic_performance">Diagnostic des performances</string>
+    <string name="title_pref_vpn_wake_lock">Maintenir le VPN actif écran éteint</string>
+    <string name="summary_pref_vpn_wake_lock">Maintient le processus VPN actif pendant une connexion. Cette option peut augmenter la consommation de batterie.</string>
     <string name="summary_pref_diagnostic_performance">Enregistre localement le démarrage, le premier affichage des écrans, le rythme d’actualisation de l’accueil et la mémoire Java utilisée. Désactivé par défaut, sans collecte de profil ni de réseau.</string>
     <string name="performance_diagnostics_title">Diagnostic des performances</string>
 
@@ -856,6 +858,9 @@
     <string name="free_servers_title">Serveurs gratuits</string>
     <string name="free_servers_description">Les serveurs publics ne sont pas vérifiés. Sélectionnez-en un pour l’utiliser depuis l’accueil.</string>
     <string name="free_servers_empty">Aucun serveur public importé.</string>
+    <string name="free_servers_loading">Chargement des serveurs gratuits…</string>
+    <string name="free_servers_sort_completeness">Trier par complétude</string>
+    <string name="free_servers_sort_latency">Trier par latence</string>
     <string name="free_servers_refresh">Actualiser les sources publiques</string>
     <string name="free_servers_selected">Sélectionné</string>
     <string name="free_servers_select">Sélectionner</string>

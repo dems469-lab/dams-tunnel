@@ -386,6 +386,7 @@ class CoreVpnService : VpnService(), ServiceControl {
     /** Garder le CPU du processus daemon actif écran éteint pour traiter le TUN et la reconnexion. */
     @Synchronized
     private fun acquireVpnWakeLock() {
+        if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_VPN_WAKE_LOCK, true)) return
         try {
             vpnWakeLockLease?.let {
                 it.acquire()

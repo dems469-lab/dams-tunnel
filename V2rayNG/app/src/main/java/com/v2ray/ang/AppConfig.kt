@@ -56,6 +56,7 @@ object AppConfig {
     const val PREF_SPEED_ENABLED = "pref_speed_enabled"
     const val PREF_DIAGNOSTIC_TRAFFIC_STATS = "pref_diagnostic_traffic_stats"
     const val PREF_DIAGNOSTIC_PERFORMANCE = "pref_diagnostic_performance"
+    const val PREF_VPN_WAKE_LOCK = "pref_vpn_wake_lock"
     const val PREF_CONFIRM_REMOVE = "pref_confirm_remove"
     const val PREF_DOUBLE_COLUMN_DISPLAY = "pref_double_column_display"
     const val PREF_GROUP_ALL_DISPLAY = "pref_group_all_display"

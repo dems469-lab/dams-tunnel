@@ -58,6 +58,35 @@ private data class FreeServer(
     val delayMillis: Long,
 )
 
+private enum class FreeServerSort { COMPLETENESS, LATENCY }
+
+private suspend fun loadFreeProviders(sort: FreeServerSort): List<FreeProvider> = withContext(Dispatchers.IO) {
+    val publicSubscriptions = MmkvManager.decodeSubscriptions().filter { it.guid.startsWith("dams-public-") }
+    publicSubscriptions.mapNotNull { subscription ->
+        val servers = MmkvManager.decodeServerList(subscription.guid).mapNotNull { guid ->
+            val profile = MmkvManager.decodeServerConfig(guid) ?: return@mapNotNull null
+            FreeServer(
+                guid = guid,
+                profile = profile,
+                delayMillis = MmkvManager.decodeServerAffiliationInfo(guid)?.testDelayMillis ?: -1L,
+            )
+        }
+        val serversByGuid = servers.associateBy(FreeServer::guid)
+        val rankedByCompleteness = rankConfigs(servers.map {
+            RankedConfig(it.guid, it.profile, assessConfigCompleteness(it.profile), it.delayMillis)
+        })
+        val ranked = when (sort) {
+            FreeServerSort.COMPLETENESS -> rankedByCompleteness
+            FreeServerSort.LATENCY -> rankedByCompleteness.sortedWith(
+                compareBy<RankedConfig> { it.delayMillis < 0L }
+                    .thenBy { if (it.delayMillis < 0L) Long.MAX_VALUE else it.delayMillis }
+            )
+        }.mapNotNull { serversByGuid[it.guid] }
+        FreeProvider(subscription.guid, subscription.subscription.remarks.ifBlank { subscription.guid }, ranked)
+            .takeUnless { it.servers.isEmpty() }
+    }
+}
+
 class FreeServersActivity : BaseComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,25 +141,17 @@ private fun FreeServersScreen(
     onRefresh: () -> Unit,
 ) {
     var providers by remember { mutableStateOf(emptyList<FreeProvider>()) }
+    var loading by remember { mutableStateOf(false) }
+    var sort by remember { mutableStateOf(FreeServerSort.COMPLETENESS) }
     var deleteTarget by remember { mutableStateOf<FreeProvider?>(null) }
     val scope = rememberCoroutineScope()
 
     fun load() {
-        val publicSubscriptions = MmkvManager.decodeSubscriptions().filter { it.guid.startsWith("dams-public-") }
-        providers = publicSubscriptions.map { subscription ->
-            val servers = MmkvManager.decodeServerList(subscription.guid).mapNotNull { guid ->
-                val profile = MmkvManager.decodeServerConfig(guid) ?: return@mapNotNull null
-                FreeServer(
-                    guid = guid,
-                    profile = profile,
-                    delayMillis = MmkvManager.decodeServerAffiliationInfo(guid)?.testDelayMillis ?: -1L,
-                )
-            }
-            val ranked = rankConfigs(servers.map {
-                RankedConfig(it.guid, it.profile, assessConfigCompleteness(it.profile), it.delayMillis)
-            }).map { item -> servers.first { it.guid == item.guid } }
-            FreeProvider(subscription.guid, subscription.subscription.remarks.ifBlank { subscription.guid }, ranked)
-        }.filter { it.servers.isNotEmpty() }
+        scope.launch {
+            loading = true
+            providers = loadFreeProviders(sort)
+            loading = false
+        }
     }
 
     LaunchedEffect(Unit) { load() }
@@ -143,9 +164,19 @@ private fun FreeServersScreen(
             Text(stringResource(R.string.free_servers_description), style = MaterialTheme.typography.bodyMedium)
             Button(onClick = {
                 onRefresh()
-                scope.launch { kotlinx.coroutines.delay(400) ; load() }
+                scope.launch { kotlinx.coroutines.delay(1_000) ; load() }
             }) { Text(stringResource(R.string.free_servers_refresh)) }
-            if (providers.isEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { sort = FreeServerSort.COMPLETENESS; load() }) {
+                    Text(stringResource(R.string.free_servers_sort_completeness))
+                }
+                TextButton(onClick = { sort = FreeServerSort.LATENCY; load() }) {
+                    Text(stringResource(R.string.free_servers_sort_latency))
+                }
+            }
+            if (loading) {
+                Text(stringResource(R.string.free_servers_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else if (providers.isEmpty()) {
                 Text(stringResource(R.string.free_servers_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
