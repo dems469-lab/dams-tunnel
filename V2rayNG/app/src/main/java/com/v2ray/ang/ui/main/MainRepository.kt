@@ -50,6 +50,9 @@ class MainRepository(
         selectedPackages = MmkvManager.decodeSettingsStringSet(AppConfig.PREF_PER_APP_PROXY_SET).orEmpty(),
     )
 
+    override fun isPerAppProxyEnabled(): Boolean =
+        MmkvManager.decodeSettingsBool(AppConfig.PREF_PER_APP_PROXY, false)
+
     override fun setPerAppProxyEnabled(enabled: Boolean) {
         MmkvManager.encodeSettings(AppConfig.PREF_PER_APP_PROXY, enabled)
     }

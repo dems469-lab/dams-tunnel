@@ -107,6 +107,8 @@
     <string name="dams_version_format">v%1$s</string>
     <string name="dams_secure_connection">Connexion sécurisée</string>
     <string name="dams_privacy_protected">Votre vie privée est protégée</string>
+    <string name="dams_tunnel_active">Tunnel actif</string>
+    <string name="dams_per_app_tunnel_active">Le trafic suit votre sélection d’applications</string>
     <string name="dams_connection_details_hidden">Détails du serveur masqués</string>
     <string name="dams_active_configuration">Configuration active</string>
     <string name="dams_ready_to_connect">Prêt à se connecter</string>

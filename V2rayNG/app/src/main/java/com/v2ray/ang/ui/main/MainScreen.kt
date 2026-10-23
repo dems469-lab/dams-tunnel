@@ -322,6 +322,7 @@ fun MainScreen(
                     trafficHistory = uiState.trafficHistory,
                     mobileIp = uiState.mobileIp,
                     diagnostic = uiState.diagnostic,
+                    connectionSubtitle = stringResource(connectionSubtitleRes(uiState.status, uiState.perAppProxyEnabled)),
                     autoSwitchDefaultServer = autoSwitchDefaultServer,
                     onAutoSwitchDefaultServerChange = { autoSwitchDefaultServer = it },
                     onOpenServers = { selectedTab = DamsTab.Configs },
@@ -490,6 +491,7 @@ private fun DamsDashboard(
     trafficHistory: List<com.v2ray.ang.dto.TrafficSnapshot>,
     mobileIp: String?,
     diagnostic: ConnectionDiagnostic?,
+    connectionSubtitle: String,
     autoSwitchDefaultServer: Boolean,
     onAutoSwitchDefaultServerChange: (Boolean) -> Unit,
     onOpenServers: () -> Unit,
@@ -582,7 +584,7 @@ private fun DamsDashboard(
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        text = stringResource(if (isRunning) R.string.dams_privacy_protected else R.string.dams_ready_to_connect),
+                        text = connectionSubtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -1,5 +1,6 @@
 package com.v2ray.ang.ui.main
 
+import com.v2ray.ang.R
 import com.v2ray.ang.dto.ConnectionTestResult
 import com.v2ray.ang.dto.GroupMapItem
 import com.v2ray.ang.dto.LocateTarget
@@ -11,6 +12,13 @@ internal fun shouldWarnEmptyPerAppSelection(
     bypassMode: Boolean,
     selectedPackages: Set<String>,
 ): Boolean = enabled && !bypassMode && selectedPackages.isEmpty()
+
+internal fun connectionSubtitleRes(status: MainStatus, perAppProxyEnabled: Boolean): Int = when (status) {
+    MainStatus.Connected -> if (perAppProxyEnabled) R.string.dams_per_app_tunnel_active else R.string.dams_tunnel_active
+    MainStatus.Connecting -> R.string.connection_connecting
+    MainStatus.Reconnecting -> R.string.connection_reconnecting
+    else -> R.string.dams_ready_to_connect
+}
 
 data class ConnectionDiagnostic(
     val networkAvailable: Boolean? = null,
@@ -103,6 +111,7 @@ data class MainUiState(
     val trafficHistory: List<TrafficSnapshot> = emptyList(),
     val diagnostic: ConnectionDiagnostic? = null,
     val mobileIp: String? = null,
+    val perAppProxyEnabled: Boolean = false,
     val locateTarget: LocateTarget? = null,
     val confirmRemove: Boolean = false,
     val doubleColumnDisplay: Boolean = false,

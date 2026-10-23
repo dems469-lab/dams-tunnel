@@ -25,6 +25,7 @@ interface MainDataSource : Closeable {
     fun isGroupAllDisplayEnabled(): Boolean
     fun setThemeMode(mode: String)
     fun isEmptyPerAppProxySelectionDangerous(): Boolean
+    fun isPerAppProxyEnabled(): Boolean
     fun setPerAppProxyEnabled(enabled: Boolean)
 
     fun getString(resId: Int): String
