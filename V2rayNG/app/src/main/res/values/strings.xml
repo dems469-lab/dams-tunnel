@@ -825,4 +825,12 @@
     <string name="public_configs_import_success">%1$d configurations imported</string>
     <string name="public_configs_import_failed">No valid configuration was imported.</string>
     <string name="public_configs_invalid_source">Public source not allowed.</string>
+    <string name="tutorials_menu">Tutorials</string>
+    <string name="tutorials_title">Tutorials and guides</string>
+    <string name="tutorial_setup_title">Initial configuration</string>
+    <string name="tutorial_setup_body">Import a trusted configuration, select it in Configs, then tap the power button. Do not connect to a source you have not reviewed.</string>
+    <string name="tutorial_settings_title">Settings and routing</string>
+    <string name="tutorial_settings_body">Use routing and per-app proxy only when you understand which applications are included or excluded from the tunnel.</string>
+    <string name="tutorial_server_title">Your server</string>
+    <string name="tutorial_server_body">For a private server, verify the protocol, host, TLS settings and certificate policy with the server administrator.</string>
 </resources>

@@ -41,6 +41,7 @@ import com.v2ray.ang.premium.PremiumFeatureGate
 import com.v2ray.ang.premium.PremiumExpiryStateStore
 import com.v2ray.ang.premium.PremiumProfilePolicy
 import com.v2ray.ang.ui.AboutActivity
+import com.v2ray.ang.ui.TutorialsActivity
 import com.v2ray.ang.ui.backup.BackupActivity
 import com.v2ray.ang.ui.base.HelperBaseComponentActivity
 import com.v2ray.ang.ui.checkupdate.CheckUpdateActivity
@@ -302,6 +303,7 @@ class MainActivity : HelperBaseComponentActivity() {
             MainDestination.UserAssets -> Intent(this, UserAssetActivity::class.java)
             MainDestination.Settings -> Intent(this, SettingsActivity::class.java)
             MainDestination.Logcat -> Intent(this, LogcatActivity::class.java)
+            MainDestination.Tutorials -> Intent(this, TutorialsActivity::class.java)
             MainDestination.CheckUpdate -> Intent(this, CheckUpdateActivity::class.java)
             MainDestination.BackupRestore -> Intent(this, BackupActivity::class.java)
             MainDestination.About -> Intent(this, AboutActivity::class.java)

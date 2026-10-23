@@ -824,4 +824,12 @@
     <string name="public_configs_import_success">%1$d configurations importées</string>
     <string name="public_configs_import_failed">Aucune configuration valide n’a été importée.</string>
     <string name="public_configs_invalid_source">Source publique non autorisée.</string>
+    <string name="tutorials_menu">Tutoriels</string>
+    <string name="tutorials_title">Tutoriels et guides</string>
+    <string name="tutorial_setup_title">Configuration initiale</string>
+    <string name="tutorial_setup_body">Importez une configuration fiable, sélectionnez-la dans Configs, puis touchez le bouton d’alimentation. Ne vous connectez pas à une source que vous n’avez pas vérifiée.</string>
+    <string name="tutorial_settings_title">Paramètres et routage</string>
+    <string name="tutorial_settings_body">Utilisez le routage et le proxy par application seulement si vous savez quelles applications sont incluses ou exclues du tunnel.</string>
+    <string name="tutorial_server_title">Votre serveur</string>
+    <string name="tutorial_server_body">Pour un serveur privé, vérifiez le protocole, l’hôte, les réglages TLS et la politique des certificats auprès de l’administrateur.</string>
 </resources>
