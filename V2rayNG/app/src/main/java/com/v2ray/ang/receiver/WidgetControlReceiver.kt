@@ -21,6 +21,10 @@ class WidgetControlReceiver : BroadcastReceiver() {
                 }
             }
 
+            AppConfig.BROADCAST_ACTION_WIDGET_FAVORITE_CLICK -> {
+                if (!CoreServiceManager.isRunning()) LauncherManager.startServiceFromToggle(context)
+            }
+
             AppConfig.BROADCAST_ACTION_ACTIVITY -> {
                 val running = when (intent.getIntExtra("key", 0)) {
                     AppConfig.MSG_STATE_RUNNING, AppConfig.MSG_STATE_START_SUCCESS -> true
@@ -32,6 +36,7 @@ class WidgetControlReceiver : BroadcastReceiver() {
                 val manager = AppWidgetManager.getInstance(context)
                 val widgetIds = manager.getAppWidgetIds(ComponentName(context, WidgetProvider::class.java))
                 WidgetProvider().updateWidgetBackground(context, manager, widgetIds, running)
+                FavoriteWidgetProvider.refresh(context)
             }
         }
     }

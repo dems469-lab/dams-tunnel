@@ -833,4 +833,6 @@
     <string name="tutorial_settings_body">Use routing and per-app proxy only when you understand which applications are included or excluded from the tunnel.</string>
     <string name="tutorial_server_title">Your server</string>
     <string name="tutorial_server_body">For a private server, verify the protocol, host, TLS settings and certificate policy with the server administrator.</string>
+    <string name="widget_favorite_title">Favorite connection</string>
+    <string name="widget_no_favorite">No configuration selected</string>
 </resources>

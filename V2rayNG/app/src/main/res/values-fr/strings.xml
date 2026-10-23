@@ -832,4 +832,6 @@
     <string name="tutorial_settings_body">Utilisez le routage et le proxy par application seulement si vous savez quelles applications sont incluses ou exclues du tunnel.</string>
     <string name="tutorial_server_title">Votre serveur</string>
     <string name="tutorial_server_body">Pour un serveur privé, vérifiez le protocole, l’hôte, les réglages TLS et la politique des certificats auprès de l’administrateur.</string>
+    <string name="widget_favorite_title">Connexion favorite</string>
+    <string name="widget_no_favorite">Aucune configuration sélectionnée</string>
 </resources>
