@@ -359,6 +359,7 @@ class MainViewModel(
             MainAction.ImportQRcode,
             MainAction.ImportClipboard,
             MainAction.ImportConfigLocal,
+            MainAction.OpenPublicConfigs,
             is MainAction.ImportManually,
             MainAction.RestartService,
             MainAction.LocateSelectedServer,
