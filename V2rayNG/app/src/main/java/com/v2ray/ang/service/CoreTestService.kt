@@ -100,7 +100,9 @@ class CoreTestService : Service() {
             AppConfig.MSG_MEASURE_CONFIG_START -> handleMeasureStart(
                 message, startId, intent.getStringExtra(MessageHelper.EXTRA_REQUEST_ID).orEmpty()
             )
-            AppConfig.MSG_MEASURE_CONFIG_CANCEL -> handleMeasureCancel()
+            AppConfig.MSG_MEASURE_CONFIG_CANCEL -> handleMeasureCancel(
+                intent.getStringExtra(MessageHelper.EXTRA_REQUEST_ID).orEmpty()
+            )
             else -> {
                 NotificationHelper.stopForeground(this); stopSelf(startId)
             }
@@ -181,19 +183,24 @@ class CoreTestService : Service() {
         }
     }
 
-    private fun handleMeasureCancel() {
-        LogUtil.i(AppConfig.TAG, "CoreTestService received cancel message, cancelling ${activeWorkers.size} active workers")
-        cancelWorkers()
-        NotificationHelper.stopForeground(this)
-        stopSelf()
+    private fun handleMeasureCancel(requestId: String) {
+        val matching = activeWorkers.count { (_, workerRequestId) ->
+            shouldCancelTestRequest(workerRequestId, requestId)
+        }
+        LogUtil.i(AppConfig.TAG, "CoreTestService received cancel request, cancelling $matching workers")
+        cancelWorkers(requestId)
+        if (activeWorkers.isEmpty()) {
+            NotificationHelper.stopForeground(this)
+            stopSelf()
+        }
     }
 
-    private fun cancelWorkers() {
+    private fun cancelWorkers(requestId: String = "") {
         // Reply for each cancelled request, never for a newer UI request that has not started here.
-        activeWorkers.entries.toList().forEach { (worker, requestId) ->
-            if (activeWorkers.remove(worker, requestId)) {
+        activeWorkers.entries.toList().forEach { (worker, workerRequestId) ->
+            if (shouldCancelTestRequest(workerRequestId, requestId) && activeWorkers.remove(worker, workerRequestId)) {
                 worker.cancel()
-                MessageHelper.sendMsg2UI(this, AppConfig.MSG_MEASURE_CONFIG_CANCEL, "", requestId)
+                MessageHelper.sendMsg2UI(this, AppConfig.MSG_MEASURE_CONFIG_CANCEL, "", workerRequestId)
             }
         }
     }

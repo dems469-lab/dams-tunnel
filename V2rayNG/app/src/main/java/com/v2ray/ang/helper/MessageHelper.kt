@@ -93,8 +93,12 @@ object MessageHelper {
                 }
 
                 AppConfig.MSG_MEASURE_CONFIG_CANCEL -> {
-                    // Do not wake up service just to cancel; stop only if it is already running.
-                    ctx.stopService(intent)
+                    // Deliver the request id so the service cancels only that batch.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        ContextCompat.startForegroundService(ctx, intent)
+                    } else {
+                        ctx.startService(intent)
+                    }
                 }
 
                 else -> {
