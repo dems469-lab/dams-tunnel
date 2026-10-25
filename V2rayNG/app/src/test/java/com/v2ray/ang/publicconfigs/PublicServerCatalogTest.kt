@@ -72,7 +72,7 @@ class PublicServerCatalogTest {
         )
         assertEquals(1, buildPublicServerCatalog(entries, PublicServerFilters(availability = PublicAvailability.RESPONDED)).totalProfiles)
         assertEquals(1, buildPublicServerCatalog(entries, PublicServerFilters(availability = PublicAvailability.NO_RESPONSE)).totalProfiles)
-        assertEquals(1, buildPublicServerCatalog(entries, PublicServerFilters(availability = PublicAvailability.UNKNOWN)).totalProfiles)
+        assertEquals(2, buildPublicServerCatalog(entries, PublicServerFilters(availability = PublicAvailability.UNKNOWN)).totalProfiles)
         assertEquals(2, buildPublicServerCatalog(entries, PublicServerFilters(verification = PublicVerification.TESTED)).totalProfiles)
         assertEquals(1, buildPublicServerCatalog(entries, PublicServerFilters(completeness = PublicCompleteness.INVALID)).totalProfiles)
     }
