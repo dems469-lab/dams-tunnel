@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
-data class FreeServersUiState(
+internal data class FreeServersUiState(
     val catalog: PublicServerCatalog = PublicServerCatalog(emptyList(), emptyMap(), 0),
     val loading: Boolean = true,
     val refreshing: Boolean = false,
@@ -36,21 +36,22 @@ data class FreeServersUiState(
     val error: String? = null,
 )
 
-class FreeServersViewModel(application: Application) : BaseViewModel(application) {
+internal class FreeServersViewModel(application: Application) : BaseViewModel(application) {
     private val _uiState = MutableStateFlow(FreeServersUiState())
     val uiState: StateFlow<FreeServersUiState> = _uiState.asStateFlow()
     private var requestId: String? = null
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.getStringExtra(MessageHelper.EXTRA_REQUEST_ID) != requestId) return
-            when (intent.getIntExtra("key", 0)) {
+            val safeIntent = intent ?: return
+            if (safeIntent.getStringExtra(MessageHelper.EXTRA_REQUEST_ID) != requestId) return
+            when (safeIntent.getIntExtra("key", 0)) {
                 AppConfig.MSG_MEASURE_CONFIG_SUCCESS -> {
-                    intent.serializable<RealPingResult>("content")
+                    safeIntent.serializable<RealPingResult>("content")
                     load()
                 }
                 AppConfig.MSG_MEASURE_CONFIG_NOTIFY -> _uiState.value = _uiState.value.copy(
-                    testStatus = intent.getStringExtra("content").orEmpty()
+                    testStatus = safeIntent.getStringExtra("content").orEmpty()
                 )
                 AppConfig.MSG_MEASURE_CONFIG_FINISH,
                 AppConfig.MSG_MEASURE_CONFIG_CANCEL -> {
