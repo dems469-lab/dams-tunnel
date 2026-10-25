@@ -49,6 +49,21 @@ class PublicServerCatalogTest {
     }
 
     @Test
+    fun `unsupported aggregate profile types are not shown as server protocols`() {
+        val aggregate = PublicServerInput(
+            guid = "rules",
+            profile = ProfileItem.create(EConfigType.POLICYGROUP).apply { remarks = "Rules group" },
+            sourceName = "Provider",
+            sourceUpdatedAt = 0L,
+            delayMillis = 0L,
+        )
+        val catalog = buildPublicServerCatalog(listOf(aggregate), PublicServerFilters())
+        assertEquals(0, catalog.totalProfiles)
+        assertTrue(catalog.groups.isEmpty())
+        assertTrue(catalog.protocolCounts.isEmpty())
+    }
+
+    @Test
     fun `search matches name source host protocol and country text supplied by source`() {
         val input = vless("Burkina · VLESS relay").copy(sourceName = "Provider West")
         assertEquals(1, buildPublicServerCatalog(listOf(input), PublicServerFilters(query = "Burkina")).totalProfiles)
@@ -130,5 +145,13 @@ class PublicServerCatalogTest {
         assertNotNull(variant.details)
         val visible = variant.details.toString() + variant.searchableText
         assertFalse(visible.contains("secret-password"))
+    }
+
+    @Test
+    fun `public labels redact credential shaped values`() {
+        val label = redactPublicLabel("trojan://alice:secret@example.org?token=abc 123e4567-e89b-12d3-a456-426614174000")
+        assertFalse(label.contains("secret"))
+        assertFalse(label.contains("token=abc"))
+        assertFalse(label.contains("123e4567-e89b-12d3-a456-426614174000"))
     }
 }

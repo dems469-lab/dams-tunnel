@@ -77,6 +77,11 @@ internal data class PublicServerGroup(
 ) {
     val protocol: PublicProtocol get() = variants.first().protocol
     val assessment: PublicFieldAssessment get() = variants.first().assessment
+    val availability: PublicAvailability get() = when {
+        variants.any { it.availability == PublicAvailability.RESPONDED } -> PublicAvailability.RESPONDED
+        variants.all { it.availability == PublicAvailability.NO_RESPONSE } -> PublicAvailability.NO_RESPONSE
+        else -> PublicAvailability.UNKNOWN
+    }
     val bestMeasuredLatency: Long? get() = variants.mapNotNull { it.delayMillis }.minOrNull()
     val sourceUpdatedAt: Long get() = variants.maxOfOrNull { it.sourceUpdatedAt } ?: -1L
 }
@@ -210,7 +215,7 @@ internal fun buildPublicServerCatalog(
         ).joinToString(" ")
         PublicServerVariant(
             guid = entry.guid,
-            name = entry.profile.remarks.ifBlank { entry.profile.server.orEmpty() },
+            name = redactPublicLabel(entry.profile.remarks.ifBlank { entry.profile.server.orEmpty() }),
             sourceId = entry.sourceId,
             sourceName = entry.sourceName,
             protocol = protocol,
@@ -269,6 +274,15 @@ internal fun buildPublicServerCatalog(
     }
     return PublicServerCatalog(sorted, protocolCounts, prepared.size)
 }
+
+internal fun redactPublicLabel(value: String): String = value
+    .replace(Regex("(?i)\\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\b"), "[identifiant masqué]")
+    .replace(Regex("(?i)(password|passwd|uuid|token|secret|private[_-]?key)=([^&\\s]+)")) {
+        "${it.groupValues[1]}=[masqué]"
+    }
+    .replace(Regex("(?i)([a-z][a-z0-9+.-]*://)[^/@\\s:]+:[^/@\\s]+@")) {
+        "${it.groupValues[1]}[identifiants masqués]@"
+    }
 
 private fun completenessRank(value: PublicCompleteness): Int = when (value) {
     PublicCompleteness.COMPLETE -> 3

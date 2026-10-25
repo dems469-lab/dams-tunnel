@@ -42,6 +42,8 @@ import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
+import java.text.DateFormat
+import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -60,6 +62,8 @@ class FreeServersActivity : BaseComponentActivity() {
             onFiltersChanged = viewModel::updateFilters,
             onToggleSelection = viewModel::toggleSelection,
             onTest = viewModel::testSelected,
+            onTestServer = viewModel::testServer,
+            onClearSelection = viewModel::clearSelection,
             onCancelTest = viewModel::cancelTest,
             onRefresh = {
                 lifecycleScope.launch {
@@ -67,7 +71,7 @@ class FreeServersActivity : BaseComponentActivity() {
                         val count = viewModel.refreshSources()
                         toastSuccess(getString(R.string.free_servers_refresh_success, count))
                     } catch (_: Exception) {
-                        toastError(R.string.public_configs_import_failed)
+                        toastError(R.string.free_servers_refresh_error)
                     }
                 }
             },
@@ -97,6 +101,8 @@ private fun FreeServersScreen(
     onFiltersChanged: (PublicServerFilters) -> Unit,
     onToggleSelection: (String) -> Unit,
     onTest: () -> Unit,
+    onTestServer: (String) -> Unit,
+    onClearSelection: () -> Unit,
     onCancelTest: () -> Unit,
     onRefresh: () -> Unit,
     onSelect: (String) -> Unit,
@@ -106,56 +112,73 @@ private fun FreeServersScreen(
     var expanded by rememberSaveable { mutableStateOf(emptySet<String>()) }
     val filters = state.filters
     Scaffold(topBar = { AppTopBar(title = stringResource(R.string.free_servers_title), onBackClick = onBack) }) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp).imePadding(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(stringResource(R.string.free_servers_description), style = MaterialTheme.typography.bodyMedium)
-            OutlinedTextField(
-                value = filters.query,
-                onValueChange = { onFiltersChanged(filters.copy(query = it)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text(stringResource(R.string.free_servers_search)) },
-            )
-            Text(stringResource(R.string.free_servers_protocols), style = MaterialTheme.typography.labelLarge)
-            FilterRow(
-                labels = listOf(null to stringResource(R.string.free_servers_all)) + PublicProtocol.entries.map { it to "${protocolLabel(it)} (${state.catalog.protocolCounts[it] ?: 0})" },
-                selected = filters.protocol,
-                onSelected = { onFiltersChanged(filters.copy(protocol = it)) },
-            )
-            FilterRow(
-                labels = listOf(null to stringResource(R.string.free_servers_filter_all), PublicCompleteness.COMPLETE to stringResource(R.string.free_servers_filter_complete), PublicCompleteness.PARTIAL to stringResource(R.string.free_servers_filter_partial), PublicCompleteness.INVALID to stringResource(R.string.free_servers_filter_invalid)),
-                selected = filters.completeness,
-                onSelected = { onFiltersChanged(filters.copy(completeness = it)) },
-            )
-            FilterRow(
-                labels = listOf(null to stringResource(R.string.free_servers_filter_all), PublicAvailability.RESPONDED to stringResource(R.string.free_servers_filter_responded), PublicAvailability.NO_RESPONSE to stringResource(R.string.free_servers_filter_no_response), PublicAvailability.UNKNOWN to stringResource(R.string.free_servers_filter_unknown)),
-                selected = filters.availability,
-                onSelected = { onFiltersChanged(filters.copy(availability = it)) },
-            )
-            FilterRow(
-                labels = listOf(null to stringResource(R.string.free_servers_filter_all), PublicVerification.TESTED to stringResource(R.string.free_servers_filter_tested), PublicVerification.UNTESTED to stringResource(R.string.free_servers_filter_untested)),
-                selected = filters.verification,
-                onSelected = { onFiltersChanged(filters.copy(verification = it)) },
-            )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(PublicSort.COMPLETENESS, PublicSort.LATENCY, PublicSort.SOURCE_UPDATED).forEach { sort ->
-                    FilterChip(selected = filters.sort == sort, onClick = { onFiltersChanged(filters.copy(sort = sort)) }, label = { Text(sortLabel(sort)) })
+            item(key = "filters") {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.free_servers_description), style = MaterialTheme.typography.bodyMedium)
+                    OutlinedTextField(
+                        value = filters.query,
+                        onValueChange = { onFiltersChanged(filters.copy(query = it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.free_servers_search)) },
+                    )
+                    Text(stringResource(R.string.free_servers_protocols), style = MaterialTheme.typography.labelLarge)
+                    FilterRow(
+                        labels = listOf(null to stringResource(R.string.free_servers_all)) + PublicProtocol.entries.map {
+                            it to stringResource(R.string.free_servers_protocol_count, protocolLabel(it), state.catalog.protocolCounts[it] ?: 0)
+                        },
+                        selected = filters.protocol,
+                        onSelected = { onFiltersChanged(filters.copy(protocol = it)) },
+                    )
+                    FilterRow(
+                        labels = listOf(null to stringResource(R.string.free_servers_filter_all), PublicCompleteness.COMPLETE to stringResource(R.string.free_servers_filter_complete), PublicCompleteness.PARTIAL to stringResource(R.string.free_servers_filter_partial), PublicCompleteness.INVALID to stringResource(R.string.free_servers_filter_invalid), PublicCompleteness.UNVERIFIED to stringResource(R.string.config_status_unverified)),
+                        selected = filters.completeness,
+                        onSelected = { onFiltersChanged(filters.copy(completeness = it)) },
+                    )
+                    FilterRow(
+                        labels = listOf(null to stringResource(R.string.free_servers_filter_all), PublicAvailability.RESPONDED to stringResource(R.string.free_servers_filter_responded), PublicAvailability.NO_RESPONSE to stringResource(R.string.free_servers_filter_no_response), PublicAvailability.UNKNOWN to stringResource(R.string.free_servers_filter_unknown)),
+                        selected = filters.availability,
+                        onSelected = { onFiltersChanged(filters.copy(availability = it)) },
+                    )
+                    FilterRow(
+                        labels = listOf(null to stringResource(R.string.free_servers_filter_all), PublicVerification.TESTED to stringResource(R.string.free_servers_filter_tested), PublicVerification.UNTESTED to stringResource(R.string.free_servers_filter_untested)),
+                        selected = filters.verification,
+                        onSelected = { onFiltersChanged(filters.copy(verification = it)) },
+                    )
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(PublicSort.COMPLETENESS, PublicSort.LATENCY, PublicSort.SOURCE_UPDATED).forEach { sort ->
+                            FilterChip(selected = filters.sort == sort, onClick = { onFiltersChanged(filters.copy(sort = sort)) }, label = {
+                                Text(stringResource(when (sort) {
+                                    PublicSort.COMPLETENESS -> R.string.free_servers_sort_completeness
+                                    PublicSort.LATENCY -> R.string.free_servers_sort_latency
+                                    PublicSort.SOURCE_UPDATED -> R.string.free_servers_sort_updated
+                                }))
+                            })
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onRefresh, enabled = !state.refreshing) { Text(stringResource(if (state.refreshing) R.string.free_servers_loading else R.string.free_servers_refresh)) }
+                        Button(onClick = if (state.testing) onCancelTest else onTest, enabled = state.testing || state.selectedGuids.isNotEmpty()) {
+                            Text(if (state.testing) stringResource(R.string.free_servers_cancel_test) else stringResource(R.string.free_servers_test_selected, state.selectedGuids.size))
+                        }
+                    }
+                    Text(stringResource(R.string.free_servers_count, state.catalog.totalProfiles, state.catalog.groups.size), style = MaterialTheme.typography.labelMedium)
+                    if (state.selectedGuids.isNotEmpty() && !state.testing) {
+                        TextButton(onClick = onClearSelection) { Text(stringResource(R.string.free_servers_clear_selection, state.selectedGuids.size)) }
+                    }
+                    state.testStatus?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+                    if (state.loading) Text(stringResource(R.string.free_servers_loading))
+                    else if (state.error) Text(stringResource(R.string.free_servers_load_error), color = MaterialTheme.colorScheme.error)
+                    else if (state.catalog.groups.isEmpty()) Text(stringResource(R.string.free_servers_empty))
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onRefresh, enabled = !state.refreshing) { Text(stringResource(if (state.refreshing) R.string.free_servers_loading else R.string.free_servers_refresh)) }
-                Button(onClick = if (state.testing) onCancelTest else onTest, enabled = state.testing || state.selectedGuids.isNotEmpty()) { Text(stringResource(if (state.testing) R.string.free_servers_cancel_test else R.string.free_servers_test_selected, state.selectedGuids.size)) }
-            }
-            Text(stringResource(R.string.free_servers_count, state.catalog.totalProfiles, state.catalog.groups.size), style = MaterialTheme.typography.labelMedium)
-            state.testStatus?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-            if (state.loading) Text(stringResource(R.string.free_servers_loading))
-            else if (state.error != null) Text(state.error, color = MaterialTheme.colorScheme.error)
-            else if (state.catalog.groups.isEmpty()) Text(stringResource(R.string.free_servers_empty))
-            else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (!state.loading && !state.error) {
                 items(state.catalog.groups, key = { it.id }) { group ->
-                    PublicServerGroupCard(group, state.selectedGuids, group.id in expanded, { expanded = if (group.id in expanded) expanded - group.id else expanded + group.id }, onToggleSelection, onSelect, { deleteTarget = group })
+                    PublicServerGroupCard(group, state.selectedGuids, group.id in expanded, { expanded = if (group.id in expanded) expanded - group.id else expanded + group.id }, onToggleSelection, onTestServer, onSelect, { deleteTarget = group })
                 }
             }
         }
@@ -171,7 +194,7 @@ private fun <T> FilterRow(labels: List<Pair<T?, String>>, selected: T?, onSelect
 }
 
 @Composable
-private fun PublicServerGroupCard(group: PublicServerGroup, selectedGuids: Set<String>, isExpanded: Boolean, onExpand: () -> Unit, onToggleSelection: (String) -> Unit, onSelect: (String) -> Unit, onDelete: () -> Unit) {
+private fun PublicServerGroupCard(group: PublicServerGroup, selectedGuids: Set<String>, isExpanded: Boolean, onExpand: () -> Unit, onToggleSelection: (String) -> Unit, onTestServer: (String) -> Unit, onSelect: (String) -> Unit, onDelete: () -> Unit) {
     val first = group.variants.first()
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -190,19 +213,34 @@ private fun PublicServerGroupCard(group: PublicServerGroup, selectedGuids: Set<S
                 },
                 color = MaterialTheme.colorScheme.primary,
             )
-            Text(when (first.availability) { PublicAvailability.RESPONDED -> stringResource(R.string.free_servers_responded); PublicAvailability.NO_RESPONSE -> stringResource(R.string.free_servers_no_response); PublicAvailability.UNKNOWN -> stringResource(R.string.free_servers_not_tested) }, style = MaterialTheme.typography.bodySmall)
+            Text(when (group.availability) { PublicAvailability.RESPONDED -> stringResource(R.string.free_servers_responded); PublicAvailability.NO_RESPONSE -> stringResource(R.string.free_servers_no_response); PublicAvailability.UNKNOWN -> stringResource(R.string.free_servers_not_tested) }, style = MaterialTheme.typography.bodySmall)
             Text(first.delayMillis?.let { "$it ms" } ?: stringResource(R.string.free_servers_not_tested), style = MaterialTheme.typography.labelLarge)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onExpand) { Text(stringResource(if (isExpanded) R.string.free_servers_collapse else R.string.free_servers_details)) }
                 TextButton(onClick = { onToggleSelection(first.guid) }) { Text(stringResource(if (first.guid in selectedGuids) R.string.free_servers_selected else R.string.free_servers_select)) }
-                TextButton(onClick = { onSelect(first.guid) }) { Text(stringResource(R.string.free_servers_selected)) }
+                TextButton(onClick = { onSelect(first.guid) }) { Text(stringResource(R.string.free_servers_choose)) }
+                TextButton(onClick = { onTestServer(first.guid) }) { Text(stringResource(R.string.free_servers_test)) }
             }
             if (group.variants.size > 1) Text(stringResource(R.string.free_servers_group_variants, group.variants.size))
             if (isExpanded) {
                 group.variants.forEach { variant ->
                     Text("${variant.sourceName} · ${variant.name}", style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        if (variant.sourceUpdatedAt > 0L) stringResource(
+                            R.string.free_servers_updated_at,
+                            DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(variant.sourceUpdatedAt)),
+                        ) else stringResource(R.string.free_servers_updated_unknown),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Details(variant.details)
-                    if (variant.guid != first.guid) TextButton(onClick = { onToggleSelection(variant.guid) }) { Text(stringResource(R.string.free_servers_select)) }
+                    if (variant.guid != first.guid) {
+                        Row {
+                            TextButton(onClick = { onToggleSelection(variant.guid) }) { Text(stringResource(R.string.free_servers_select)) }
+                            TextButton(onClick = { onTestServer(variant.guid) }) { Text(stringResource(R.string.free_servers_test)) }
+                            TextButton(onClick = { onSelect(variant.guid) }) { Text(stringResource(R.string.free_servers_choose)) }
+                        }
+                    }
                 }
                 TextButton(onClick = onDelete) { Text(stringResource(R.string.free_servers_delete)) }
             }
@@ -238,5 +276,3 @@ private fun protocolLabel(protocol: PublicProtocol): String = when (protocol) {
     PublicProtocol.WIREGUARD -> "WireGuard"
     PublicProtocol.CUSTOM -> "Custom"
 }
-
-private fun sortLabel(value: PublicSort): String = when (value) { PublicSort.COMPLETENESS -> "Complétude"; PublicSort.LATENCY -> "Latence"; PublicSort.SOURCE_UPDATED -> "Actualité" }

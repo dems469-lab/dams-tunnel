@@ -7,10 +7,10 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import com.v2ray.ang.AppConfig
-import com.v2ray.ang.dto.RealPingResult
 import com.v2ray.ang.dto.TestServiceMessage
-import com.v2ray.ang.extension.serializable
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
@@ -33,23 +33,21 @@ internal data class FreeServersUiState(
     val selectedGuids: Set<String> = emptySet(),
     val testing: Boolean = false,
     val testStatus: String? = null,
-    val error: String? = null,
+    val error: Boolean = false,
 )
 
 internal class FreeServersViewModel(application: Application) : BaseViewModel(application) {
     private val _uiState = MutableStateFlow(FreeServersUiState())
     val uiState: StateFlow<FreeServersUiState> = _uiState.asStateFlow()
     private var requestId: String? = null
+    private var loadJob: Job? = null
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val safeIntent = intent ?: return
             if (safeIntent.getStringExtra(MessageHelper.EXTRA_REQUEST_ID) != requestId) return
             when (safeIntent.getIntExtra("key", 0)) {
-                AppConfig.MSG_MEASURE_CONFIG_SUCCESS -> {
-                    safeIntent.serializable<RealPingResult>("content")
-                    load()
-                }
+                AppConfig.MSG_MEASURE_CONFIG_SUCCESS -> Unit
                 AppConfig.MSG_MEASURE_CONFIG_NOTIFY -> _uiState.value = _uiState.value.copy(
                     testStatus = safeIntent.getStringExtra("content").orEmpty()
                 )
@@ -88,13 +86,19 @@ internal class FreeServersViewModel(application: Application) : BaseViewModel(ap
     fun clearSelection() = _uiState.value.let { _uiState.value = it.copy(selectedGuids = emptySet()) }
 
     fun testSelected() {
-        val guids = _uiState.value.selectedGuids.toList()
+        testServers(_uiState.value.selectedGuids.toList())
+    }
+
+    fun testServer(guid: String) = testServers(listOf(guid))
+
+    private fun testServers(guids: List<String>) {
         if (guids.isEmpty() || _uiState.value.testing) return
         val id = UUID.randomUUID().toString()
         requestId = id
         _uiState.value = _uiState.value.copy(testing = true, testStatus = null)
         viewModelScope.launch(Dispatchers.IO) {
             MmkvManager.clearAllTestDelayResults(guids)
+            load()
             MessageHelper.sendMsg2TestService(
                 getApplication(),
                 TestServiceMessage(AppConfig.MSG_MEASURE_CONFIG_START, serverGuids = guids),
@@ -127,9 +131,10 @@ internal class FreeServersViewModel(application: Application) : BaseViewModel(ap
 
     fun load() {
         val filters = _uiState.value.filters
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(loading = true, error = null)
-            runCatching {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(loading = true, error = false)
+            try {
                 val inputs = withContext(Dispatchers.IO) {
                     MmkvManager.decodeSubscriptions()
                         .filter { it.guid.startsWith("dams-public-") }
@@ -147,11 +152,12 @@ internal class FreeServersViewModel(application: Application) : BaseViewModel(ap
                             }
                         }
                 }
-                withContext(Dispatchers.Default) { buildPublicServerCatalog(inputs, filters) }
-            }.onSuccess { catalog ->
+                val catalog = withContext(Dispatchers.Default) { buildPublicServerCatalog(inputs, filters) }
                 _uiState.value = _uiState.value.copy(catalog = catalog, loading = false)
-            }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(loading = false, error = error.message)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _uiState.value = _uiState.value.copy(loading = false, error = true)
             }
         }
     }
