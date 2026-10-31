@@ -12,8 +12,8 @@
 
 | # | Chantier | État |
 |---|---|---|
-| 1 | Partage de connexion (hotspot / LAN) | à faire |
-| 2 | Refonte de l'interface (animations, transparence, menu ⋮ à gauche) | à faire |
+| 1 | Partage de connexion (hotspot / LAN) | fait |
+| 2 | Refonte de l'interface (animations, transparence, menu ⋮ à gauche) | fait |
 | 3 | Gestion des serveurs (serveur public → « Mes serveurs ») | fait |
 | 4 | Réorganisation des menus (Fournisseurs, IP Finder, Journal, sauvegarde) | fait |
 | 5 | Console Xray (journal de diagnostic) | fait |
@@ -34,3 +34,7 @@
 - Console Xray : tampon mémoire borné alimenté par l'application et par le flux logcat du
   cœur, filtres par niveau, recherche, copie totale ou sélectionnée, export `.txt` et
   effacement confirmé.
+- Partage de connexion : écran listant les adresses IPv4 locales et le port SOCKS,
+  bascule du partage réseau et note sur la limitation Android des points d'accès.
+- Interface : surfaces translucides, dégradé et carte translucide sur l'accueil,
+  anneau de pulsation piloté par le cycle de vie.
