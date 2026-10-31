@@ -35,6 +35,7 @@ import com.v2ray.ang.service.DialerWebviewService
 import com.v2ray.ang.service.NetworkMonitor
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
+import com.v2ray.ang.util.XrayConsole
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -252,6 +253,7 @@ object CoreServiceManager {
                 reconnectAttempt = 0
                 startHealthCheck(service)
                 NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_connected), android.graphics.Color.rgb(34, 211, 238))
+                XrayConsole.event("Core", "Connection verified, tunnel is up")
                 ConnectionFeedback.onConnected(service)
                 MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
             } else if (isRunning()) {
@@ -493,6 +495,7 @@ object CoreServiceManager {
         }
 
         MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_STOP_SUCCESS, "")
+        XrayConsole.event("Core", "Tunnel stopped")
         ConnectionFeedback.onDisconnected(service)
         NotificationManager.cancelNotification()
 

@@ -16,8 +16,8 @@
 | 2 | Refonte de l'interface (animations, transparence, menu ⋮ à gauche) | à faire |
 | 3 | Gestion des serveurs (serveur public → « Mes serveurs ») | fait |
 | 4 | Réorganisation des menus (Fournisseurs, IP Finder, Journal, sauvegarde) | fait |
-| 5 | Console Xray (journal de diagnostic) | à faire |
-| 6 | Nouveaux paramètres (notifications, TLS global, taille de police, sauvegarde) | à faire |
+| 5 | Console Xray (journal de diagnostic) | fait |
+| 6 | Nouveaux paramètres (notifications, TLS global, taille de police, sauvegarde) | fait |
 | 7 | Vérifications et performance | à faire |
 
 ## Journal des modifications
@@ -28,3 +28,9 @@
   qui est désormais à gauche ; « Sauvegarde et restauration » passe dans les paramètres.
 - Serveurs publics : action « Ajouter à mes serveurs » qui copie le profil choisi dans la
   catégorie par défaut, avec un nouvel identifiant, sans toucher au fournisseur public.
+- Paramètres : taille de texte (5 niveaux), retour de connexion (silencieux / vibration / son
+  pour la connexion, la déconnexion et les notifications) et interrupteur TLS global limité
+  aux profils compatibles.
+- Console Xray : tampon mémoire borné alimenté par l'application et par le flux logcat du
+  cœur, filtres par niveau, recherche, copie totale ou sélectionnée, export `.txt` et
+  effacement confirmé.

@@ -7,6 +7,7 @@ import android.net.NetworkRequest
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.extension.delay
 import com.v2ray.ang.util.LogUtil
+import com.v2ray.ang.util.XrayConsole
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +66,7 @@ class NetworkMonitor(
             upstream = network
             underlyingIsCellular = connectivity.getNetworkCapabilities(network)
                 ?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+            XrayConsole.event("Network", "Upstream available: ${if (underlyingIsCellular == true) "cellular" else "wifi/other"}")
             onUnderlyingNetworksChanged(arrayOf(network))
             if (previous != null && previous != network) {
                 scheduleHandover(network)
@@ -83,6 +85,7 @@ class NetworkMonitor(
             if (upstream == network) {
                 upstream = null
                 underlyingIsCellular = null
+                XrayConsole.event("Network", "Upstream network lost")
                 onUnderlyingNetworksChanged(null)
                 // A lost upstream must trigger the same recovery path as a handover;
                 // otherwise the core can remain alive while its server socket is dead.

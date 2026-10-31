@@ -467,7 +467,24 @@
     <string name="title_root_lan_sharing">Share VPN with LAN / tethered devices (root users)</string>
     <string name="summary_root_lan_sharing">Route traffic from Wi-Fi hotspot and USB-tethered devices through the VPN.</string>
 
-    <string name="title_logcat" translatable="false">Logcat</string>
+    <string name="title_logcat" translatable="false">Xray console</string>
+    <string name="console_filter_all">All</string>
+    <string name="console_filter_info">Info</string>
+    <string name="console_filter_warning">Warnings</string>
+    <string name="console_filter_error">Errors</string>
+    <string name="console_filter_system">System</string>
+    <string name="console_level_info">INFO</string>
+    <string name="console_level_warning">WARN</string>
+    <string name="console_level_error">ERROR</string>
+    <string name="console_level_system">SYSTEM</string>
+    <string name="console_level_debug">DEBUG</string>
+    <string name="console_empty">No events yet.</string>
+    <string name="console_selected_count">%1$d selected</string>
+    <string name="console_copy_selected">Copy</string>
+    <string name="console_clear_selection">Clear</string>
+    <string name="console_clear_title">Clear the console?</string>
+    <string name="console_clear_message">Every entry will be removed. This cannot be undone.</string>
+    <string name="console_clear_confirm">Clear</string>
     <string name="logcat_copy">Copy</string>
     <string name="logcat_clear">Clear</string>
     <string name="logcat_share">Share log</string>
@@ -747,6 +764,7 @@
     <string name="acc_download_file">Download asset files</string>
     <string name="acc_qr_code">QR code</string>
     <string name="acc_copy_log">Copy log</string>
+    <string name="acc_save_log">Save the log</string>
     <string name="acc_clear_log">Clear log</string>
     <string name="acc_add_rule">Add routing rule</string>
     <string name="acc_start">Start service</string>

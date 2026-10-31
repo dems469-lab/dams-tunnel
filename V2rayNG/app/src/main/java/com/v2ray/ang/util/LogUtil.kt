@@ -53,6 +53,9 @@ object LogUtil {
     }
 
     private fun log(priority: Int, tag: String, message: String, throwable: Throwable? = null) {
+        // The console keeps its own bounded history; it must see info and above even when the
+        // logcat level hides them.
+        if (priority >= Log.INFO) XrayConsole.record(priority, tag, message, throwable)
         if (!isEnabled(priority)) return
 
         when {
