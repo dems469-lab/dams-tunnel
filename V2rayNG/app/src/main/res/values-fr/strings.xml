@@ -958,4 +958,14 @@
     <string name="free_servers_refresh_error">Impossible d’actualiser les sources publiques. Vérifiez le réseau puis réessayez.</string>
     <string name="free_servers_updated_at">Source actualisée : %1$s</string>
     <string name="free_servers_updated_unknown">Date d’actualisation inconnue</string>
+    <string name="title_connection_sharing">Partage de connexion</string>
+    <string name="connection_sharing_toggle">Partager sur le réseau</string>
+    <string name="connection_sharing_toggle_summary">Rend le proxy SOCKS accessible aux autres appareils du réseau local ou du point d'accès.</string>
+    <string name="connection_sharing_ip_label">Adresse locale</string>
+    <string name="connection_sharing_port_label">Port</string>
+    <string name="connection_sharing_copy">Copier</string>
+    <string name="connection_sharing_no_ip">Aucune adresse réseau disponible</string>
+    <string name="connection_sharing_note">Android ne route pas automatiquement le trafic des clients du point d'accès via le VPN. Les clients doivent être configurés pour utiliser le proxy SOCKS5 ci-dessous.</string>
+    <string name="connection_sharing_restart">Redémarrez le service après avoir modifié ce réglage.</string>
+    <string name="connection_sharing_instructions">Sur l'appareil client, configurez le proxy en SOCKS5 avec l'adresse et le port ci-dessus, puis connectez-vous au point d'accès ou au même réseau Wi-Fi.</string>
 </resources>

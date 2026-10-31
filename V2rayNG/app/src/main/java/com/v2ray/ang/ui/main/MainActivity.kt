@@ -309,6 +309,7 @@ class MainActivity : HelperBaseComponentActivity() {
             MainDestination.UserAssets -> Intent(this, UserAssetActivity::class.java)
             MainDestination.Settings -> Intent(this, SettingsActivity::class.java)
             MainDestination.Logcat -> Intent(this, LogcatActivity::class.java)
+            MainDestination.ConnectionSharing -> Intent(this, com.v2ray.ang.ui.sharing.ConnectionSharingActivity::class.java)
             MainDestination.Consumption -> Intent(this, ConsumptionActivity::class.java)
             MainDestination.Tutorials -> Intent(this, TutorialsActivity::class.java)
             MainDestination.CheckUpdate -> Intent(this, CheckUpdateActivity::class.java)

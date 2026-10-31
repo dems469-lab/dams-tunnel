@@ -277,6 +277,7 @@ fun MainScreen(
                         onMoreMenuAction = { action ->
                             when (action) {
                                 MainMoreMenuAction.Journal -> onNavigate(MainDestination.Logcat)
+                                MainMoreMenuAction.ConnectionSharing -> onNavigate(MainDestination.ConnectionSharing)
                                 MainMoreMenuAction.RestartService -> onAction(MainAction.RestartService)
                                 MainMoreMenuAction.DeleteAll -> showDelAllConfirm = true
                                 MainMoreMenuAction.DeleteDuplicate -> showDelDuplicateConfirm = true

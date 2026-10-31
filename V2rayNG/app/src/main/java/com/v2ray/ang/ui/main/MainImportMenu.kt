@@ -30,6 +30,7 @@ private enum class ImportMenuAction(@StringRes val labelRes: Int, val action: Ma
 
 enum class MainMoreMenuAction(@StringRes val labelRes: Int) {
     Journal(R.string.title_logcat),
+    ConnectionSharing(R.string.title_connection_sharing),
     RestartService(R.string.title_service_restart),
     DeleteAll(R.string.title_del_all_config),
     DeleteDuplicate(R.string.title_del_duplicate_config),
@@ -87,6 +88,7 @@ fun MoreMenuContent(onSelected: (MainMoreMenuAction) -> Unit) = AppDropdownMenuI
     iconRes = {
         when (it) {
             MainMoreMenuAction.Journal -> R.drawable.ic_logcat_24dp
+            MainMoreMenuAction.ConnectionSharing -> R.drawable.ic_share_24dp
             MainMoreMenuAction.RestartService -> R.drawable.ic_restore_24dp
             MainMoreMenuAction.DeleteAll,
             MainMoreMenuAction.DeleteDuplicate,

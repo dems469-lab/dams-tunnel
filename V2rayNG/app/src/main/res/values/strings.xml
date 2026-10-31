@@ -959,4 +959,14 @@
     <string name="free_servers_refresh_error">Public sources could not be refreshed. Check your network and try again.</string>
     <string name="free_servers_updated_at">Source updated: %1$s</string>
     <string name="free_servers_updated_unknown">Source update date unavailable</string>
+    <string name="title_connection_sharing">Connection sharing</string>
+    <string name="connection_sharing_toggle">Share over the network</string>
+    <string name="connection_sharing_toggle_summary">Makes the SOCKS proxy reachable from other devices on the LAN or hotspot.</string>
+    <string name="connection_sharing_ip_label">Local address</string>
+    <string name="connection_sharing_port_label">Port</string>
+    <string name="connection_sharing_copy">Copy</string>
+    <string name="connection_sharing_no_ip">No network address available</string>
+    <string name="connection_sharing_note">Android does not route hotspot clients through the VPN automatically. Clients must be configured to use the SOCKS5 proxy shown below.</string>
+    <string name="connection_sharing_restart">Restart the service after changing this setting.</string>
+    <string name="connection_sharing_instructions">On the client device, set the proxy to SOCKS5 with the address and port above, then connect to the hotspot or the same Wi-Fi network.</string>
 </resources>

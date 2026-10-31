@@ -186,6 +186,9 @@
             android:name=".ui.logcat.LogcatActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.sharing.ConnectionSharingActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.TutorialsActivity"
             android:exported="false" />
         <activity

@@ -40,6 +40,7 @@ enum class MainDestination(@DrawableRes val iconRes: Int, @StringRes val labelRe
     UserAssets(R.drawable.ic_file_24dp, R.string.title_user_asset_setting),
     Settings(R.drawable.ic_settings_24dp, R.string.title_settings),
     Logcat(R.drawable.ic_logcat_24dp, R.string.title_logcat),
+    ConnectionSharing(R.drawable.ic_share_24dp, R.string.title_connection_sharing),
     Consumption(R.drawable.ic_flash_on_24dp, R.string.consumption_menu),
     Tutorials(R.drawable.ic_about_24dp, R.string.tutorials_menu),
     CheckUpdate(R.drawable.ic_check_update_24dp, R.string.update_check_for_update),
