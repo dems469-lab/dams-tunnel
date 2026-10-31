@@ -17,18 +17,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
@@ -83,18 +82,15 @@ import com.v2ray.ang.R
 import com.v2ray.ang.extension.toSpeedString
 import com.v2ray.ang.extension.toTrafficString
 import com.v2ray.ang.ui.compose.QRCodeDialog
-import com.v2ray.ang.ui.logcat.LogcatViewModel
 import com.v2ray.ang.util.PerformanceDiagnostics
 import com.v2ray.ang.handler.MmkvManager
 import android.os.SystemClock
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
     mainViewModel: MainViewModel,
-    logcatViewModel: LogcatViewModel,
     showPremium: Boolean,
     onAction: (MainAction) -> Unit,
     onNavigate: (MainDestination) -> Unit,
@@ -170,7 +166,7 @@ fun MainScreen(
             val tabName = when (selectedTab) {
                 DamsTab.Home -> "Accueil"
                 DamsTab.Configs -> "Configs"
-                DamsTab.Journal -> "Journal"
+                DamsTab.IpFinder -> "IP Finder"
                 DamsTab.Settings -> "Paramètres"
             }
             val startedAt = SystemClock.elapsedRealtime()
@@ -180,7 +176,6 @@ fun MainScreen(
                 SystemClock.elapsedRealtime() - startedAt,
             )
         }
-        if (selectedTab == DamsTab.Journal) logcatViewModel.loadLogcat()
         if (selectedTab == DamsTab.Home && performanceDiagnosticsEnabled) {
             lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 while (true) {
@@ -270,6 +265,7 @@ fun MainScreen(
                         onAction = onAction,
                         onMoreMenuAction = { action ->
                             when (action) {
+                                MainMoreMenuAction.Journal -> onNavigate(MainDestination.Logcat)
                                 MainMoreMenuAction.RestartService -> onAction(MainAction.RestartService)
                                 MainMoreMenuAction.DeleteAll -> showDelAllConfirm = true
                                 MainMoreMenuAction.DeleteDuplicate -> showDelDuplicateConfirm = true
@@ -286,6 +282,7 @@ fun MainScreen(
                 } else {
                     DamsHeader(
                         onMenuClick = { scope.launch { drawerState.open() } },
+                        onOpenJournal = { onNavigate(MainDestination.Logcat) },
                     )
                 }
             },
@@ -293,8 +290,11 @@ fun MainScreen(
                 DamsNavigationBar(
                     selected = selectedTab,
                     onSelect = { tab ->
-                        if (tab == DamsTab.Settings) onNavigate(MainDestination.Settings)
-                        else selectedTab = tab
+                        when (tab) {
+                            DamsTab.Settings -> onNavigate(MainDestination.Settings)
+                            DamsTab.IpFinder -> onNavigate(MainDestination.IpFinder)
+                            else -> selectedTab = tab
+                        }
                     },
                 )
             },
@@ -327,6 +327,7 @@ fun MainScreen(
                     autoSwitchDefaultServer = autoSwitchDefaultServer,
                     onAutoSwitchDefaultServerChange = { autoSwitchDefaultServer = it },
                     onOpenServers = { selectedTab = DamsTab.Configs },
+                    onOpenIpFinder = { onNavigate(MainDestination.IpFinder) },
                     onToggleConnection = { onAction(MainAction.ToggleService) },
                 )
 
@@ -397,10 +398,7 @@ fun MainScreen(
                     }
                 }
 
-                DamsTab.Journal -> JournalTabContent(
-                    contentPadding = innerPadding,
-                    logcatViewModel = logcatViewModel,
-                )
+                DamsTab.IpFinder -> Unit
 
                 DamsTab.Settings -> Unit
             }
@@ -409,7 +407,7 @@ fun MainScreen(
 }
 
 private enum class DamsTab {
-    Home, Configs, Journal, Settings
+    Home, Configs, IpFinder, Settings
 }
 
 @Composable
@@ -418,7 +416,7 @@ private fun DamsNavigationBar(selected: DamsTab, onSelect: (DamsTab) -> Unit) {
         listOf(
             Triple(DamsTab.Home, R.drawable.ic_home_24dp, R.string.dams_tab_home),
             Triple(DamsTab.Configs, R.drawable.ic_subscriptions_24dp, R.string.dams_tab_configs),
-            Triple(DamsTab.Journal, R.drawable.ic_logcat_24dp, R.string.dams_tab_journal),
+            Triple(DamsTab.IpFinder, R.drawable.ic_ip_finder_24dp, R.string.dams_tab_ip_finder),
             Triple(DamsTab.Settings, R.drawable.ic_settings_24dp, R.string.title_settings),
         ).forEach { (tab, icon, label) ->
             NavigationBarItem(
@@ -432,16 +430,52 @@ private fun DamsNavigationBar(selected: DamsTab, onSelect: (DamsTab) -> Unit) {
 }
 
 @Composable
-private fun DamsHeader(onMenuClick: () -> Unit) {
+private fun DamsHeader(onMenuClick: () -> Unit, onOpenJournal: () -> Unit) {
+    var showMoreMenu by remember { mutableStateOf(false) }
     Surface(color = MaterialTheme.colorScheme.background) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 8.dp)
                 .padding(top = 10.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Box {
+                IconButton(onClick = { showMoreMenu = true }, modifier = Modifier.size(48.dp)) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_more_vert_24dp),
+                        contentDescription = stringResource(R.string.acc_more),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                DropdownMenu(
+                    expanded = showMoreMenu,
+                    onDismissRequest = { showMoreMenu = false },
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.title_logcat)) },
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_logcat_24dp),
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            showMoreMenu = false
+                            onOpenJournal()
+                        },
+                    )
+                }
+            }
+            IconButton(onClick = onMenuClick, modifier = Modifier.size(48.dp)) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_menu_24dp),
+                    contentDescription = stringResource(R.string.acc_open_menu),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
             Image(
                 painter = painterResource(R.mipmap.ic_launcher_foreground),
                 contentDescription = null,
@@ -459,13 +493,6 @@ private fun DamsHeader(onMenuClick: () -> Unit) {
                     text = stringResource(R.string.dams_version_format, BuildConfig.VERSION_NAME),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall,
-                )
-            }
-            IconButton(onClick = onMenuClick, modifier = Modifier.size(48.dp)) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_menu_24dp),
-                    contentDescription = stringResource(R.string.acc_open_menu),
-                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -496,6 +523,7 @@ private fun DamsDashboard(
     autoSwitchDefaultServer: Boolean,
     onAutoSwitchDefaultServerChange: (Boolean) -> Unit,
     onOpenServers: () -> Unit,
+    onOpenIpFinder: () -> Unit,
     onToggleConnection: () -> Unit,
 ) {
     val powerActionLabel = stringResource(if (canStopService) R.string.acc_stop else R.string.acc_start)
@@ -659,31 +687,39 @@ private fun DamsDashboard(
         }
 
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(role = Role.Button, onClick = onOpenIpFinder),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = MaterialTheme.shapes.large,
             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
-                Text(
-                    text = stringResource(R.string.dams_mobile_ip_title),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = mobileIp ?: stringResource(R.string.dams_metric_unavailable),
-                    style = MaterialTheme.typography.displaySmall,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = stringResource(R.string.dams_mobile_ip_source),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.ip_finder_drawer_entry),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = mobileIp ?: stringResource(R.string.dams_metric_unavailable),
+                        style = MaterialTheme.typography.displaySmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = stringResource(R.string.dams_mobile_ip_source),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text("›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineMedium)
             }
         }
 
@@ -721,65 +757,6 @@ private fun trafficMetric(isRunning: Boolean, available: Boolean, bytesPerSecond
     !isRunning -> "—"
     !available -> stringResource(R.string.dams_metric_unavailable)
     else -> bytesPerSecond.toSpeedString()
-}
-
-@Composable
-private fun JournalTabContent(contentPadding: PaddingValues, logcatViewModel: LogcatViewModel) {
-    val logEntries by logcatViewModel.logEntries.collectAsStateWithLifecycle()
-    val performanceMetrics by logcatViewModel.performanceMetrics.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
-    Column(Modifier.fillMaxSize().padding(contentPadding)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            IconButton(onClick = { logcatViewModel.loadLogcat() }) {
-                Icon(painterResource(R.drawable.ic_restore_24dp), contentDescription = stringResource(R.string.acc_refresh))
-            }
-            IconButton(onClick = { logcatViewModel.copyLogcat() }) {
-                Icon(painterResource(R.drawable.ic_copy), contentDescription = stringResource(R.string.acc_copy_log))
-            }
-            IconButton(onClick = { scope.launch(Dispatchers.IO) { logcatViewModel.clearLogcat() } }) {
-                Icon(painterResource(R.drawable.ic_delete_24dp), contentDescription = stringResource(R.string.acc_clear_log))
-            }
-        }
-        if (performanceMetrics.isNotEmpty()) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp)) {
-                Text(
-                    stringResource(R.string.performance_diagnostics_title),
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                performanceMetrics.forEach { entry ->
-                    Text(entry, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
-        if (logEntries.isEmpty() && performanceMetrics.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(R.string.dams_journal_empty),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        } else {
-            LazyColumn(Modifier.fillMaxSize()) {
-                items(items = logEntries, key = { it.key }) { entry ->
-                    Text(
-                        text = entry.text,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                }
-            }
-        }
-    }
 }
 
 @Composable

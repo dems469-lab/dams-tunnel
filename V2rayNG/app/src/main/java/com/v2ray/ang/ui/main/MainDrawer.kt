@@ -43,7 +43,6 @@ enum class MainDestination(@DrawableRes val iconRes: Int, @StringRes val labelRe
     Consumption(R.drawable.ic_flash_on_24dp, R.string.consumption_menu),
     Tutorials(R.drawable.ic_about_24dp, R.string.tutorials_menu),
     CheckUpdate(R.drawable.ic_check_update_24dp, R.string.update_check_for_update),
-    BackupRestore(R.drawable.ic_restore_24dp, R.string.title_configuration_backup_restore),
     About(R.drawable.ic_about_24dp, R.string.title_about)
 }
 
@@ -67,7 +66,6 @@ internal fun drawerItems(showPremium: Boolean): List<MainDestination> = primaryD
     MainDestination.Consumption,
     MainDestination.Tutorials,
     MainDestination.CheckUpdate,
-    MainDestination.BackupRestore,
     MainDestination.About,
 )
 

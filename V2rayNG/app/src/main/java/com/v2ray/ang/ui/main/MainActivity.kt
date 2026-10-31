@@ -48,7 +48,6 @@ import com.v2ray.ang.ui.backup.BackupActivity
 import com.v2ray.ang.ui.base.HelperBaseComponentActivity
 import com.v2ray.ang.ui.checkupdate.CheckUpdateActivity
 import com.v2ray.ang.ui.logcat.LogcatActivity
-import com.v2ray.ang.ui.logcat.LogcatViewModel
 import com.v2ray.ang.ui.perappproxy.PerAppProxyActivity
 import com.v2ray.ang.ui.premium.PremiumSubscriptionActivity
 import com.v2ray.ang.ui.routing.RoutingSettingActivity
@@ -98,8 +97,6 @@ class MainActivity : HelperBaseComponentActivity() {
     private val mainViewModel: MainViewModel by viewModels {
         MainViewModel.Factory(application, MainRepository(application as AngApplication))
     }
-
-    private val logcatViewModel: LogcatViewModel by viewModels()
 
     private val requestVpnPermission =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -198,7 +195,6 @@ class MainActivity : HelperBaseComponentActivity() {
         BackHandler { moveTaskToBack(false) }
         MainScreen(
             mainViewModel = mainViewModel,
-            logcatViewModel = logcatViewModel,
             showPremium = premiumFeatureEnabled,
             onAction = { action ->
                 when (action) {
@@ -316,7 +312,6 @@ class MainActivity : HelperBaseComponentActivity() {
             MainDestination.Consumption -> Intent(this, ConsumptionActivity::class.java)
             MainDestination.Tutorials -> Intent(this, TutorialsActivity::class.java)
             MainDestination.CheckUpdate -> Intent(this, CheckUpdateActivity::class.java)
-            MainDestination.BackupRestore -> Intent(this, BackupActivity::class.java)
             MainDestination.About -> Intent(this, AboutActivity::class.java)
         }
         settingsActivityLauncher.launch(intent)

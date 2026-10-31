@@ -15,7 +15,7 @@
 | 1 | Partage de connexion (hotspot / LAN) | à faire |
 | 2 | Refonte de l'interface (animations, transparence, menu ⋮ à gauche) | à faire |
 | 3 | Gestion des serveurs (serveur public → « Mes serveurs ») | en cours |
-| 4 | Réorganisation des menus (Fournisseurs, IP Finder, Journal, sauvegarde) | en cours |
+| 4 | Réorganisation des menus (Fournisseurs, IP Finder, Journal, sauvegarde) | fait |
 | 5 | Console Xray (journal de diagnostic) | à faire |
 | 6 | Nouveaux paramètres (notifications, TLS global, taille de police, sauvegarde) | à faire |
 | 7 | Vérifications et performance | à faire |
@@ -24,3 +24,5 @@
 
 - Renommage de la catégorie par défaut `DEFAULT` en « Mes serveurs » (libellé traduit,
   valeur stockée inchangée) et de « Abonnements » en « Fournisseurs ».
+- Onglets : Accueil, Serveurs, IP Finder, Paramètres. Le Journal passe dans le menu ⋮,
+  qui est désormais à gauche ; « Sauvegarde et restauration » passe dans les paramètres.

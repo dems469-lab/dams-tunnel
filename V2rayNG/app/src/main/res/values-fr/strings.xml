@@ -101,6 +101,7 @@
     <string name="dams_tab_servers">Serveurs</string>
     <string name="dams_tab_configs">Configs</string>
     <string name="dams_tab_journal">Journal</string>
+    <string name="dams_tab_ip_finder">IP Finder</string>
     <string name="dams_tab_plus">Plus</string>
     <string name="dams_journal_empty">Aucune entrée dans le journal</string>
     <string name="dams_slogan">Une connexion. Des possibilités infinies.</string>
@@ -637,6 +638,7 @@
 
     <!-- BackupActivity -->
     <string name="title_configuration_backup_restore">Sauvegarde et restauration</string>
+    <string name="summary_configuration_backup_restore">Exporter et importer vos configurations</string>
     <string name="title_configuration_backup">Sauvegarder la configuration</string>
     <string name="title_configuration_restore">Restaurer la configuration</string>
     <string name="title_profile_storage_cleanup">Réparer le stockage des profils</string>

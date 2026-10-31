@@ -1,6 +1,7 @@
 package com.v2ray.ang.ui.main
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.heightIn
@@ -63,8 +64,30 @@ fun MainTopBar(
                     Icon(painterResource(R.drawable.ic_arrow_back_24dp), contentDescription = stringResource(R.string.acc_back))
                 }
             } else {
-                IconButton(onClick = onMenuClick) {
-                    Icon(painterResource(R.drawable.ic_menu_24dp), contentDescription = stringResource(R.string.acc_open_menu))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onMenuClick) {
+                        Icon(painterResource(R.drawable.ic_menu_24dp), contentDescription = stringResource(R.string.acc_open_menu))
+                    }
+                    Box(modifier = Modifier.wrapContentSize(Alignment.TopStart)) {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(painterResource(R.drawable.ic_more_vert_24dp), contentDescription = stringResource(R.string.acc_more))
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            scrollState = moreMenuScrollState,
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier
+                                .widthIn(min = 280.dp, max = 380.dp)
+                                .heightIn(max = maxMenuHeight)
+                                .verticalScrollbar(moreMenuScrollState)
+                        ) {
+                            MoreMenuContent { action ->
+                                showMenu = false
+                                onMoreMenuAction(action)
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -94,26 +117,6 @@ fun MainTopBar(
                             onAction(action)
                         }
                     )
-                }
-            }
-            Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(painterResource(R.drawable.ic_more_vert_24dp), contentDescription = stringResource(R.string.acc_more))
-                }
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false },
-                    scrollState = moreMenuScrollState,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier
-                        .widthIn(min = 280.dp, max = 380.dp)
-                        .heightIn(max = maxMenuHeight)
-                        .verticalScrollbar(moreMenuScrollState)
-                ) {
-                    MoreMenuContent { action ->
-                        showMenu = false
-                        onMoreMenuAction(action)
-                    }
                 }
             }
         }

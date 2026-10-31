@@ -44,6 +44,7 @@ import com.v2ray.ang.handler.MmkvManager.rememberMmkvBool
 import com.v2ray.ang.handler.MmkvManager.rememberMmkvString
 import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.root.RootManager
+import com.v2ray.ang.ui.backup.BackupActivity
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.CollapsiblePreferenceGroupHeader
@@ -92,12 +93,16 @@ class SettingsActivity : BaseComponentActivity() {
             viewModel = viewModel,
             onBackClick = { finish() },
             onSystemVpnSettingsClicked = ::openSystemVpnSettings,
-            onBatteryOptimizationClicked = ::requestBatteryOptimizationExemption
+            onBatteryOptimizationClicked = ::requestBatteryOptimizationExemption,
+            onBackupRestoreClicked = ::openBackupRestore,
         )
     }
 
-    private fun requestBatteryOptimizationExemption() {
-        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+    private fun openBackupRestore() {
+        startActivity(Intent(this, BackupActivity::class.java))
+    }
+
+    private fun requestBatteryOptimizationExemption() {        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
             powerManager.isIgnoringBatteryOptimizations(packageName)
         ) return
@@ -119,7 +124,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBackClick: () -> Unit,
     onSystemVpnSettingsClicked: () -> Unit,
-    onBatteryOptimizationClicked: () -> Unit
+    onBatteryOptimizationClicked: () -> Unit,
+    onBackupRestoreClicked: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -742,6 +748,11 @@ fun SettingsScreen(
                     summary = stringResource(R.string.summary_app_lock),
                     checked = appLock,
                     onCheckedChange = { appLock = it }
+                )
+                SettingsMenuItem(
+                    title = stringResource(R.string.title_configuration_backup_restore),
+                    subtitle = stringResource(R.string.summary_configuration_backup_restore),
+                    onClick = onBackupRestoreClicked
                 )
                 SettingsEditItem(
                     title = stringResource(R.string.title_pref_delay_test_url),

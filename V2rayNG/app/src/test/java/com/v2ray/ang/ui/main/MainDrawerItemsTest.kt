@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import com.v2ray.ang.R
 
 class MainDrawerItemsTest {
     @Test
@@ -20,5 +21,19 @@ class MainDrawerItemsTest {
         assertEquals(MainDestination.PremiumSubscription, premiumItems[1])
         assertTrue(premiumItems.containsAll(defaultItems))
         assertEquals(defaultItems, premiumItems.filterNot { it == MainDestination.PremiumSubscription })
+    }
+
+    @Test
+    fun `backup entry moved to settings is not in the drawer`() {
+        assertTrue(
+            drawerItems(showPremium = true).none {
+                it.labelRes == R.string.title_configuration_backup_restore
+            },
+        )
+    }
+
+    @Test
+    fun `journal stays reachable from the drawer`() {
+        assertTrue(drawerItems(showPremium = false).contains(MainDestination.Logcat))
     }
 }

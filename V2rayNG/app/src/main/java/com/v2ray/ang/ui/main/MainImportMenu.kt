@@ -29,6 +29,7 @@ private enum class ImportMenuAction(@StringRes val labelRes: Int, val action: Ma
 }
 
 enum class MainMoreMenuAction(@StringRes val labelRes: Int) {
+    Journal(R.string.title_logcat),
     RestartService(R.string.title_service_restart),
     DeleteAll(R.string.title_del_all_config),
     DeleteDuplicate(R.string.title_del_duplicate_config),
@@ -85,6 +86,7 @@ fun MoreMenuContent(onSelected: (MainMoreMenuAction) -> Unit) = AppDropdownMenuI
     labelRes = { it.labelRes },
     iconRes = {
         when (it) {
+            MainMoreMenuAction.Journal -> R.drawable.ic_logcat_24dp
             MainMoreMenuAction.RestartService -> R.drawable.ic_restore_24dp
             MainMoreMenuAction.DeleteAll,
             MainMoreMenuAction.DeleteDuplicate,
