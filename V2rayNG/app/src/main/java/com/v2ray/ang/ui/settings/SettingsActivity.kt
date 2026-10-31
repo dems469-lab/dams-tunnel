@@ -27,10 +27,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -69,8 +71,6 @@ import kotlinx.coroutines.withContext
 class SettingsActivity : BaseComponentActivity() {
 
     private val viewModel: SettingsViewModel by viewModels()
-    private val settingsLifecycleScope: CoroutineScope = lifecycleScope
-    private val settingsContext: Context = this
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -139,6 +139,8 @@ fun SettingsScreen(
     val scrollState = rememberScrollState()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val systemVpnSettingsAvailable by viewModel.systemVpnSettingsAvailable.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val lifecycleScope = LocalLifecycleOwner.current.lifecycleScope
     var uiSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var vpnSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var coreSettingsExpanded by rememberSaveable { mutableStateOf(true) }
@@ -466,21 +468,21 @@ fun SettingsScreen(
                     checked = globalTls,
                     onCheckedChange = { enabled ->
                         globalTls = enabled
-                        settingsLifecycleScope.launch {
+                        lifecycleScope.launch {
                             val changed = withContext(Dispatchers.IO) {
                                 GlobalTlsManager.applyToMyServers(enabled)
                             }
                             SettingsChangeManager.makeSetupGroupTab()
                             if (enabled) {
                                 toastSuccess(
-                                    settingsContext.getString(
+                                    context.getString(
                                         R.string.global_tls_applied,
                                         changed
                                     )
                                 )
                             } else {
                                 toastSuccess(
-                                    settingsContext.getString(
+                                    context.getString(
                                         R.string.global_tls_removed,
                                         changed
                                     )
