@@ -59,6 +59,7 @@ object CoreServiceManager {
     private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
     private val mMsgReceive = ReceiveMessageHandler()
     private var currentConfig: ProfileItem? = null
+    private var currentGeneratedConfig: String? = null
     private var currentOutboundTags: Set<String> = emptySet()
     private var browserDialer: IDialerService? = null
     private var networkMonitor: NetworkMonitor? = null
@@ -72,10 +73,10 @@ object CoreServiceManager {
     private var healthCheckJob: kotlinx.coroutines.Job? = null
     private var reconnectJob: kotlinx.coroutines.Job? = null
     private var reconnectAttempt = 0
+    private val failedFailoverProfiles = mutableSetOf<String>()
 
     @Volatile
     private var isReloading = false
-    private var failoverAttempted = false
 
     @Volatile
     private var userStopped = true
@@ -134,7 +135,7 @@ object CoreServiceManager {
 
         try {
             userStopped = false
-            failoverAttempted = false
+            failedFailoverProfiles.clear()
             connectionVerified = false
             doStartCoreLoop(service, vpnInterface)
             true
@@ -171,10 +172,12 @@ object CoreServiceManager {
         val result = CoreConfigManager.getV2rayConfig(service, guid)
         LogUtil.d(AppConfig.TAG, "Generated Xray configuration for profile $guid")
         if (!result.status) {
+            recordConnectionDiagnostic(config, result.errorMessage, result.content)
             error(result.errorMessage.ifBlank { "Failed to get V2Ray config" })
         }
 
         currentOutboundTags = outboundTagsFromConfig(result.content)
+        currentGeneratedConfig = result.content
 
         currentConfig = config
         var tunFd = vpnInterface?.fd ?: 0
@@ -192,7 +195,12 @@ object CoreServiceManager {
         if (dialerAddr.isNotNullEmpty()) {
             CoreNativeManager.reconcileBrowserDialer(dialerAddr)
         }
-        coreController.startLoop(result.content, tunFd)
+        try {
+            coreController.startLoop(result.content, tunFd)
+        } catch (e: Exception) {
+            recordConnectionDiagnostic(config, e.message ?: e.javaClass.simpleName, result.content)
+            throw e
+        }
 
         if (!isRunning()) {
             error("Core failed to start")
@@ -257,10 +265,10 @@ object CoreServiceManager {
                 ConnectionFeedback.onConnected(service)
                 MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
             } else if (isRunning()) {
-                connectionVerified = false
-                if (!failoverAttempted && tryFailover(service)) {
-                    return@launch
+                currentConfig?.let { config ->
+                    recordConnectionDiagnostic(config, lastError ?: "Tunnel health check failed", currentGeneratedConfig.orEmpty())
                 }
+                connectionVerified = false
                 val message = service.getString(com.v2ray.ang.R.string.connection_verification_failed)
                 LogUtil.e(AppConfig.TAG, "StartCore-Manager: no traffic after startup: ${lastError ?: "unknown error"}")
                 // The core is still alive and the user did not stop it.  Keep the
@@ -279,21 +287,24 @@ object CoreServiceManager {
     private fun startHealthCheck(service: Service) {
         healthCheckJob?.cancel()
         healthCheckJob = connectionTestScope.launch {
+            val healthFailures = ConsecutiveHealthFailures()
             while (isActive && !userStopped && isRunning()) {
-                // Vérification courte : une coupure doit déclencher la reconnexion
-                // avant que l'utilisateur ne perçoive un tunnel abandonné.
-                // Détecter une coupure rapidement sans attendre deux secondes complètes.
-                delay(1_000L)
+                delay(20_000L)
                 if (!isRunning() || userStopped) break
                 val reachable = try {
-                    measureDelayWithFallback() >= 0L
+                    kotlinx.coroutines.withTimeoutOrNull(5_000L) {
+                        measureDelayWithFallback() >= 0L
+                    } == true
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
                     false
                 }
-                if (!reachable) {
+                if (healthFailures.record(reachable)) {
                     connectionVerified = false
+                    currentConfig?.let { config ->
+                        recordConnectionDiagnostic(config, "Three consecutive tunnel health checks failed", currentGeneratedConfig.orEmpty())
+                    }
                     MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
                     NotificationManager.updateState(
                         service.getString(com.v2ray.ang.R.string.connection_reconnecting),
@@ -322,9 +333,8 @@ object CoreServiceManager {
         reconnectJob = connectionTestScope.launch {
             // Première tentative rapide ; le backoff augmente seulement si le réseau
             // reste réellement indisponible.
-            val backoff = longArrayOf(1_000L, 3_000L, 8_000L, 20_000L)
             while (isActive && !userStopped && !connectionVerified) {
-                val wait = backoff[reconnectAttempt.coerceAtMost(backoff.lastIndex)]
+                val wait = reconnectBackoffMillis(reconnectAttempt)
                 reconnectAttempt++
                 delay(wait)
                 if (userStopped) return@launch
@@ -336,6 +346,13 @@ object CoreServiceManager {
                 )
                 val previousVerification = connectionVerificationJob
                 try {
+                    if (shouldTryFailoverAfterReconnect(reconnectAttempt) && tryFailover(currentService)) {
+                        awaitNextReconnectVerification(
+                            previousJob = previousVerification,
+                            currentJob = { connectionVerificationJob },
+                        )
+                        continue
+                    }
                     if (isRunning()) {
                         // Borne chaque rechargement : un appel natif bloqué ne doit
                         // pas empêcher les tentatives suivantes.
@@ -376,17 +393,25 @@ object CoreServiceManager {
                 AppConfig.DEFAULT_SUBSCRIPTION_ID,
             )
         ) return false
+        val selectedGuid = MmkvManager.getSelectServer() ?: return false
+        failedFailoverProfiles.add(selectedGuid)
         val candidates = MmkvManager.decodeServerList(failed.subscriptionId)
             .asSequence()
-            .filter { it != MmkvManager.getSelectServer() }
-            .mapNotNull { guid -> MmkvManager.decodeServerConfig(guid)?.let { guid to it } }
+            .filter { it !in failedFailoverProfiles }
+            .mapNotNull { guid ->
+                MmkvManager.decodeServerConfig(guid)?.let { profile ->
+                    val delay = MmkvManager.decodeServerAffiliationInfo(guid)?.testDelayMillis ?: 0L
+                    if (delay > 0L) Triple(guid, profile, delay) else null
+                }
+            }
             .filter { (_, profile) -> !profile.configType.isGroupType() }
+            .sortedBy { it.third }
             .toList()
         val next = candidates.firstOrNull() ?: return false
 
-        failoverAttempted = true
+        failedFailoverProfiles.add(next.first)
         MmkvManager.setSelectServer(next.first)
-        LogUtil.w(AppConfig.TAG, "StartCore-Manager: switching to backup profile")
+        LogUtil.w(AppConfig.TAG, "StartCore-Manager: switching to next measured profile ${next.first}")
         MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
         NotificationManager.updateState(
             service.getString(com.v2ray.ang.R.string.connection_reconnecting),
@@ -401,7 +426,7 @@ object CoreServiceManager {
         trafficStatsJob = connectionTestScope.launch {
             var previousTime = System.currentTimeMillis()
             while (isRunning()) {
-                delay(1000L)
+                delay(2_000L)
                 val now = System.currentTimeMillis()
                 val diagnosticEnabled = BuildConfig.DEBUG || MmkvManager.decodeSettingsBool(
                     AppConfig.PREF_DIAGNOSTIC_TRAFFIC_STATS,
@@ -467,6 +492,7 @@ object CoreServiceManager {
         trafficStatsJob?.cancel()
         trafficStatsJob = null
         _trafficSnapshot.value = TrafficSnapshot()
+        currentGeneratedConfig = null
         val service = getService() ?: return@stop false
 
         networkMonitor?.unregister()
@@ -700,8 +726,23 @@ object CoreServiceManager {
          */
         override fun onEmitStatus(l: Long, s: String?): Long {
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: CoreCallback onEmitStatus $s")
+            if (MmkvManager.decodeSettingsBool(AppConfig.PREF_DIAGNOSTIC_CONNECTION, false) && !s.isNullOrBlank()) {
+                XrayConsole.event("XrayStatus", "code=$l ${s}")
+            }
             return 0
         }
+    }
+
+    private fun recordConnectionDiagnostic(profile: ProfileItem, error: String, generatedConfig: String) {
+        if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_DIAGNOSTIC_CONNECTION, false)) return
+        XrayConsole.event(
+            "ConnectionDiagnostic",
+            com.v2ray.ang.util.LogRedactor.formatConnectionFailure(
+                protocol = profile.configType.name,
+                error = error,
+                generatedConfig = generatedConfig,
+            ),
+        )
     }
 
     /**

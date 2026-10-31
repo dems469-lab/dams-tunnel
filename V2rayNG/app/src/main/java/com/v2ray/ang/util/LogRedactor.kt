@@ -10,6 +10,8 @@ object LogRedactor {
     private val uuid = Regex("\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\\b")
     private val ipv4 = Regex("\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b")
     private val host = Regex("\\b(?=[a-zA-Z0-9.-]{5,253}(?::\\d{2,5})?\\b)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)+[A-Za-z]{2,63}(?::\\d{2,5})?\\b")
+    private val jsonSecret = Regex("(?i)(\\\"(?:id|uuid|password|passwd|privateKey|shortId|token|secret|auth|key)\\\"\\s*:\\s*\\\")[^\\\"]*(\\\")")
+    private val jsonHost = Regex("(?i)(\\\"(?:address|server|host|sni|serverName|server_name)\\\"\\s*:\\s*\\\")(.*?)(\\\")")
 
     fun redact(value: String): String = value
         .replace(proxyLink, "[lien de profil masqué]")
@@ -24,4 +26,27 @@ object LogRedactor {
         .replace(uuid, "[identifiant masqué]")
         .replace(ipv4, "[adresse masquée]")
         .replace(host, "[serveur masqué]")
+
+    fun redactGeneratedConfig(value: String): String = value
+        .replace(jsonSecret) { "${it.groupValues[1]}[secret masqué]${it.groupValues[2]}" }
+        .replace(jsonHost) { match ->
+            "${match.groupValues[1]}${maskHost(match.groupValues[2])}${match.groupValues[3]}"
+        }
+        .let(::redact)
+
+    fun formatConnectionFailure(protocol: String, error: String, generatedConfig: String): String =
+        "protocol=$protocol\nerror=${redact(error)}\noutbound=${redactGeneratedConfig(generatedConfig)}"
+
+    private fun maskHost(value: String): String {
+        val address = value.substringBeforeLast(':', value)
+        val port = value.takeIf { address != value }?.let { ":${it.substringAfterLast(':')}" }.orEmpty()
+        val parts = address.split('.')
+        val masked = when {
+            parts.size == 4 -> "${parts.first()}.***.***.${parts.last()}"
+            address.contains('.') -> address.substringBefore('.') + ".***"
+            address.isBlank() -> "[hôte masqué]"
+            else -> address.take(1) + "***"
+        }
+        return masked + port
+    }
 }

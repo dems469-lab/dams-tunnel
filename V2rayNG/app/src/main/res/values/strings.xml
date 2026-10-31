@@ -340,6 +340,8 @@
     <string name="title_pref_vpn_wake_lock">Keep VPN active when the screen is off</string>
     <string name="summary_pref_vpn_wake_lock">Keep the VPN process awake during an active connection. This can increase battery usage.</string>
     <string name="summary_pref_diagnostic_performance">Record startup, screen first-draw, home refresh rate and Java heap use locally. Disabled by default; no profile or network data is collected.</string>
+    <string name="title_pref_diagnostic_connection">Connection diagnostics</string>
+    <string name="summary_pref_diagnostic_connection">When enabled, record the failed protocol, Xray status and generated outbound with secrets masked. Copy or share it from Journal.</string>
     <string name="performance_diagnostics_title">Performance diagnostics</string>
 
     <string name="title_pref_sniffing_enabled">Enable Sniffing</string>
@@ -910,6 +912,14 @@
     <string name="free_servers_delete">Delete</string>
     <string name="free_servers_cancel">Cancel</string>
     <string name="free_servers_refresh_success">%1$d public servers refreshed.</string>
+    <string name="free_servers_refresh_summary">%1$d valid, %2$d ignored · %3$s</string>
+    <string name="free_servers_refresh_no_ignored">No ignored configurations</string>
+    <string name="free_servers_ignored_duplicate">Duplicates</string>
+    <string name="free_servers_ignored_invalid">Invalid format</string>
+    <string name="free_servers_ignored_unsupported">Unsupported format</string>
+    <string name="free_servers_ignored_invalid_v2rayn">Invalid V2rayN format</string>
+    <string name="free_servers_ignored_subscription_filter">Excluded by subscription filter</string>
+    <string name="free_servers_ignored_other">Other</string>
     <string name="free_servers_search">Search name, source, country or protocol</string>
     <string name="free_servers_protocols">Protocols</string>
     <string name="free_servers_all">All</string>

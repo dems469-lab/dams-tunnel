@@ -29,9 +29,23 @@ import com.v2ray.ang.util.JsonUtil
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.QRCodeDecoder
 import com.v2ray.ang.util.Utils
+import com.v2ray.ang.util.XrayConsole
 import java.net.URI
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 object AngConfigManager {
+
+    private data class BatchParseResult(
+        val validCount: Int = 0,
+        val ignoredCount: Int = 0,
+        val ignoredReasons: Map<String, Int> = emptyMap(),
+        val parsedProfiles: List<ParsedProfile> = emptyList(),
+        val parseMillis: Long = 0,
+        val generationMillis: Long = 0,
+    )
+
+    private val supportedConfigSchemes by lazy { configFmtParsers.keys }
 
     private data class ParsedProfile(
         val profile: ProfileItem,
@@ -210,17 +224,15 @@ object AngConfigManager {
             if (damsProfile != null) {
                 return importBatchConfig(damsProfile, subid, append)
             }
-            var count = parseBatchConfig(Utils.decode(server), subid, append)
-            if (count <= 0) {
-                count = parseBatchConfig(server, subid, append)
-            }
+            val rawContent = normalizeImportedContent(server)
+            val count = parseBatchConfig(rawContent, subid, append)
             if (count <= 0) {
                 count = parseCustomConfigServer(server, subid, append)
             }
 
             var countSub = parseBatchSubscription(server)
             if (countSub <= 0) {
-                countSub = parseBatchSubscription(Utils.decode(server))
+                countSub = parseBatchSubscription(normalizeImportedContent(server))
             }
             if (countSub > 0) {
                 updateConfigViaSubAll()
@@ -330,49 +342,83 @@ object AngConfigManager {
      * @param append Whether to append the configurations.
      * @return The number of configurations parsed.
      */
-    private fun parseBatchConfig(servers: String?, subid: String, append: Boolean): Int {
+    private fun parseBatchConfig(servers: String?, subid: String, append: Boolean): Int =
+        parseBatchConfigWithSummary(servers, subid, append).validCount
+
+    private fun parseBatchConfigWithSummary(servers: String?, subid: String, append: Boolean): BatchParseResult {
         try {
             if (servers == null) {
-                return 0
+                return BatchParseResult()
             }
             val subItem = MmkvManager.decodeSubscription(subid)
-
-            // Parse all configs first (no I/O during parsing)
-            val configs = mutableListOf<ProfileItem>()
-            val v2raynLines = mutableListOf<String>()
-
-            servers.lines()
-                .distinct()
-                .reversed()
-                .forEach {
-                    if (it.startsWith(AppConfig.V2RAYNFMTS, ignoreCase = true)) {
-                        v2raynLines.add(it)
-                    } else {
-                        val config = parseConfig(it, subid, subItem)
-                        if (config != null) {
-                            configs.add(config)
-                        }
-                    }
-                }
-
-            val v2raynConfigs = V2rayNFmt.parse(v2raynLines, subid)
-            val allConfigs = v2raynConfigs + configs
-
-            if (allConfigs.isNotEmpty()) {
-                commitProfiles(
-                    configs = allConfigs.map(::ParsedProfile),
-                    subid = subid,
-                    append = append,
-                )
+            val result = parseBatchContent(servers, subid, subItem)
+            if (result.parsedProfiles.isNotEmpty()) {
+                commitProfiles(result.parsedProfiles, subid, append)
             }
-
-            return allConfigs.size
+            return result
         } catch (e: ProfileStorageException) {
             throw e
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to parse batch config (${e.javaClass.simpleName})")
         }
-        return 0
+        return BatchParseResult()
+    }
+
+    private fun parseBatchContent(
+        servers: String,
+        subid: String,
+        subItem: SubscriptionItem?,
+    ): BatchParseResult {
+        val parsedProfiles = mutableListOf<ParsedProfile>()
+        val parsedConfigs = mutableListOf<ProfileItem>()
+        val v2raynLines = mutableListOf<String>()
+        val normalizedLines = servers.lineSequence()
+            .map(Utils::normalizeConfigLine)
+            .filter(String::isNotEmpty)
+            .toList()
+        val uniqueLines = normalizedLines.distinct()
+        val ignoredReasons = mutableMapOf<String, Int>()
+        if (normalizedLines.size > uniqueLines.size) {
+            ignoredReasons["duplicate"] = normalizedLines.size - uniqueLines.size
+        }
+        var parsingNanos = 0L
+        var generationNanos = 0L
+        uniqueLines.reversed().forEach { line ->
+            if (line.startsWith(AppConfig.V2RAYNFMTS, ignoreCase = true)) {
+                v2raynLines.add(line)
+            } else {
+                val hasSupportedScheme = supportedConfigSchemes.any { line.startsWith(it, ignoreCase = true) }
+                val parsingStarted = System.nanoTime()
+                val config = parseConfig(line, subid, subItem, applySubscriptionFilter = false)
+                parsingNanos += System.nanoTime() - parsingStarted
+                if (config != null) {
+                    if (!matchesSubscriptionFilter(config, subItem)) {
+                        ignoredReasons["subscription_filter"] = (ignoredReasons["subscription_filter"] ?: 0) + 1
+                    } else {
+                        val generationStarted = System.nanoTime()
+                        config.description = generateDescription(config)
+                        generationNanos += System.nanoTime() - generationStarted
+                        parsedConfigs.add(config)
+                    }
+                } else {
+                    val reason = if (hasSupportedScheme) "invalid" else "unsupported"
+                    ignoredReasons[reason] = (ignoredReasons[reason] ?: 0) + 1
+                }
+            }
+        }
+        val v2raynConfigs = V2rayNFmt.parse(v2raynLines, subid)
+        if (v2raynLines.size > v2raynConfigs.size) {
+            ignoredReasons["invalid_v2rayn"] = v2raynLines.size - v2raynConfigs.size
+        }
+        parsedProfiles.addAll((v2raynConfigs + parsedConfigs).map(::ParsedProfile))
+        return BatchParseResult(
+            validCount = parsedProfiles.size,
+            ignoredCount = ignoredReasons.values.sum(),
+            ignoredReasons = ignoredReasons,
+            parsedProfiles = parsedProfiles,
+            parseMillis = parsingNanos / 1_000_000L,
+            generationMillis = generationNanos / 1_000_000L,
+        )
     }
 
     /**
@@ -494,36 +540,35 @@ object AngConfigManager {
     private fun parseConfig(
         str: String?,
         subid: String,
-        subItem: SubscriptionItem?
+        subItem: SubscriptionItem?,
+        applySubscriptionFilter: Boolean = true,
     ): ProfileItem? {
         try {
             if (str == null || TextUtils.isEmpty(str)) {
                 return null
             }
 
-            val config = configFmtParsers.firstNotNullOfOrNull { (scheme, parser) ->
-                if (str.startsWith(scheme)) parser(str) else null
-            }
+            val scheme = configFmtParsers.keys.firstOrNull { str.startsWith(it, ignoreCase = true) }
+            val config = scheme?.let { configFmtParsers[it]?.invoke(it + str.substring(it.length)) }
 
             if (config == null) {
                 return null
             }
 
             // Apply filter
-            if (subItem?.filter.isNotNullEmpty() && config.remarks.isNotNullEmpty()) {
-                val matched = Regex(pattern = subItem?.filter.orEmpty())
-                    .containsMatchIn(input = config.remarks)
-                if (!matched) return null
-            }
+            if (applySubscriptionFilter && !matchesSubscriptionFilter(config, subItem)) return null
 
             config.subscriptionId = subid
-            config.description = generateDescription(config)
-
             return config
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to parse config (${e.javaClass.simpleName})")
             return null
         }
+    }
+
+    private fun matchesSubscriptionFilter(config: ProfileItem, subItem: SubscriptionItem?): Boolean {
+        if (!subItem?.filter.isNotNullEmpty() || !config.remarks.isNotNullEmpty()) return true
+        return runCatching { Regex(subItem?.filter.orEmpty()).containsMatchIn(config.remarks) }
+            .getOrDefault(false)
     }
 
     /**
@@ -616,23 +661,104 @@ object AngConfigManager {
                 return SubscriptionUpdateResult(failureCount = 1)
             }
 
-            val count = parseConfigViaSub(configText, it.guid, false)
-            if (count > 0) {
+            val parseResult = parseConfigViaSubWithSummary(configText, it.guid, false)
+            if (parseResult.validCount > 0) {
                 it.subscription.lastUpdated = System.currentTimeMillis()
                 MmkvManager.encodeSubscription(it.guid, it.subscription)
-                LogUtil.i(AppConfig.TAG, "Subscription updated: ${it.subscription.remarks}, $count configs")
+                LogUtil.i(AppConfig.TAG, "Subscription updated: ${it.subscription.remarks}, ${parseResult.validCount} configs")
                 return SubscriptionUpdateResult(
-                    configCount = count,
-                    successCount = 1
+                    configCount = parseResult.validCount,
+                    successCount = 1,
+                    ignoredConfigCount = parseResult.ignoredCount,
+                    ignoredReasons = parseResult.ignoredReasons,
                 )
             } else {
                 // Got response but no valid configs parsed
-                return SubscriptionUpdateResult(failureCount = 1)
+                return SubscriptionUpdateResult(
+                    failureCount = 1,
+                    ignoredConfigCount = parseResult.ignoredCount,
+                    ignoredReasons = parseResult.ignoredReasons,
+                )
             }
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to update config via subscription", e)
             return SubscriptionUpdateResult(failureCount = 1)
         }
+    }
+
+    /** Refreshes one community source with bounded HTTP timeouts and conditional requests. */
+    suspend fun updatePublicConfigViaSub(it: SubscriptionCache): SubscriptionUpdateResult = withContext(Dispatchers.IO) {
+        if (!it.guid.startsWith("dams-public-") || !it.subscription.enabled || it.subscription.url.isBlank()) {
+            return@withContext SubscriptionUpdateResult(skipCount = 1)
+        }
+        val url = runCatching { HttpUtil.toIdnUrl(it.subscription.url) }.getOrNull()
+            ?: return@withContext SubscriptionUpdateResult(failureCount = 1)
+        if (!Utils.isValidUrl(url) || (!it.subscription.allowInsecureUrl && !Utils.isValidSubUrl(url))) {
+            return@withContext SubscriptionUpdateResult(failureCount = 1)
+        }
+
+        val networkStarted = System.nanoTime()
+        val proxyRequest = UrlContentRequest(
+            url = url,
+            timeout = 7_000,
+            httpPort = SettingsManager.getHttpPort(),
+            proxyUsername = SettingsManager.getSocksUsername(),
+            proxyPassword = SettingsManager.getSocksPassword(),
+            userAgent = it.subscription.userAgent,
+            requestHeaders = it.subscription.requestHeaders,
+            ifNoneMatch = it.subscription.sourceEtag,
+            ifModifiedSince = it.subscription.sourceLastModified,
+        )
+        var response = runCatching { HttpUtil.getUrlContentWithUserAgentResponse(proxyRequest) }.getOrNull()
+        if (response == null) {
+            response = runCatching {
+                HttpUtil.getUrlContentWithUserAgentResponse(proxyRequest.copy(httpPort = 0, proxyUsername = null, proxyPassword = null))
+            }.getOrNull()
+        }
+        val networkMillis = (System.nanoTime() - networkStarted) / 1_000_000L
+        if (response == null) {
+            LogUtil.w(AppConfig.TAG, "Public source refresh failed: ${it.guid}")
+            return@withContext SubscriptionUpdateResult(failureCount = 1)
+        }
+        if (response.notModified) {
+            return@withContext SubscriptionUpdateResult(successCount = 1)
+        }
+        val body = response.body.orEmpty()
+        if (body.isBlank()) return@withContext SubscriptionUpdateResult(failureCount = 1)
+
+        val subscription = MmkvManager.decodeSubscription(it.guid) ?: it.subscription
+        val parsingStarted = System.nanoTime()
+        val parseResult = withContext(Dispatchers.Default) {
+            val normalized = normalizeImportedContent(body).orEmpty()
+            parseBatchContent(normalized, it.guid, subscription)
+        }
+        val parsingMillis = (System.nanoTime() - parsingStarted) / 1_000_000L
+        if (parseResult.validCount == 0) {
+            return@withContext SubscriptionUpdateResult(
+                failureCount = 1,
+                ignoredConfigCount = parseResult.ignoredCount,
+                ignoredReasons = parseResult.ignoredReasons,
+            )
+        }
+
+        val storageStarted = System.nanoTime()
+        commitProfiles(parseResult.parsedProfiles, it.guid, append = false)
+        subscription.lastUpdated = System.currentTimeMillis()
+        response.etag?.let { etag -> subscription.sourceEtag = etag }
+        response.lastModified?.let { lastModified -> subscription.sourceLastModified = lastModified }
+        MmkvManager.encodeSubscription(it.guid, subscription)
+        val storageMillis = (System.nanoTime() - storageStarted) / 1_000_000L
+        XrayConsole.event(
+            "Performance",
+            "Public source ${it.guid}: network=${networkMillis}ms parse=${parseResult.parseMillis}ms " +
+                "generation=${parseResult.generationMillis}ms storage=${storageMillis}ms totalParse=${parsingMillis}ms",
+        )
+        SubscriptionUpdateResult(
+            configCount = parseResult.validCount,
+            successCount = 1,
+            ignoredConfigCount = parseResult.ignoredCount,
+            ignoredReasons = parseResult.ignoredReasons,
+        )
     }
 
     /**
@@ -691,14 +817,32 @@ object AngConfigManager {
      * @return The number of configurations parsed.
      */
     private fun parseConfigViaSub(server: String?, subid: String, append: Boolean): Int {
-        var count = parseBatchConfig(Utils.decode(server), subid, append)
-        if (count <= 0) {
-            count = parseBatchConfig(server, subid, append)
+        return parseConfigViaSubWithSummary(server, subid, append).validCount
+    }
+
+    private fun parseConfigViaSubWithSummary(server: String?, subid: String, append: Boolean): BatchParseResult {
+        val normalized = normalizeImportedContent(server)
+        val parsed = parseBatchConfigWithSummary(normalized, subid, append)
+        if (parsed.validCount > 0) return parsed
+        val customCount = parseCustomConfigServer(server, subid, append)
+        if (customCount > 0) return BatchParseResult(validCount = customCount, ignoredCount = parsed.ignoredCount, ignoredReasons = parsed.ignoredReasons)
+        return parsed
+    }
+
+    private fun normalizeImportedContent(content: String?): String? {
+        if (content.isNullOrBlank()) return content
+        val normalized = content.lineSequence().map(Utils::normalizeConfigLine).filter(String::isNotEmpty).joinToString("\n")
+        val containsConfigUri = normalized.lineSequence().any { line ->
+            supportedConfigSchemes.any { line.startsWith(it, ignoreCase = true) } ||
+                line.startsWith(AppConfig.V2RAYNFMTS, ignoreCase = true)
         }
-        if (count <= 0) {
-            count = parseCustomConfigServer(server, subid, append)
+        if (containsConfigUri) return normalized
+        val decoded = Utils.decodeBase64OrNull(normalized) ?: return normalized
+        val decodedHasConfigUri = decoded.lineSequence().map(Utils::normalizeConfigLine).any { line ->
+            supportedConfigSchemes.any { line.startsWith(it, ignoreCase = true) } ||
+                line.startsWith(AppConfig.V2RAYNFMTS, ignoreCase = true)
         }
-        return count
+        return if (decodedHasConfigUri) decoded else normalized
     }
 
     /**

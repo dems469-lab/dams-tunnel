@@ -9,7 +9,6 @@ import com.v2ray.ang.enums.NetworkType
 import com.v2ray.ang.extension.idnHost
 import com.v2ray.ang.extension.nullIfBlank
 import com.v2ray.ang.util.JsonUtil
-import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import java.net.URI
 
@@ -21,18 +20,15 @@ object VmessFmt : FmtBase() {
      * @return the parsed ProfileItem object, or null if parsing fails
      */
     fun parse(str: String): ProfileItem? {
-        if (str.indexOf('?') > 0 && str.indexOf('&') > 0) {
+        if (str.indexOf('?') > 0) {
             return parseVmessStd(str)
         }
 
         val config = ProfileItem.create(EConfigType.VMESS)
 
-        var result = str.replace(EConfigType.VMESS.protocolScheme, "")
-        result = Utils.decode(result)
-        if (TextUtils.isEmpty(result)) {
-            LogUtil.w(AppConfig.TAG, "Toast decoding failed")
-            return null
-        }
+        val payload = str.trim().removePrefix(EConfigType.VMESS.protocolScheme)
+        val result = Utils.decodeBase64OrNull(payload) ?: return null
+        if (TextUtils.isEmpty(result)) return null
         val vmessQRCode = JsonUtil.fromJson(result, VmessQRCode::class.java) ?: return null
         // Although VmessQRCode fields are non null, looks like Gson may still create null fields
         if (TextUtils.isEmpty(vmessQRCode.add)
@@ -40,7 +36,6 @@ object VmessFmt : FmtBase() {
             || TextUtils.isEmpty(vmessQRCode.id)
             || TextUtils.isEmpty(vmessQRCode.net)
         ) {
-            LogUtil.w(AppConfig.TAG, "Toast incorrect protocol")
             return null
         }
 

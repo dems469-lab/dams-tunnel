@@ -78,41 +78,35 @@ object Utils {
      * Decode a base64 encoded string.
      *
      * @param text The base64 encoded string.
-     * @return The decoded string, or an empty string if decoding fails.
+     * @return The decoded string, or the original value when it is not valid Base64.
      */
     fun decode(text: String?): String {
-        return tryDecodeBase64(text) ?: text?.trimEnd('=')?.let { tryDecodeBase64(it) }.orEmpty()
+        return decodeBase64OrNull(text) ?: text.orEmpty()
     }
 
-    /**
-     * Try to decode a base64 encoded string.
-     *
-     * @param text The base64 encoded string.
-     * @return The decoded string, or null if decoding fails.
-     */
-    private fun tryDecodeBase64(text: String?): String? {
-        if (text.isNullOrEmpty()) return null
-
-        try {
-            return Base64.decode(text, Base64.NO_WRAP).toString(Charsets.UTF_8)
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to decode standard base64", e)
+    /** Decodes standard or URL-safe Base64 without logging malformed input. */
+    fun decodeBase64OrNull(text: String?): String? {
+        val normalized = text
+            ?.filterNot { it.isWhitespace() || it == '\uFEFF' || it in '\u200B'..'\u200D' || it == '\u2060' }
+            ?.replace('-', '+')
+            ?.replace('_', '/')
+            ?.takeIf { it.isNotEmpty() }
+            ?: return null
+        val padded = normalized + "=".repeat((4 - normalized.length % 4) % 4)
+        return try {
+            Base64.decode(padded, Base64.NO_WRAP).toString(Charsets.UTF_8)
+        } catch (_: IllegalArgumentException) {
+            null
         }
-        try {
-            return Base64.decode(text, Base64.NO_WRAP.or(Base64.URL_SAFE)).toString(Charsets.UTF_8)
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to decode URL-safe base64", e)
-        }
-        return null
     }
 
-    /**
-     * Encode a string to base64.
-     *
-     * @param text The string to encode.
-     * @param removePadding
-     * @return The base64 encoded string, or an empty string if encoding fails.
-     */
+    /** Removes whitespace and invisible separators commonly introduced by copied lists. */
+    fun normalizeConfigLine(line: String): String = line
+        .replace("\uFEFF", "")
+        .replace(Regex("[\\u200B-\\u200D\\u2060]"), "")
+        .trim()
+
+    /** Encode a string as Base64. */
     fun encode(text: String, removePadding: Boolean = false): String {
         return try {
             var encoded = Base64.encodeToString(text.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
@@ -295,7 +289,6 @@ object Utils {
             // to avoid cross-language interoperability issues.
             URLDecoder.decode(url.replace("+", "%2B"), Charsets.UTF_8.toString())
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to decode encodeURIComponent", e)
             url
         }
     }

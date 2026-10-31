@@ -131,8 +131,18 @@ class FreeServersActivity : BaseComponentActivity() {
             onRefresh = {
                 lifecycleScope.launch {
                     try {
-                        val count = viewModel.refreshSources()
-                        toastSuccess(getString(R.string.free_servers_refresh_success, count))
+                        val result = viewModel.refreshSources()
+                        val reasons = result.ignoredReasons.entries
+                            .sortedByDescending { it.value }
+                            .take(3)
+                            .joinToString(", ") { "${getString(ignoredReasonLabel(it.key))}: ${it.value}" }
+                            .ifBlank { getString(R.string.free_servers_refresh_no_ignored) }
+                        toastSuccess(getString(
+                            R.string.free_servers_refresh_summary,
+                            result.configCount,
+                            result.ignoredConfigCount,
+                            reasons,
+                        ))
                     } catch (_: Exception) {
                         toastError(R.string.free_servers_refresh_error)
                     }
@@ -165,6 +175,15 @@ class FreeServersActivity : BaseComponentActivity() {
             viewModel.load()
         }
     }
+}
+
+private fun ignoredReasonLabel(reason: String): Int = when (reason) {
+    "duplicate" -> R.string.free_servers_ignored_duplicate
+    "invalid" -> R.string.free_servers_ignored_invalid
+    "unsupported" -> R.string.free_servers_ignored_unsupported
+    "invalid_v2rayn" -> R.string.free_servers_ignored_invalid_v2rayn
+    "subscription_filter" -> R.string.free_servers_ignored_subscription_filter
+    else -> R.string.free_servers_ignored_other
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

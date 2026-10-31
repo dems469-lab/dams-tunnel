@@ -25,6 +25,11 @@ class UtilsTest {
     }
 
     @Test
+    fun normalizeConfigLineRemovesBomInvisibleSeparatorsAndWhitespace() {
+        assertEquals("vless://node", Utils.normalizeConfigLine(" \uFEFFvless://no\u200Bde\u2060 \r"))
+    }
+
+    @Test
     fun test_isIpAddress() {
         assertFalse(Utils.isIpAddress("114.113.112.266"))
         assertFalse(Utils.isIpAddress("666.666.666.666"))

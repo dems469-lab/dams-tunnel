@@ -1,11 +1,9 @@
 package com.v2ray.ang.fmt
 
-import com.v2ray.ang.AppConfig
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.enums.NetworkType
 import com.v2ray.ang.extension.idnHost
-import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import java.net.URI
 
@@ -53,9 +51,9 @@ object ShadowsocksFmt : FmtBase() {
             if (queryParam["plugin"]?.contains("obfs=http") == true) {
                 val queryPairs = HashMap<String, String>()
                 for (pair in queryParam["plugin"]?.split(";") ?: listOf()) {
-                    val idx = pair.split("=")
-                    if (idx.count() == 2) {
-                        queryPairs.put(idx.first(), idx.last())
+                    val separator = pair.indexOf('=')
+                    if (separator > 0) {
+                        queryPairs[pair.substring(0, separator)] = pair.substring(separator + 1)
                     }
                 }
                 config.network = NetworkType.TCP.type
@@ -82,8 +80,7 @@ object ShadowsocksFmt : FmtBase() {
             try {
                 config.remarks =
                     Utils.decodeURIComponent(result.substring(indexSplit + 1, result.length))
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "Failed to decode remarks in SS legacy URL (${e.javaClass.simpleName})")
+            } catch (_: Exception) {
             }
 
             result = result.substring(0, indexSplit)

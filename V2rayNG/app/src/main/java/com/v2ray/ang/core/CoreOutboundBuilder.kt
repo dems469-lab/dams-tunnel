@@ -23,7 +23,16 @@ object CoreOutboundBuilder {
 
     /** Dispatches a profile to protocol-specific outbound builder. */
     fun convert(profileItem: ProfileItem): OutboundBean? {
-        val outbound = when (profileItem.configType) {
+        val outbound = buildProtocolOutbound(profileItem)
+
+        outbound ?: return null
+        val ret = updateOutboundWithGlobalSettings(outbound)
+        if (!ret) return null
+        return outbound
+    }
+
+    internal fun buildProtocolOutbound(profileItem: ProfileItem): OutboundBean? =
+        when (profileItem.configType) {
             EConfigType.VMESS -> toOutboundVmess(profileItem)
             EConfigType.SHADOWSOCKS -> toOutboundShadowsocks(profileItem)
             EConfigType.SOCKS -> toOutboundSocks(profileItem)
@@ -34,12 +43,6 @@ object CoreOutboundBuilder {
             EConfigType.HTTP -> toOutboundHttp(profileItem)
             else -> null
         }
-
-        outbound ?: return null
-        val ret = updateOutboundWithGlobalSettings(outbound)
-        if (!ret) return null
-        return outbound
-    }
 
     /** Applies global outbound options (mux, protocol-specific tweaks, etc.). */
     private fun updateOutboundWithGlobalSettings(outbound: OutboundBean): Boolean {

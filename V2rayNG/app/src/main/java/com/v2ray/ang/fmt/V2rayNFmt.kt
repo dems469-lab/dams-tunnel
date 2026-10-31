@@ -1,11 +1,9 @@
 package com.v2ray.ang.fmt
 
-import com.v2ray.ang.AppConfig
 import com.v2ray.ang.dto.V2rayNShareItem
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.extension.isNotNullEmpty
 import com.v2ray.ang.util.JsonUtil
-import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 
 object V2rayNFmt : FmtBase() {
@@ -41,8 +39,7 @@ object V2rayNFmt : FmtBase() {
 
     private fun parseShareItem(str: String): V2rayNShareItem? = try {
         JsonUtil.fromJson(Utils.decode(str.substringAfterLast('/')), V2rayNShareItem::class.java)
-    } catch (e: Exception) {
-        LogUtil.e(AppConfig.TAG, "Failed to parse V2rayN share item (${e.javaClass.simpleName})")
+    } catch (_: Exception) {
         null
     }
 }

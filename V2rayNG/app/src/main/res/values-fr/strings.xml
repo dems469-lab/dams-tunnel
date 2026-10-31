@@ -339,6 +339,8 @@
     <string name="title_pref_vpn_wake_lock">Maintenir le VPN actif écran éteint</string>
     <string name="summary_pref_vpn_wake_lock">Maintient le processus VPN actif pendant une connexion. Cette option peut augmenter la consommation de batterie.</string>
     <string name="summary_pref_diagnostic_performance">Enregistre localement le démarrage, le premier affichage des écrans, le rythme d’actualisation de l’accueil et la mémoire Java utilisée. Désactivé par défaut, sans collecte de profil ni de réseau.</string>
+    <string name="title_pref_diagnostic_connection">Diagnostic de connexion</string>
+    <string name="summary_pref_diagnostic_connection">Enregistre en cas d’échec le protocole, l’état Xray et la configuration sortante avec les secrets masqués. Copiez ou partagez le journal depuis Journal.</string>
     <string name="performance_diagnostics_title">Diagnostic des performances</string>
 
     <string name="title_pref_sniffing_enabled">Activer Sniffing</string>
@@ -909,6 +911,14 @@
     <string name="free_servers_delete">Supprimer</string>
     <string name="free_servers_cancel">Annuler</string>
     <string name="free_servers_refresh_success">%1$d serveurs publics actualisés.</string>
+    <string name="free_servers_refresh_summary">%1$d valides, %2$d ignorées · %3$s</string>
+    <string name="free_servers_refresh_no_ignored">Aucune configuration ignorée</string>
+    <string name="free_servers_ignored_duplicate">Doublons</string>
+    <string name="free_servers_ignored_invalid">Format invalide</string>
+    <string name="free_servers_ignored_unsupported">Format non pris en charge</string>
+    <string name="free_servers_ignored_invalid_v2rayn">Format V2rayN invalide</string>
+    <string name="free_servers_ignored_subscription_filter">Exclues par le filtre d’abonnement</string>
+    <string name="free_servers_ignored_other">Autre</string>
     <string name="free_servers_search">Nom, source, pays ou protocole</string>
     <string name="free_servers_protocols">Protocoles</string>
     <string name="free_servers_all">Tous</string>

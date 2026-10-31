@@ -42,7 +42,12 @@ import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
 class PublicConfigsActivity : BaseComponentActivity() {
@@ -76,7 +81,7 @@ class PublicConfigsActivity : BaseComponentActivity() {
         MmkvManager.encodeSubscription(subscriptionId, item)
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
-                AngConfigManager.updateConfigViaSub(SubscriptionCache(subscriptionId, item))
+                AngConfigManager.updatePublicConfigViaSub(SubscriptionCache(subscriptionId, item))
             }
             if (result.configCount > 0) {
                 SettingsChangeManager.makeSetupGroupTab()
@@ -95,8 +100,13 @@ class PublicConfigsActivity : BaseComponentActivity() {
                 return@launch
             }
             val result = withContext(Dispatchers.IO) {
-                subscriptions.fold(0) { count, cache ->
-                    count + AngConfigManager.updateConfigViaSub(cache).configCount
+                val semaphore = Semaphore(3)
+                coroutineScope {
+                    subscriptions.map { cache ->
+                        async(Dispatchers.IO) {
+                            semaphore.withPermit { AngConfigManager.updatePublicConfigViaSub(cache) }
+                        }
+                    }.awaitAll().sumOf { it.configCount }
                 }
             }
             SettingsChangeManager.makeSetupGroupTab()

@@ -154,6 +154,29 @@ class ShadowsocksFmtTest {
     }
 
     @Test
+    fun base64DecoderAcceptsUrlSafeUnpaddedPayloadWithWhitespaceAndFailsSilently() {
+        val encoded = JavaBase64.getUrlEncoder().withoutPadding()
+            .encodeToString("vmess payload".toByteArray())
+        val standardPadded = JavaBase64.getEncoder().encodeToString("ss payload".toByteArray())
+
+        assertEquals("vmess payload", com.v2ray.ang.util.Utils.decodeBase64OrNull(" \n$encoded\t"))
+        assertEquals("ss payload", com.v2ray.ang.util.Utils.decodeBase64OrNull(standardPadded))
+        assertNull(com.v2ray.ang.util.Utils.decodeBase64OrNull("not valid base64 !"))
+    }
+
+    @Test
+    fun sip002PluginParametersPreserveAdditionalEqualsSigns() {
+        val profile = ShadowsocksFmt.parseSip002(
+            "ss://YWVzLTI1Ni1nY206cGFzcw@example.com:8388?plugin=obfs%3Dhttp%3Bobfs-host%3Dcdn.example%3Bpath%3D%2Fws%3Da#Serveur%20🚀"
+        )
+
+        assertNotNull(profile)
+        assertEquals("cdn.example", profile?.host)
+        assertEquals("/ws=a", profile?.path)
+        assertEquals("Serveur 🚀", profile?.remarks)
+    }
+
+    @Test
     fun test_parseSip002_withChacha20Encryption() {
         val ssUrl = createSip002Url(
             method = "chacha20-ietf-poly1305",

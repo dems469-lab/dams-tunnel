@@ -4,6 +4,7 @@ import com.v2ray.ang.AppConfig
 import com.v2ray.ang.AppConfig.LOOPBACK
 import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.dto.UrlContentRequest
+import com.v2ray.ang.dto.UrlContentResponse
 import okhttp3.Credentials
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -144,13 +145,25 @@ object HttpUtil {
      */
     @Throws(IOException::class)
     fun getUrlContentWithUserAgent(request: UrlContentRequest): String {
+        return getUrlContentWithUserAgentResponse(request).body.orEmpty()
+    }
+
+    @Throws(IOException::class)
+    fun getUrlContentWithUserAgentResponse(request: UrlContentRequest): UrlContentResponse {
         var currentUrl = request.url
         var redirects = 0
         val maxRedirects = 3
 
         while (redirects++ < maxRedirects) {
             if (currentUrl == null) continue
-            val client = buildOkHttpClient(request.timeout, request.httpPort, request.proxyUsername, request.proxyPassword, followRedirects = false)
+            val client = buildOkHttpClient(
+                request.timeout,
+                request.httpPort,
+                request.proxyUsername,
+                request.proxyPassword,
+                followRedirects = false,
+                enforceCallTimeout = request.timeout <= 8_000,
+            )
             val finalUserAgent = if (request.userAgent.isNullOrBlank()) {
                 "v2rayNG/${BuildConfig.VERSION_NAME}"
             } else {
@@ -178,6 +191,8 @@ object HttpUtil {
             if (request.httpPort != 0 && !request.proxyUsername.isNullOrBlank() && !request.proxyPassword.isNullOrBlank()) {
                 requestBuilder.header("Proxy-Authorization", Credentials.basic(request.proxyUsername, request.proxyPassword))
             }
+            request.ifNoneMatch?.let { requestBuilder.header("If-None-Match", it) }
+            request.ifModifiedSince?.let { requestBuilder.header("If-Modified-Since", it) }
 
             client.newCall(requestBuilder.build()).execute().use { response ->
                 when {
@@ -193,8 +208,20 @@ object HttpUtil {
                         continue
                     }
 
+                    response.code == 304 -> {
+                        return UrlContentResponse(
+                            etag = response.header("ETag"),
+                            lastModified = response.header("Last-Modified"),
+                            notModified = true,
+                        )
+                    }
+
                     response.isSuccessful -> {
-                        return response.body?.string() ?: ""
+                        return UrlContentResponse(
+                            body = response.body?.string().orEmpty(),
+                            etag = response.header("ETag"),
+                            lastModified = response.header("Last-Modified"),
+                        )
                     }
 
                     else -> {
@@ -225,13 +252,18 @@ object HttpUtil {
         httpPort: Int,
         proxyUsername: String?,
         proxyPassword: String?,
-        followRedirects: Boolean
+        followRedirects: Boolean,
+        enforceCallTimeout: Boolean = false,
     ): OkHttpClient {
         val builder = OkHttpClient.Builder()
             .connectTimeout(timeout.toLong(), TimeUnit.MILLISECONDS)
             .readTimeout(timeout.toLong(), TimeUnit.MILLISECONDS)
             .followRedirects(followRedirects)
             .followSslRedirects(followRedirects)
+
+        if (enforceCallTimeout) {
+            builder.callTimeout(timeout.toLong(), TimeUnit.MILLISECONDS)
+        }
 
         if (httpPort != 0) {
             builder.proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress(LOOPBACK, httpPort)))

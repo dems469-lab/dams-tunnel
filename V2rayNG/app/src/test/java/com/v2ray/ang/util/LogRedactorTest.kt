@@ -34,4 +34,20 @@ class LogRedactorTest {
         assertFalse(result.contains("2001:db8::1"))
         assertFalse(result.contains("2001:4860:4860::8888"))
     }
+
+    @Test
+    fun `connection failure report keeps protocol and error but masks outbound secrets and host`() {
+        val result = LogRedactor.formatConnectionFailure(
+            protocol = "VMESS",
+            error = "xray handshake failed",
+            generatedConfig = """{"address":"203.0.113.42","id":"uuid-secret","password":"pass-secret","serverName":"edge.example.net"}""",
+        )
+
+        assertTrue(result.contains("protocol=VMESS"))
+        assertTrue(result.contains("xray handshake failed"))
+        listOf("203.0.113.42", "uuid-secret", "pass-secret", "edge.example.net").forEach {
+            assertFalse(result.contains(it))
+        }
+        assertTrue(result.contains("203.***.***.42"))
+    }
 }

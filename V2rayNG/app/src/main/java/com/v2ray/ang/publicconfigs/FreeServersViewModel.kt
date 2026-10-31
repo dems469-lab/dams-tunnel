@@ -11,6 +11,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.dto.TestServiceMessage
+import com.v2ray.ang.dto.SubscriptionUpdateResult
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
@@ -24,6 +25,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.util.UUID
 
 internal data class FreeServersUiState(
@@ -117,14 +123,23 @@ internal class FreeServersViewModel(application: Application) : BaseViewModel(ap
         )
     }
 
-    suspend fun refreshSources(): Int = withContext(Dispatchers.IO) {
+    suspend fun refreshSources(): SubscriptionUpdateResult = withContext(Dispatchers.IO) {
         _uiState.value = _uiState.value.copy(refreshing = true)
         try {
+            load()
             val subscriptions = MmkvManager.decodeSubscriptions().filter { it.guid.startsWith("dams-public-") }
-            val count = subscriptions.sumOf { AngConfigManager.updateConfigViaSub(it).configCount }
+            val semaphore = Semaphore(3)
+            val updates = coroutineScope {
+                subscriptions.map { subscription ->
+                    async(Dispatchers.IO) {
+                        semaphore.withPermit { AngConfigManager.updatePublicConfigViaSub(subscription) }
+                    }
+                }.awaitAll()
+            }
+            val result = updates.fold(SubscriptionUpdateResult(), SubscriptionUpdateResult::plus)
             SettingsChangeManager.makeSetupGroupTab()
             load()
-            count
+            result
         } finally {
             _uiState.value = _uiState.value.copy(refreshing = false)
         }
@@ -151,10 +166,14 @@ internal class FreeServersViewModel(application: Application) : BaseViewModel(ap
         newGuid
     }
 
-    fun load() {        val filters = _uiState.value.filters
+    fun load() {
+        val filters = _uiState.value.filters
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(loading = true, error = false)
+            _uiState.value = _uiState.value.copy(
+                loading = _uiState.value.catalog.groups.isEmpty(),
+                error = false,
+            )
             try {
                 val inputs = withContext(Dispatchers.IO) {
                     MmkvManager.decodeSubscriptions()
