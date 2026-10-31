@@ -56,8 +56,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Path
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
@@ -412,7 +423,7 @@ private enum class DamsTab {
 
 @Composable
 private fun DamsNavigationBar(selected: DamsTab, onSelect: (DamsTab) -> Unit) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)) {
         listOf(
             Triple(DamsTab.Home, R.drawable.ic_home_24dp, R.string.dams_tab_home),
             Triple(DamsTab.Configs, R.drawable.ic_subscriptions_24dp, R.string.dams_tab_configs),
@@ -432,7 +443,7 @@ private fun DamsNavigationBar(selected: DamsTab, onSelect: (DamsTab) -> Unit) {
 @Composable
 private fun DamsHeader(onMenuClick: () -> Unit, onOpenJournal: () -> Unit) {
     var showMoreMenu by remember { mutableStateOf(false) }
-    Surface(color = MaterialTheme.colorScheme.background) {
+    Surface(color = MaterialTheme.colorScheme.background.copy(alpha = 0.94f)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -534,11 +545,54 @@ private fun DamsDashboard(
         // dashboard or accidentally captured in a screenshot.
         stringResource(R.string.dams_connection_details_hidden)
     }
+    val resumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+    val ringAlpha: Float
+    val ringScale: Float
+    if (resumed && isConnected) {
+        val transition = rememberInfiniteTransition(label = "connectedPulse")
+        ringAlpha = transition.animateFloat(
+            initialValue = 0.32f,
+            targetValue = 0.06f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "ringAlpha",
+        ).value
+        ringScale = transition.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.12f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "ringScale",
+        ).value
+    } else {
+        ringAlpha = 0.14f
+        ringScale = 1f
+    }
+    val borderColor by animateColorAsState(
+        targetValue = if (isConnected) Color(0xFF22C55E) else Color(0xFF1E4A8A),
+        label = "borderColor",
+    )
+    val borderWidth by animateDpAsState(
+        targetValue = if (isConnected) 2.dp else 1.dp,
+        label = "borderWidth",
+    )
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .background(MaterialTheme.colorScheme.background)
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.07f),
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.background,
+                    )
+                )
+            )
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -555,7 +609,8 @@ private fun DamsDashboard(
                 Box(
                     modifier = Modifier
                         .size(204.dp)
-                        .background(Color(0xFF22C55E).copy(alpha = 0.14f), CircleShape)
+                        .graphicsLayer { scaleX = ringScale; scaleY = ringScale }
+                        .background(Color(0xFF22C55E).copy(alpha = ringAlpha), CircleShape)
                 ) {}
             }
             Surface(
@@ -563,8 +618,8 @@ private fun DamsDashboard(
                     .size(188.dp)
                     .clip(CircleShape)
                     .border(
-                        width = if (isConnected) 2.dp else 1.dp,
-                        color = if (isConnected) Color(0xFF22C55E) else Color(0xFF1E4A8A),
+                        width = borderWidth,
+                        color = borderColor,
                         shape = CircleShape,
                     )
                     .clickable(role = Role.Button, onClick = onToggleConnection)
@@ -589,7 +644,7 @@ private fun DamsDashboard(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f)),
             shape = MaterialTheme.shapes.large,
         ) {
             Row(
