@@ -1,5 +1,7 @@
 package com.v2ray.ang.ui.main
 
+import android.content.Context
+import android.os.PowerManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -56,11 +58,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Path
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -85,6 +91,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.repeatOnLifecycle
 import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.AppConfig
@@ -93,11 +100,13 @@ import com.v2ray.ang.R
 import com.v2ray.ang.extension.toSpeedString
 import com.v2ray.ang.extension.toTrafficString
 import com.v2ray.ang.ui.compose.QRCodeDialog
+import com.v2ray.ang.ui.compose.DamsTheme
 import com.v2ray.ang.util.PerformanceDiagnostics
 import com.v2ray.ang.handler.MmkvManager
 import android.os.SystemClock
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlin.math.sin
 
 @Composable
 fun MainScreen(
@@ -424,7 +433,7 @@ private enum class DamsTab {
 
 @Composable
 private fun DamsNavigationBar(selected: DamsTab, onSelect: (DamsTab) -> Unit) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = DamsTheme.navigationSurfaceAlpha)) {
         listOf(
             Triple(DamsTab.Home, R.drawable.ic_home_24dp, R.string.dams_tab_home),
             Triple(DamsTab.Configs, R.drawable.ic_subscriptions_24dp, R.string.dams_tab_configs),
@@ -444,7 +453,7 @@ private fun DamsNavigationBar(selected: DamsTab, onSelect: (DamsTab) -> Unit) {
 @Composable
 private fun DamsHeader(onMenuClick: () -> Unit, onOpenJournal: () -> Unit) {
     var showMoreMenu by remember { mutableStateOf(false) }
-    Surface(color = MaterialTheme.colorScheme.background.copy(alpha = 0.94f)) {
+    Surface(color = MaterialTheme.colorScheme.background.copy(alpha = DamsTheme.headerSurfaceAlpha)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -549,35 +558,101 @@ private fun DamsDashboard(
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
     val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
+    val theme = DamsTheme
+    val context = LocalContext.current
+    val powerSaveMode = remember(context) {
+        (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode ?: false
+    }
+    val particlesActive = resumed && theme.animationsEnabled && theme.particules && !powerSaveMode
+    val particlePhase = if (particlesActive) {
+        rememberInfiniteTransition(label = "themeParticles").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(theme.respirationMillis * 3, easing = LinearEasing),
+            ),
+            label = "particlePhase",
+        ).value
+    } else 0f
+    val shimmerPhase = if (resumed && theme.animationsEnabled && theme.shimmerAlpha > 0f) {
+        rememberInfiniteTransition(label = "goldButtonShimmer").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(theme.shimmerMillis, easing = LinearEasing),
+            ),
+            label = "goldShimmerPhase",
+        ).value
+    } else null
+    val haptic = LocalHapticFeedback.current
+    var previouslyConnected by remember { mutableStateOf(isConnected) }
+    LaunchedEffect(isConnected, theme.style) {
+        if (isConnected && !previouslyConnected && theme.style == "organic") {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+        previouslyConnected = isConnected
+    }
     val ringAlpha: Float
     val ringScale: Float
-    if (resumed && isConnected) {
+    val powerScale: Float
+    val statusDotAlpha: Float
+    if (resumed && isConnected && theme.animationsEnabled) {
         val transition = rememberInfiniteTransition(label = "connectedPulse")
         ringAlpha = transition.animateFloat(
-            initialValue = 0.32f,
-            targetValue = 0.06f,
+            initialValue = theme.ringAlphaMax,
+            targetValue = theme.ringAlphaMin,
             animationSpec = infiniteRepeatable(
-                animation = tween(2200, easing = FastOutSlowInEasing),
+                animation = tween(theme.respirationMillis, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse,
             ),
             label = "ringAlpha",
         ).value
         ringScale = transition.animateFloat(
-            initialValue = 1f,
-            targetValue = 1.12f,
+            initialValue = theme.ringScaleMin,
+            targetValue = theme.ringScaleMax,
             animationSpec = infiniteRepeatable(
-                animation = tween(2200, easing = FastOutSlowInEasing),
+                animation = tween(theme.respirationMillis, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse,
             ),
             label = "ringScale",
         ).value
-    } else {
-        ringAlpha = 0.14f
+        powerScale = 1f
+        statusDotAlpha = transition.animateFloat(
+            initialValue = theme.statusPulseMinAlpha,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(theme.ondeMillis, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "connectedStatusPulse",
+        ).value
+    } else if (resumed && !isRunning && theme.animationsEnabled) {
+        val transition = rememberInfiniteTransition(label = "idlePowerBreath")
+        powerScale = transition.animateFloat(
+            initialValue = 1f,
+            targetValue = theme.idlePowerScaleMax,
+            animationSpec = infiniteRepeatable(
+                animation = tween(theme.respirationMillis, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "idlePowerScale",
+        ).value
+        ringAlpha = 0f
         ringScale = 1f
+        statusDotAlpha = 1f
+    } else {
+        ringAlpha = if (isConnected) theme.ringAlphaMid else 0f
+        ringScale = 1f
+        powerScale = 1f
+        statusDotAlpha = 1f
     }
-    val borderColor = if (isConnected) Color(0xFF22C55E) else Color(0xFF1E4A8A)
+    val waveFactor = if (theme.style == "fluid" && particlesActive) {
+        sin(particlePhase * 6.283f) * theme.waveAmplitude
+    } else 0f
+    val borderColor = if (isConnected) theme.succes else theme.bordure
     val borderWidth by animateDpAsState(
         targetValue = if (isConnected) 2.dp else 1.dp,
+        animationSpec = tween(if (theme.animationsEnabled) theme.ondeMillis else 0),
         label = "borderWidth",
     )
     Column(
@@ -587,12 +662,42 @@ private fun DamsDashboard(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.07f),
-                        MaterialTheme.colorScheme.background,
+                        theme.fondRadial.copy(alpha = theme.backgroundRadialAlpha),
+                        theme.fond,
                         MaterialTheme.colorScheme.background,
                     )
                 )
             )
+            .drawBehind {
+                if (theme.style == "fluid" && particlesActive) {
+                    val gradientOffset = (particlePhase * 2f - 1f) * size.height
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                theme.fondRadial.copy(alpha = theme.backgroundRadialAlpha),
+                                Color.Transparent,
+                            ),
+                            startY = gradientOffset,
+                            endY = gradientOffset + size.height,
+                        ),
+                    )
+                }
+                if (particlesActive) {
+                    repeat(10) { index ->
+                        val xFraction = ((index * 37) % 97 + 1) / 100f
+                        val yFraction = (particlePhase + index * 0.137f) % 1f
+                        val shimmer = kotlin.math.abs(sin((particlePhase + index * 0.19f) * 6.283f))
+                        drawCircle(
+                            color = theme.accentClair.copy(
+                                alpha = theme.particleAlphaMin + shimmer * (theme.particleAlphaMax - theme.particleAlphaMin)
+                            ),
+                            radius = theme.particleRadiusDp.dp.toPx(),
+                            center = androidx.compose.ui.geometry.Offset(xFraction * size.width, yFraction * size.height),
+                        )
+                    }
+                }
+            }
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -605,23 +710,55 @@ private fun DamsDashboard(
         )
 
         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 4.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(236.dp)
+                    .graphicsLayer { scaleX = 1f + waveFactor; scaleY = 1f - waveFactor }
+                    .border(1.dp, theme.accent.copy(alpha = theme.ringAlphaMin), CircleShape)
+            )
+            Box(
+                modifier = Modifier
+                    .size(214.dp)
+                    .graphicsLayer { scaleX = 1f - waveFactor; scaleY = 1f + waveFactor }
+                    .border(1.dp, theme.accentClair.copy(alpha = theme.ringAlphaMid), CircleShape)
+            )
             if (isConnected) {
                 Box(
                     modifier = Modifier
                         .size(204.dp)
                         .graphicsLayer { scaleX = ringScale; scaleY = ringScale }
-                        .background(Color(0xFF22C55E).copy(alpha = ringAlpha), CircleShape)
+                        .background(theme.succes.copy(alpha = ringAlpha), CircleShape)
                 ) {}
             }
             Surface(
                 modifier = Modifier
                     .size(188.dp)
+                    .graphicsLayer { scaleX = powerScale; scaleY = powerScale }
                     .clip(CircleShape)
                     .border(
                         width = borderWidth,
                         color = borderColor,
                         shape = CircleShape,
                     )
+                    .drawBehind {
+                        shimmerPhase?.let { phase ->
+                            val stripeWidth = size.width * 0.24f
+                            val stripeStart = (size.width + stripeWidth) * phase - stripeWidth
+                            drawRect(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        theme.accentClair.copy(alpha = theme.shimmerAlpha),
+                                        Color.Transparent,
+                                    ),
+                                    startX = stripeStart,
+                                    endX = stripeStart + stripeWidth * 2f,
+                                ),
+                                topLeft = androidx.compose.ui.geometry.Offset(stripeStart, 0f),
+                                size = androidx.compose.ui.geometry.Size(stripeWidth * 2f, size.height),
+                            )
+                        }
+                    }
                     .clickable(role = Role.Button, onClick = onToggleConnection)
                     .semantics {
                         contentDescription = powerActionLabel
@@ -636,7 +773,7 @@ private fun DamsDashboard(
                         painter = painterResource(R.drawable.ic_power_24dp),
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
-                        tint = if (isConnected) Color(0xFF22C55E) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (isConnected) theme.succes else theme.accentClair,
                     )
                 }
             }
@@ -644,7 +781,7 @@ private fun DamsDashboard(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = theme.statusSurfaceAlpha)),
             shape = MaterialTheme.shapes.large,
         ) {
             Row(
@@ -655,18 +792,33 @@ private fun DamsDashboard(
                     modifier = Modifier
                         .padding(end = 12.dp)
                         .size(14.dp)
+                        .graphicsLayer { alpha = statusDotAlpha }
                         .background(
-                            if (isRunning) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                            when {
+                                isConnected -> theme.succes
+                                isRunning -> theme.accentClair
+                                else -> theme.accent
+                            },
                             CircleShape,
                         ),
                 )
                 Column {
-                    Text(
-                        text = displayText.uppercase(),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (isRunning) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Crossfade(
+                        targetState = displayText.uppercase(),
+                        animationSpec = tween(if (theme.animationsEnabled) theme.ondeMillis else 0),
+                        label = "connectionStatus",
+                    ) { status ->
+                        Text(
+                            text = status,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = when {
+                                isConnected -> theme.succes
+                                isRunning -> theme.accentClair
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                     Text(
                         text = connectionSubtitle,
                         style = MaterialTheme.typography.bodySmall,
@@ -678,7 +830,7 @@ private fun DamsDashboard(
 
         Card(
             modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpenServers),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = theme.cardAlpha)),
             shape = MaterialTheme.shapes.large,
             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
@@ -713,7 +865,7 @@ private fun DamsDashboard(
         if (!isRunning) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = theme.cardAlpha)),
                 shape = MaterialTheme.shapes.large,
                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
@@ -745,7 +897,7 @@ private fun DamsDashboard(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(role = Role.Button, onClick = onOpenIpFinder),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = theme.cardAlpha)),
             shape = MaterialTheme.shapes.large,
             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
@@ -781,7 +933,7 @@ private fun DamsDashboard(
         diagnostic?.let { result ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = theme.cardAlpha)),
                 shape = MaterialTheme.shapes.large,
             ) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

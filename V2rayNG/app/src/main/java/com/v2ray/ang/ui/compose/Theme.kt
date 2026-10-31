@@ -2,6 +2,9 @@ package com.v2ray.ang.ui.compose
 
 import android.app.Activity
 import android.os.Build
+import android.provider.Settings
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -118,6 +121,195 @@ private val DamsShapes = Shapes(
     large = RoundedCornerShape(16.dp),
     extraLarge = RoundedCornerShape(16.dp),
 )
+
+/** Shared visual tokens for every Dams screen; palette changes are presentation-only. */
+data class DamsThemeTokens(
+    val fond: Color,
+    val fondRadial: Color,
+    val surface: Color,
+    val bordure: Color,
+    val accent: Color,
+    val accentClair: Color,
+    val succes: Color,
+    val erreur: Color,
+    val avertissement: Color = Color(0xFFFFC857),
+    val texteFort: Color,
+    val texteDoux: Color,
+    val lueur: Float,
+    val particules: Boolean,
+    val style: String,
+    val respirationMillis: Int,
+    val ondeMillis: Int,
+    val animationsEnabled: Boolean = true,
+    val ringAlphaMin: Float = 0.04f,
+    val ringAlphaMid: Float = 0.14f,
+    val ringAlphaMax: Float = 0.32f,
+    val ringScaleMin: Float = 1f,
+    val ringScaleMax: Float = 1.12f,
+    val idlePowerScaleMax: Float = 1.025f,
+    val statusPulseMinAlpha: Float = 0.72f,
+    val particleAlphaMin: Float = 0.035f,
+    val particleAlphaMax: Float = 0.08f,
+    val particleRadiusDp: Float = 1.35f,
+    val backgroundRadialAlpha: Float = 0.46f,
+    val cardAlpha: Float = 0.76f,
+    val statusSurfaceAlpha: Float = 0.86f,
+    val navigationSurfaceAlpha: Float = 0.95f,
+    val headerSurfaceAlpha: Float = 0.94f,
+    val shimmerAlpha: Float = 0.14f,
+    val shimmerMillis: Int = 6000,
+    val waveAmplitude: Float = 0.012f,
+    val chipTransitionMillis: Int = 200,
+)
+
+private val LocalDamsThemeTokens = compositionLocalOf {
+    DamsThemeTokens(
+        fond = Color(0xFF050B1A), fondRadial = Color(0xFF0B2740),
+        surface = Color(0xFF0A1530), bordure = Color(0xFF1B2C55),
+        accent = Color(0xFF38BDF8), accentClair = Color(0xFF22D3EE),
+        succes = Color(0xFF34D399), erreur = Color(0xFFEF4444),
+        texteFort = Color(0xFFE8F0FF), texteDoux = Color(0xFF9CB2D7),
+        lueur = 0.72f, particules = true, style = "neon",
+        respirationMillis = 3000, ondeMillis = 900, animationsEnabled = true,
+    )
+}
+
+val DamsTheme: DamsThemeTokens
+    @Composable get() = LocalDamsThemeTokens.current
+
+internal fun resolveDamsThemeTokens(palette: String, dark: Boolean): DamsThemeTokens {
+    val style = damsPaletteStyleForId(palette)
+    val paletteTokens = when (palette) {
+        "1" -> DamsThemeTokens(
+            fond = Color(0xFF0A0805), fondRadial = Color(0xFF38240A),
+            surface = Color(0xFF191208), bordure = Color(0xFF594018),
+            accent = Color(0xFFF5B942), accentClair = Color(0xFFFFD166),
+            succes = Color(0xFFFFD166), erreur = Color(0xFFFF6B6B),
+            avertissement = Color(0xFFFFD166),
+            texteFort = Color(0xFFFFF1D0), texteDoux = Color(0xFFD7C39A),
+            lueur = 0.46f, particules = true, style = style,
+            respirationMillis = 4000, ondeMillis = 1500,
+        )
+        "2" -> DamsThemeTokens(
+            fond = Color(0xFF04121F), fondRadial = Color(0xFF073B51),
+            surface = Color(0xFF0A2034), bordure = Color(0xFF174968),
+            accent = Color(0xFF3B82F6), accentClair = Color(0xFF22D3EE),
+            succes = Color(0xFF2DD4BF), erreur = Color(0xFFFF6B6B),
+            avertissement = Color(0xFFFBBF24),
+            texteFort = Color(0xFFE4F4FF), texteDoux = Color(0xFFA2C3D8),
+            lueur = 0.66f, particules = true, style = style,
+            respirationMillis = 3600, ondeMillis = 1400,
+        )
+        "3" -> DamsThemeTokens(
+            fond = Color(0xFF04120D), fondRadial = Color(0xFF064332),
+            surface = Color(0xFF09251C), bordure = Color(0xFF14533E),
+            accent = Color(0xFF10B981), accentClair = Color(0xFF6EE7B7),
+            succes = Color(0xFF34D399), erreur = Color(0xFFFF6B6B),
+            avertissement = Color(0xFFFBBF24),
+            texteFort = Color(0xFFE3FFF3), texteDoux = Color(0xFFA6D5C1),
+            lueur = 0.58f, particules = true, style = style,
+            respirationMillis = 3800, ondeMillis = 1300,
+        )
+        "4" -> if (dark) DamsThemeTokens(
+            fond = Color(0xFF101820), fondRadial = Color(0xFF243B52),
+            surface = Color(0xFF182531), bordure = Color(0xFF3A5368),
+            accent = Color(0xFF38BDF8), accentClair = Color(0xFFBAE6FD),
+            succes = Color(0xFF34D399), erreur = Color(0xFFFF6B6B),
+            avertissement = Color(0xFFFBBF24),
+            texteFort = Color(0xFFF1F8FF), texteDoux = Color(0xFFBDD0DF),
+            lueur = 0.12f, particules = false, style = style,
+            respirationMillis = 2200, ondeMillis = 700,
+        ) else DamsThemeTokens(
+            fond = Color(0xFFF4F8FC), fondRadial = Color(0xFFE2F1FC),
+            surface = Color(0xFFFFFFFF), bordure = Color(0xFFB8D0E3),
+            accent = Color(0xFF0284C7), accentClair = Color(0xFF38BDF8),
+            succes = Color(0xFF059669), erreur = Color(0xFFB42318),
+            avertissement = Color(0xFF9A6700),
+            texteFort = Color(0xFF102A3A), texteDoux = Color(0xFF456579),
+            lueur = 0.08f, particules = true, style = style,
+            respirationMillis = 2200, ondeMillis = 700,
+        )
+        else -> if (dark) DamsThemeTokens(
+            fond = Color(0xFF050A15), fondRadial = Color(0xFF0B2A43),
+            surface = Color(0xFF0B1930), bordure = Color(0xFF1C3E62),
+            accent = Color(0xFF38BDF8), accentClair = Color(0xFF67E8F9),
+            succes = Color(0xFF34D399), erreur = Color(0xFFEF4444),
+            avertissement = Color(0xFFFBBF24),
+            texteFort = Color(0xFFE8F0FF), texteDoux = Color(0xFFA5B8D4),
+            lueur = 0.82f, particules = true, style = style,
+            respirationMillis = 3000, ondeMillis = 850,
+        ) else DamsThemeTokens(
+            fond = Color(0xFFF4F8FF), fondRadial = Color(0xFFE5F3FF),
+            surface = Color(0xFFFBFDFF), bordure = Color(0xFFCCDAF3),
+            accent = Color(0xFF087CB0), accentClair = Color(0xFF22A6C7),
+            succes = Color(0xFF059669), erreur = Color(0xFFBA1A1A),
+            avertissement = Color(0xFF9A6700),
+            texteFort = Color(0xFF102A3A), texteDoux = Color(0xFF496377),
+            lueur = 0.12f, particules = false, style = style,
+            respirationMillis = 250, ondeMillis = 180,
+        )
+    }
+    if (dark || (palette != "1" && palette != "2" && palette != "3")) {
+        return withThemeMotionTokens(paletteTokens)
+    }
+    val lightSurfaces = when (palette) {
+        "1" -> Triple(Color(0xFFFFFAEF), Color(0xFFFFEBC0), Color(0xFFE7C87D))
+        "2" -> Triple(Color(0xFFF1FAFF), Color(0xFFDFF4FC), Color(0xFFB9DAE9))
+        else -> Triple(Color(0xFFF0FBF5), Color(0xFFDDF6EA), Color(0xFFB2DCC7))
+    }
+    return withThemeMotionTokens(paletteTokens.copy(
+        fond = lightSurfaces.first,
+        fondRadial = lightSurfaces.second,
+        surface = Color.White,
+        bordure = lightSurfaces.third,
+        texteFort = Color(0xFF14252F),
+        texteDoux = Color(0xFF465E69),
+        avertissement = Color(0xFF805400),
+        lueur = 0.08f,
+        particules = false,
+        respirationMillis = 250,
+        ondeMillis = 180,
+    ))
+}
+
+private fun withThemeMotionTokens(tokens: DamsThemeTokens): DamsThemeTokens = tokens.copy(
+    ringAlphaMin = tokens.lueur * 0.10f,
+    ringAlphaMid = tokens.lueur * 0.24f,
+    ringAlphaMax = tokens.lueur * 0.46f,
+    ringScaleMax = when (tokens.style) {
+        "fluid" -> 1.08f
+        "organic" -> 1.06f
+        "crystal" -> 1.03f
+        else -> 1.12f
+    },
+    ringScaleMin = if (tokens.style == "organic") 0.94f else 1f,
+    idlePowerScaleMax = if (tokens.style == "crystal") 1.01f else 1.025f,
+    statusPulseMinAlpha = if (tokens.style == "crystal") 0.92f else 0.72f,
+    particleAlphaMin = tokens.lueur * 0.043f,
+    particleAlphaMax = tokens.lueur * 0.098f,
+    particleRadiusDp = when (tokens.style) {
+        "gold" -> 1.8f
+        "crystal" -> 0.8f
+        else -> 1.35f
+    },
+    backgroundRadialAlpha = if (tokens.style == "crystal") 0.18f else 0.46f,
+    cardAlpha = if (tokens.style == "crystal") 0.94f else 0.76f,
+    statusSurfaceAlpha = if (tokens.style == "crystal") 0.96f else 0.86f,
+    navigationSurfaceAlpha = if (tokens.style == "crystal") 0.98f else 0.95f,
+    headerSurfaceAlpha = if (tokens.style == "crystal") 0.98f else 0.94f,
+    shimmerAlpha = if (tokens.style == "gold") 0.14f else 0f,
+    shimmerMillis = 6000,
+    waveAmplitude = if (tokens.style == "fluid") 0.012f else 0f,
+)
+
+internal fun damsPaletteStyleForId(palette: String): String = when (palette) {
+    "0" -> "neon"
+    "1" -> "gold"
+    "2" -> "fluid"
+    "3" -> "organic"
+    "4" -> "crystal"
+    else -> "neon"
+}
 
 private fun damsTypography(style: String): Typography {
     val base = Typography()
@@ -280,7 +472,60 @@ fun AppTheme(
         darkTheme -> DarkColor
         else -> LightColor
     }
-    val colorScheme = applyDamsPalette(baseColorScheme, palette, darkTheme)
+    val definition = resolveDamsThemeTokens(palette, darkTheme)
+    val animationEnabled = remember(context) {
+        runCatching {
+            Settings.Global.getFloat(
+                context.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f,
+            ) > 0f
+        }.getOrDefault(true)
+    }
+    val duration = if (animationEnabled) 400 else 0
+    val targetTokens = if (dynamicColor && palette == "0" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        definition.copy(
+            accent = baseColorScheme.primary,
+            accentClair = baseColorScheme.secondary,
+            succes = baseColorScheme.tertiary,
+            fond = baseColorScheme.background,
+            fondRadial = baseColorScheme.primaryContainer,
+            surface = baseColorScheme.surface,
+            bordure = baseColorScheme.outlineVariant,
+            texteFort = baseColorScheme.onBackground,
+            texteDoux = baseColorScheme.onSurfaceVariant,
+        )
+    } else definition
+    val tokens = if (animationEnabled) targetTokens.copy(
+        fond = animateColorAsState(targetTokens.fond, tween(duration), label = "themeBackground").value,
+        fondRadial = animateColorAsState(targetTokens.fondRadial, tween(duration), label = "themeRadial").value,
+        surface = animateColorAsState(targetTokens.surface, tween(duration), label = "themeSurface").value,
+        bordure = animateColorAsState(targetTokens.bordure, tween(duration), label = "themeBorder").value,
+        accent = animateColorAsState(targetTokens.accent, tween(duration), label = "themeAccent").value,
+        accentClair = animateColorAsState(targetTokens.accentClair, tween(duration), label = "themeAccentLight").value,
+        succes = animateColorAsState(targetTokens.succes, tween(duration), label = "themeSuccess").value,
+        texteFort = animateColorAsState(targetTokens.texteFort, tween(duration), label = "themeText").value,
+        texteDoux = animateColorAsState(targetTokens.texteDoux, tween(duration), label = "themeSoftText").value,
+    ).copy(animationsEnabled = animationEnabled) else targetTokens.copy(animationsEnabled = false)
+    val targetScheme = applyDamsPalette(baseColorScheme, tokens)
+    val colorScheme = targetScheme.copy(
+        primary = animateColorAsState(targetScheme.primary, tween(duration), label = "schemePrimary").value,
+        secondary = animateColorAsState(targetScheme.secondary, tween(duration), label = "schemeSecondary").value,
+        tertiary = animateColorAsState(targetScheme.tertiary, tween(duration), label = "schemeTertiary").value,
+        background = tokens.fond,
+        onBackground = tokens.texteFort,
+        surface = tokens.surface,
+        onSurface = tokens.texteFort,
+        surfaceVariant = tokens.surface,
+        onSurfaceVariant = tokens.texteDoux,
+        outline = tokens.bordure,
+        outlineVariant = tokens.bordure,
+        surfaceContainerLowest = tokens.fond,
+        surfaceContainerLow = tokens.surface,
+        surfaceContainer = tokens.surface,
+        surfaceContainerHigh = tokens.surface,
+        surfaceContainerHighest = tokens.surface,
+    )
     val snackbarController = rememberAppSnackbarController()
 
     val view = LocalView.current
@@ -298,6 +543,7 @@ fun AppTheme(
     CompositionLocalProvider(
         LocalDensity provides scaledDensity,
         LocalDarkTheme provides darkTheme,
+        LocalDamsThemeTokens provides tokens,
         LocalAppSnackbar provides snackbarController
     ) {
         MaterialTheme(
@@ -314,19 +560,43 @@ fun AppTheme(
     }
 }
 
-private fun applyDamsPalette(base: ColorScheme, palette: String, darkTheme: Boolean): ColorScheme {
-    if (palette == "0") return base
-    val colors = when (palette) {
-        "1" -> Triple(Color(0xFFFFC857), Color(0xFFF4A261), Color(0xFFFFE08A))
-        "2" -> Triple(Color(0xFF38BDF8), Color(0xFF2DD4BF), Color(0xFF60A5FA))
-        "3" -> Triple(Color(0xFF34D399), Color(0xFF22C55E), Color(0xFF67E8F9))
-        "4" -> Triple(Color(0xFF2563EB), Color(0xFF0891B2), Color(0xFF7C3AED))
-        else -> return base
+internal fun accessibleTextColor(background: Color): Color {
+    fun luminance(color: Color): Double {
+        fun channel(value: Float): Double {
+            val normalized = value.toDouble()
+            return if (normalized <= 0.04045) normalized / 12.92 else Math.pow((normalized + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * channel(color.red) + 0.7152 * channel(color.green) + 0.0722 * channel(color.blue)
     }
+    val backgroundLuminance = luminance(background)
+    val lightContrast = 1.05 / (backgroundLuminance + 0.05)
+    val darkContrast = (backgroundLuminance + 0.05) / 0.05
+    return if (lightContrast >= darkContrast) Color.White else Color(0xFF07111B)
+}
+
+private fun applyDamsPalette(base: ColorScheme, tokens: DamsThemeTokens): ColorScheme {
     return base.copy(
-        primary = colors.first,
-        secondary = colors.second,
-        tertiary = colors.third,
-        onPrimary = if (darkTheme) Color(0xFF08111F) else Color.White,
+        primary = tokens.accent,
+        onPrimary = accessibleTextColor(tokens.accent),
+        primaryContainer = tokens.surface,
+        onPrimaryContainer = tokens.texteFort,
+        secondary = tokens.accentClair,
+        onSecondary = accessibleTextColor(tokens.accentClair),
+        secondaryContainer = tokens.surface,
+        onSecondaryContainer = tokens.texteFort,
+        tertiary = tokens.succes,
+        onTertiary = accessibleTextColor(tokens.succes),
+        tertiaryContainer = tokens.surface,
+        onTertiaryContainer = tokens.texteFort,
+        error = tokens.erreur,
+        background = tokens.fond,
+        onBackground = tokens.texteFort,
+        surface = tokens.surface,
+        onSurface = tokens.texteFort,
+        surfaceVariant = tokens.surface,
+        onSurfaceVariant = tokens.texteDoux,
+        outline = tokens.bordure,
+        outlineVariant = tokens.bordure,
+        surfaceTint = tokens.accent,
     )
 }
