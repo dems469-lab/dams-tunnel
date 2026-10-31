@@ -38,7 +38,9 @@ import com.v2ray.ang.AppConfig.VPN
 import com.v2ray.ang.R
 import com.v2ray.ang.enums.Language
 import com.v2ray.ang.extension.toastError
+import com.v2ray.ang.extension.toastSuccess
 import com.v2ray.ang.handler.AppLocaleManager
+import com.v2ray.ang.handler.GlobalTlsManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.MmkvManager.rememberMmkvBool
 import com.v2ray.ang.handler.MmkvManager.rememberMmkvString
@@ -58,7 +60,9 @@ import com.v2ray.ang.ui.compose.ThemeManager
 import com.v2ray.ang.ui.compose.verticalScrollbar
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.PerformanceDiagnostics
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SettingsActivity : BaseComponentActivity() {
 
@@ -139,6 +143,7 @@ fun SettingsScreen(
     var observatorySettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var advancedSettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var feedbackSettingsExpanded by rememberSaveable { mutableStateOf(false) }
+    var serverSecurityExpanded by rememberSaveable { mutableStateOf(false) }
     var modeSettingsExpanded by rememberSaveable { mutableStateOf(true) }
 
     var localDns by rememberMmkvBool(AppConfig.PREF_LOCAL_DNS_ENABLED, false)
@@ -260,6 +265,7 @@ fun SettingsScreen(
         AppConfig.PREF_FEEDBACK_NOTIFICATION_MODE,
         FeedbackMode.SILENT.value
     )
+    var globalTls by rememberMmkvBool(AppConfig.PREF_GLOBAL_TLS_ENABLED, false)
     val bypassLanEntries = stringArrayResource(R.array.vpn_bypass_lan).toList()
     val bypassLanValues = stringArrayResource(R.array.vpn_bypass_lan_value).toList()
     val interfaceAddrEntries = stringArrayResource(R.array.vpn_interface_address).toList()
@@ -441,6 +447,33 @@ fun SettingsScreen(
                     values = feedbackValues,
                     selectedValue = feedbackNotification,
                     onSelected = { feedbackNotification = it }
+                )
+            }
+
+            CollapsiblePreferenceGroupHeader(
+                title = stringResource(R.string.title_server_security_settings),
+                expanded = serverSecurityExpanded,
+                onExpandedChange = { serverSecurityExpanded = it }
+            )
+            if (serverSecurityExpanded) {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.title_pref_global_tls),
+                    summary = stringResource(R.string.summary_pref_global_tls),
+                    checked = globalTls,
+                    onCheckedChange = { enabled ->
+                        globalTls = enabled
+                        lifecycleScope.launch {
+                            val changed = withContext(Dispatchers.IO) {
+                                GlobalTlsManager.applyToMyServers(enabled)
+                            }
+                            SettingsChangeManager.makeSetupGroupTab()
+                            if (enabled) {
+                                toastSuccess(getString(R.string.global_tls_applied, changed))
+                            } else {
+                                toastSuccess(getString(R.string.global_tls_removed, changed))
+                            }
+                        }
+                    }
                 )
             }
 

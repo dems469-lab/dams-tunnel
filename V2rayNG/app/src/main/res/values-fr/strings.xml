@@ -448,6 +448,11 @@
     <string name="title_feedback_connect">À la connexion</string>
     <string name="title_feedback_disconnect">À la déconnexion</string>
     <string name="title_feedback_notification">Notifications de l’application</string>
+    <string name="title_server_security_settings">Sécurité des serveurs</string>
+    <string name="title_pref_global_tls">Forcer TLS sur mes serveurs</string>
+    <string name="summary_pref_global_tls">Applique TLS à tous les serveurs compatibles de Mes serveurs. Les profils Trojan, reality, xtls et les protocoles sans TLS ne sont pas modifiés.</string>
+    <string name="global_tls_applied">TLS activé sur %1$d serveur(s)</string>
+    <string name="global_tls_removed">TLS désactivé sur %1$d serveur(s)</string>
     <string name="title_pref_dynamic_color">Activer les couleurs dynamiques</string>
     <string name="summary_pref_dynamic_color">Fonctionne uniquement sur Android 12 et versions ultérieures.</string>
     <string name="title_pref_use_hev_tunnel">Utiliser Hev TUN</string>

@@ -74,6 +74,7 @@ object AppConfig {
     const val PREF_FEEDBACK_CONNECT_MODE = "pref_feedback_connect_mode"
     const val PREF_FEEDBACK_DISCONNECT_MODE = "pref_feedback_disconnect_mode"
     const val PREF_FEEDBACK_NOTIFICATION_MODE = "pref_feedback_notification_mode"
+    const val PREF_GLOBAL_TLS_ENABLED = "pref_global_tls_enabled"
     const val PREF_DAMS_BRANDING_MIGRATED = "pref_dams_branding_migrated"
     const val PREF_DAMS_DARK_THEME_MIGRATED = "pref_dams_dark_theme_migrated"
     const val PREF_IPV6_ENABLED = "pref_ipv6_enabled"
