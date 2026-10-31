@@ -462,15 +462,25 @@ fun SettingsScreen(
                     checked = globalTls,
                     onCheckedChange = { enabled ->
                         globalTls = enabled
-                        lifecycleScope.launch {
+                        this@SettingsActivity.lifecycleScope.launch {
                             val changed = withContext(Dispatchers.IO) {
                                 GlobalTlsManager.applyToMyServers(enabled)
                             }
                             SettingsChangeManager.makeSetupGroupTab()
                             if (enabled) {
-                                toastSuccess(getString(R.string.global_tls_applied, changed))
+                                toastSuccess(
+                                    this@SettingsActivity.getString(
+                                        R.string.global_tls_applied,
+                                        changed
+                                    )
+                                )
                             } else {
-                                toastSuccess(getString(R.string.global_tls_removed, changed))
+                                toastSuccess(
+                                    this@SettingsActivity.getString(
+                                        R.string.global_tls_removed,
+                                        changed
+                                    )
+                                )
                             }
                         }
                     }
