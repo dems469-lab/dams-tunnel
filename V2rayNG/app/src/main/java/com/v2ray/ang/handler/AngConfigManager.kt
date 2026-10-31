@@ -225,7 +225,7 @@ object AngConfigManager {
                 return importBatchConfig(damsProfile, subid, append)
             }
             val rawContent = normalizeImportedContent(server)
-            val count = parseBatchConfig(rawContent, subid, append)
+            var count = parseBatchConfig(rawContent, subid, append)
             if (count <= 0) {
                 count = parseCustomConfigServer(server, subid, append)
             }
