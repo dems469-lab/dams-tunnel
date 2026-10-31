@@ -290,7 +290,7 @@ object HttpUtil {
                     LogUtil.w(AppConfig.TAG, "Failed to download file, code=${response.code}")
                     return false
                 }
-                val body = response.body ?: return false
+                val body = response.body
                 body.byteStream().use { input ->
                     targetFile.outputStream().use { output ->
                         input.copyTo(output)

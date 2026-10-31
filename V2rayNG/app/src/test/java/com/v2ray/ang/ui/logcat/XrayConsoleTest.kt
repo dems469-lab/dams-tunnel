@@ -39,7 +39,7 @@ class XrayConsoleTest {
         val entries = ConsoleLevel.entries.mapIndexed { index, level -> entry(index.toLong(), level) }
 
         assertEquals(
-            listOf(ConsoleLevel.INFO, ConsoleLevel.DEBUG),
+            listOf(ConsoleLevel.DEBUG, ConsoleLevel.INFO),
             filterConsoleEntries(entries, ConsoleFilter.INFO, "").map { it.level },
         )
         assertEquals(
