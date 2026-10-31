@@ -29,15 +29,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.calculateBottomPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -49,6 +46,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -72,6 +71,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -86,6 +86,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -392,7 +393,7 @@ private fun FreeServersSearch(query: String, onQueryChange: (String) -> Unit) {
     val theme = DamsTheme
     val searchDescription = stringResource(R.string.free_servers_search)
     val selectionColors = TextSelectionColors(handleColor = theme.accent, backgroundColor = theme.accent.copy(alpha = 0.28f))
-    androidx.compose.runtime.CompositionLocalProvider(LocalTextSelectionColors provides selectionColors) {
+    CompositionLocalProvider(LocalTextSelectionColors provides selectionColors) {
         Row(
             modifier = Modifier.fillMaxWidth().height(48.dp)
                 .clip(RoundedCornerShape(18.dp))
@@ -541,12 +542,12 @@ private fun FreeServersBottomActions(
     onRefresh: () -> Unit,
 ) {
     val theme = DamsTheme
-    val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     Row(
         Modifier.fillMaxWidth()
             .animateContentSize(animationSpec = if (animationsEnabled) spring(stiffness = Spring.StiffnessMediumLow) else tween(0))
             .background(Brush.verticalGradient(listOf(theme.fond.copy(alpha = 0f), theme.fond, theme.fond)))
-            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 12.dp + bottomInset)
+            .navigationBarsPadding()
+            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -674,6 +675,7 @@ private fun PublicServerGroupCard(
         animationSpec = if (animationsEnabled) spring(stiffness = Spring.StiffnessMediumLow) else tween(0),
         label = "publicServerCardBorder",
     )
+    val entryOffsetPx = with(LocalDensity.current) { 16.dp.roundToPx() }
     var entered by remember(group.id) { mutableStateOf(!animationsEnabled || index >= 8) }
     LaunchedEffect(group.id, index, animationsEnabled) {
         if (animationsEnabled && index < 8) {
@@ -683,7 +685,7 @@ private fun PublicServerGroupCard(
     }
     AnimatedVisibility(
         visible = entered,
-        enter = if (animationsEnabled) fadeIn(tween(220)) + slideInVertically(tween(220)) { 16.dp.roundToPx() } else fadeIn(tween(0)),
+        enter = if (animationsEnabled) fadeIn(tween(220)) + slideInVertically(tween(220)) { entryOffsetPx } else fadeIn(tween(0)),
     ) {
         Card(
             onClick = onExpand,
