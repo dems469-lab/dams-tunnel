@@ -20,9 +20,12 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
@@ -166,6 +169,9 @@ val toastIconCircleBg = Color(0x33FFFFFF) // Semi-transparent White
 val toastTextColor = Color.White // White
 
 object ThemeManager {
+    /** Multiplier stored by the font-size setting; "1" keeps the system font scale. */
+    const val DEFAULT_FONT_SCALE = "1"
+
     private val _themeMode = MutableStateFlow(
         MmkvManager.decodeSettingsString(AppConfig.PREF_UI_MODE_NIGHT, "0") ?: "0"
     )
@@ -183,6 +189,11 @@ object ThemeManager {
         MmkvManager.decodeSettingsString(AppConfig.PREF_DAMS_TYPOGRAPHY_STYLE, "0") ?: "0"
     )
     val typographyStyle: StateFlow<String> = _typographyStyle.asStateFlow()
+    private val _fontScale = MutableStateFlow(
+        MmkvManager.decodeSettingsString(AppConfig.PREF_APP_FONT_SCALE, DEFAULT_FONT_SCALE)
+            ?: DEFAULT_FONT_SCALE
+    )
+    val fontScale: StateFlow<String> = _fontScale.asStateFlow()
 
     fun setThemeMode(mode: String) {
         MmkvManager.encodeSettings(AppConfig.PREF_UI_MODE_NIGHT, mode)
@@ -204,6 +215,11 @@ object ThemeManager {
         _typographyStyle.value = value
     }
 
+    fun setFontScale(value: String) {
+        MmkvManager.encodeSettings(AppConfig.PREF_APP_FONT_SCALE, value)
+        _fontScale.value = value
+    }
+
     fun refresh() {
         _themeMode.value =
             MmkvManager.decodeSettingsString(AppConfig.PREF_UI_MODE_NIGHT, "0") ?: "0"
@@ -213,6 +229,9 @@ object ThemeManager {
             MmkvManager.decodeSettingsString(AppConfig.PREF_DAMS_THEME_PALETTE, "0") ?: "0"
         _typographyStyle.value =
             MmkvManager.decodeSettingsString(AppConfig.PREF_DAMS_TYPOGRAPHY_STYLE, "0") ?: "0"
+        _fontScale.value =
+            MmkvManager.decodeSettingsString(AppConfig.PREF_APP_FONT_SCALE, DEFAULT_FONT_SCALE)
+                ?: DEFAULT_FONT_SCALE
     }
 }
 
@@ -228,6 +247,14 @@ fun resolveDarkTheme(): Boolean {
 
 val LocalDarkTheme = compositionLocalOf { false }
 
+/**
+ * Turns the stored font-size setting into a multiplier applied on top of the system font
+ * scale. Unknown or out-of-range values fall back to the neutral multiplier so a corrupt
+ * preference can never make the UI unreadable.
+ */
+internal fun resolveFontScaleMultiplier(value: String): Float =
+    value.toFloatOrNull()?.takeIf { it in 0.5f..2.5f } ?: 1f
+
 @Composable
 fun AppTheme(
     darkTheme: Boolean = resolveDarkTheme(),
@@ -236,7 +263,15 @@ fun AppTheme(
     val dynamicColor by ThemeManager.dynamicColorEnabled.collectAsState()
     val palette by ThemeManager.palette.collectAsState()
     val typographyStyle by ThemeManager.typographyStyle.collectAsState()
+    val fontScale by ThemeManager.fontScale.collectAsState()
     val context = LocalContext.current
+    val baseDensity = LocalDensity.current
+    val scaledDensity = remember(baseDensity, fontScale) {
+        Density(
+            density = baseDensity.density,
+            fontScale = baseDensity.fontScale * resolveFontScaleMultiplier(fontScale),
+        )
+    }
     val baseColorScheme = when {
         dynamicColor && palette == "0" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -261,6 +296,7 @@ fun AppTheme(
     }
 
     CompositionLocalProvider(
+        LocalDensity provides scaledDensity,
         LocalDarkTheme provides darkTheme,
         LocalAppSnackbar provides snackbarController
     ) {

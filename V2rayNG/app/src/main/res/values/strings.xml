@@ -443,6 +443,8 @@
     <string name="title_pref_ui_mode_night">UI mode settings</string>
     <string name="title_pref_dams_theme_palette">Dams theme</string>
     <string name="title_pref_dams_typography_style">Typography style</string>
+    <string name="title_pref_app_font_scale">Text size</string>
+    <string name="summary_pref_app_font_scale">Scales text and icons across the whole app.</string>
     <string name="title_pref_dynamic_color">Enable dynamic color</string>
     <string name="summary_pref_dynamic_color">Only works on Android 12+ devices</string>
     <string name="title_pref_use_hev_tunnel">Use Hev TUN</string>
@@ -692,6 +694,9 @@
     <string-array name="dams_typography_style">
         <item>Classic</item><item>Modern</item><item>Elegant</item><item>Terminal</item><item>Creative</item>
         <item>Premium</item><item>Readable</item><item>Technical</item><item>Compact</item><item>High contrast</item>
+    </string-array>
+    <string-array name="app_font_scale">
+        <item>Small</item><item>Normal</item><item>Large</item><item>Extra large</item><item>Huge</item>
     </string-array>
 
     <string name="routing_preset_china_whitelist">China Whitelist</string>

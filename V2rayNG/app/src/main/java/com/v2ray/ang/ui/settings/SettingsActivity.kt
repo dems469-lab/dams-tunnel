@@ -238,6 +238,12 @@ fun SettingsScreen(
     val typographyValues = stringArrayResource(R.array.dams_typography_style_value).toList()
     var palette by rememberMmkvString(AppConfig.PREF_DAMS_THEME_PALETTE, "0")
     var typographyStyle by rememberMmkvString(AppConfig.PREF_DAMS_TYPOGRAPHY_STYLE, "0")
+    val fontScaleEntries = stringArrayResource(R.array.app_font_scale).toList()
+    val fontScaleValues = stringArrayResource(R.array.app_font_scale_value).toList()
+    var fontScale by rememberMmkvString(
+        AppConfig.PREF_APP_FONT_SCALE,
+        ThemeManager.DEFAULT_FONT_SCALE
+    )
     val bypassLanEntries = stringArrayResource(R.array.vpn_bypass_lan).toList()
     val bypassLanValues = stringArrayResource(R.array.vpn_bypass_lan_value).toList()
     val interfaceAddrEntries = stringArrayResource(R.array.vpn_interface_address).toList()
@@ -379,6 +385,16 @@ fun SettingsScreen(
                     onSelected = {
                         typographyStyle = it
                         ThemeManager.setTypographyStyle(it)
+                    }
+                )
+                SettingsListItem(
+                    title = stringResource(R.string.title_pref_app_font_scale),
+                    entries = fontScaleEntries,
+                    values = fontScaleValues,
+                    selectedValue = fontScale,
+                    onSelected = {
+                        fontScale = it
+                        ThemeManager.setFontScale(it)
                     }
                 )
             }

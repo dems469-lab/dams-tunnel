@@ -442,6 +442,8 @@
     <string name="title_pref_ui_mode_night">Mode d’affichage</string>
     <string name="title_pref_dams_theme_palette">Thème Dams Tunnel</string>
     <string name="title_pref_dams_typography_style">Style typographique</string>
+    <string name="title_pref_app_font_scale">Taille du texte</string>
+    <string name="summary_pref_app_font_scale">Agrandit le texte et les icônes dans toute l’application.</string>
     <string name="title_pref_dynamic_color">Activer les couleurs dynamiques</string>
     <string name="summary_pref_dynamic_color">Fonctionne uniquement sur Android 12 et versions ultérieures.</string>
     <string name="title_pref_use_hev_tunnel">Utiliser Hev TUN</string>
@@ -691,6 +693,9 @@
     <string-array name="dams_typography_style">
         <item>Classique</item><item>Moderne</item><item>Élégant</item><item>Terminal</item><item>Créatif</item>
         <item>Premium</item><item>Lisible</item><item>Technique</item><item>Compact</item><item>Contraste élevé</item>
+    </string-array>
+    <string-array name="app_font_scale">
+        <item>Petit</item><item>Normal</item><item>Grand</item><item>Très grand</item><item>Énorme</item>
     </string-array>
 
     <string name="routing_preset_china_whitelist">Liste d’autorisation Chine</string>
