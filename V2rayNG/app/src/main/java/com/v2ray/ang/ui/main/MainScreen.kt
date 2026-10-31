@@ -547,7 +547,8 @@ private fun DamsDashboard(
         stringResource(R.string.dams_connection_details_hidden)
     }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    val resumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
+    val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
     val ringAlpha: Float
     val ringScale: Float
     if (resumed && isConnected) {
