@@ -18,7 +18,7 @@
 | 4 | Réorganisation des menus (Fournisseurs, IP Finder, Journal, sauvegarde) | fait |
 | 5 | Console Xray (journal de diagnostic) | fait |
 | 6 | Nouveaux paramètres (notifications, TLS global, taille de police, sauvegarde) | fait |
-| 7 | Vérifications et performance | à faire |
+| 7 | Vérifications et performance | fait |
 
 ## Journal des modifications
 
