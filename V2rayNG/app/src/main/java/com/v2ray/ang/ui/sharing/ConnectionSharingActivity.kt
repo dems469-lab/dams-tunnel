@@ -204,4 +204,3 @@ fun ConnectionSharingScreen(viewModel: ConnectionSharingViewModel, onBackClick: 
         }
     }
 }
-EOF

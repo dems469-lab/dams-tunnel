@@ -474,14 +474,14 @@ fun SettingsScreen(
                             }
                             SettingsChangeManager.makeSetupGroupTab()
                             if (enabled) {
-                                toastSuccess(
+                                context.toastSuccess(
                                     context.getString(
                                         R.string.global_tls_applied,
                                         changed
                                     )
                                 )
                             } else {
-                                toastSuccess(
+                                context.toastSuccess(
                                     context.getString(
                                         R.string.global_tls_removed,
                                         changed

@@ -61,8 +61,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Path
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.LinearEasing
@@ -546,6 +546,7 @@ private fun DamsDashboard(
         // dashboard or accidentally captured in a screenshot.
         stringResource(R.string.dams_connection_details_hidden)
     }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val resumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
     val ringAlpha: Float
     val ringScale: Float
@@ -573,10 +574,7 @@ private fun DamsDashboard(
         ringAlpha = 0.14f
         ringScale = 1f
     }
-    val borderColor by animateColorAsState(
-        targetValue = if (isConnected) Color(0xFF22C55E) else Color(0xFF1E4A8A),
-        label = "borderColor",
-    )
+    val borderColor = if (isConnected) Color(0xFF22C55E) else Color(0xFF1E4A8A)
     val borderWidth by animateDpAsState(
         targetValue = if (isConnected) 2.dp else 1.dp,
         label = "borderWidth",
