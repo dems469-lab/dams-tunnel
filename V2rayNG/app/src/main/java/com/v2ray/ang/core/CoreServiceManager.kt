@@ -28,6 +28,7 @@ import com.v2ray.ang.handler.MobileTrafficUsageStore
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.handler.SpeedtestManager
+import com.v2ray.ang.helper.ConnectionFeedback
 import com.v2ray.ang.helper.MessageHelper
 import com.v2ray.ang.service.DialerNativeService
 import com.v2ray.ang.service.DialerWebviewService
@@ -251,6 +252,7 @@ object CoreServiceManager {
                 reconnectAttempt = 0
                 startHealthCheck(service)
                 NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_connected), android.graphics.Color.rgb(34, 211, 238))
+                ConnectionFeedback.onConnected(service)
                 MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
             } else if (isRunning()) {
                 connectionVerified = false
@@ -491,6 +493,7 @@ object CoreServiceManager {
         }
 
         MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_STOP_SUCCESS, "")
+        ConnectionFeedback.onDisconnected(service)
         NotificationManager.cancelNotification()
 
         try {

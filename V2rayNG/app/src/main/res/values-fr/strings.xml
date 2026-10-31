@@ -444,6 +444,10 @@
     <string name="title_pref_dams_typography_style">Style typographique</string>
     <string name="title_pref_app_font_scale">Taille du texte</string>
     <string name="summary_pref_app_font_scale">Agrandit le texte et les icônes dans toute l’application.</string>
+    <string name="title_feedback_settings">Retour de connexion</string>
+    <string name="title_feedback_connect">À la connexion</string>
+    <string name="title_feedback_disconnect">À la déconnexion</string>
+    <string name="title_feedback_notification">Notifications de l’application</string>
     <string name="title_pref_dynamic_color">Activer les couleurs dynamiques</string>
     <string name="summary_pref_dynamic_color">Fonctionne uniquement sur Android 12 et versions ultérieures.</string>
     <string name="title_pref_use_hev_tunnel">Utiliser Hev TUN</string>
@@ -696,6 +700,9 @@
     </string-array>
     <string-array name="app_font_scale">
         <item>Petit</item><item>Normal</item><item>Grand</item><item>Très grand</item><item>Énorme</item>
+    </string-array>
+    <string-array name="feedback_mode">
+        <item>Silencieux</item><item>Vibration</item><item>Son</item>
     </string-array>
 
     <string name="routing_preset_china_whitelist">Liste d’autorisation Chine</string>

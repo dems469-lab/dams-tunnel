@@ -43,6 +43,7 @@ object NotificationHelper {
         val notificationManager = getNotificationManager(context)
         val builder = buildNotificationBuilder(channelType, context, title, content)
         notificationManager.notify(channelType.notificationId, builder.build())
+        ConnectionFeedback.onNotification(context)
     }
 
     /**

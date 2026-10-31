@@ -43,6 +43,7 @@ import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.MmkvManager.rememberMmkvBool
 import com.v2ray.ang.handler.MmkvManager.rememberMmkvString
 import com.v2ray.ang.handler.SettingsChangeManager
+import com.v2ray.ang.helper.FeedbackMode
 import com.v2ray.ang.root.RootManager
 import com.v2ray.ang.ui.backup.BackupActivity
 import com.v2ray.ang.ui.base.BaseComponentActivity
@@ -137,6 +138,7 @@ fun SettingsScreen(
     var fragmentSettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var observatorySettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var advancedSettingsExpanded by rememberSaveable { mutableStateOf(false) }
+    var feedbackSettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var modeSettingsExpanded by rememberSaveable { mutableStateOf(true) }
 
     var localDns by rememberMmkvBool(AppConfig.PREF_LOCAL_DNS_ENABLED, false)
@@ -243,6 +245,20 @@ fun SettingsScreen(
     var fontScale by rememberMmkvString(
         AppConfig.PREF_APP_FONT_SCALE,
         ThemeManager.DEFAULT_FONT_SCALE
+    )
+    val feedbackEntries = stringArrayResource(R.array.feedback_mode).toList()
+    val feedbackValues = stringArrayResource(R.array.feedback_mode_value).toList()
+    var feedbackConnect by rememberMmkvString(
+        AppConfig.PREF_FEEDBACK_CONNECT_MODE,
+        FeedbackMode.SILENT.value
+    )
+    var feedbackDisconnect by rememberMmkvString(
+        AppConfig.PREF_FEEDBACK_DISCONNECT_MODE,
+        FeedbackMode.SILENT.value
+    )
+    var feedbackNotification by rememberMmkvString(
+        AppConfig.PREF_FEEDBACK_NOTIFICATION_MODE,
+        FeedbackMode.SILENT.value
     )
     val bypassLanEntries = stringArrayResource(R.array.vpn_bypass_lan).toList()
     val bypassLanValues = stringArrayResource(R.array.vpn_bypass_lan_value).toList()
@@ -396,6 +412,35 @@ fun SettingsScreen(
                         fontScale = it
                         ThemeManager.setFontScale(it)
                     }
+                )
+            }
+
+            CollapsiblePreferenceGroupHeader(
+                title = stringResource(R.string.title_feedback_settings),
+                expanded = feedbackSettingsExpanded,
+                onExpandedChange = { feedbackSettingsExpanded = it }
+            )
+            if (feedbackSettingsExpanded) {
+                SettingsListItem(
+                    title = stringResource(R.string.title_feedback_connect),
+                    entries = feedbackEntries,
+                    values = feedbackValues,
+                    selectedValue = feedbackConnect,
+                    onSelected = { feedbackConnect = it }
+                )
+                SettingsListItem(
+                    title = stringResource(R.string.title_feedback_disconnect),
+                    entries = feedbackEntries,
+                    values = feedbackValues,
+                    selectedValue = feedbackDisconnect,
+                    onSelected = { feedbackDisconnect = it }
+                )
+                SettingsListItem(
+                    title = stringResource(R.string.title_feedback_notification),
+                    entries = feedbackEntries,
+                    values = feedbackValues,
+                    selectedValue = feedbackNotification,
+                    onSelected = { feedbackNotification = it }
                 )
             }
 
