@@ -80,6 +80,15 @@ class FreeServersActivity : BaseComponentActivity() {
                 SettingsChangeManager.makeSetupGroupTab()
                 toastSuccess(R.string.free_servers_selected)
             },
+            onAddToMyServers = { guid ->
+                lifecycleScope.launch {
+                    if (viewModel.addToMyServers(guid) != null) {
+                        toastSuccess(R.string.free_servers_added_to_mine)
+                    } else {
+                        toastError(R.string.free_servers_add_error)
+                    }
+                }
+            },
             onDeleteProvider = ::deleteProvider,
         )
     }
@@ -106,6 +115,7 @@ private fun FreeServersScreen(
     onCancelTest: () -> Unit,
     onRefresh: () -> Unit,
     onSelect: (String) -> Unit,
+    onAddToMyServers: (String) -> Unit,
     onDeleteProvider: (String) -> Unit,
 ) {
     var deleteTarget by remember { mutableStateOf<PublicServerGroup?>(null) }
@@ -178,7 +188,7 @@ private fun FreeServersScreen(
             }
             if (!state.loading && !state.error) {
                 items(state.catalog.groups, key = { it.id }) { group ->
-                    PublicServerGroupCard(group, state.selectedGuids, group.id in expanded, { expanded = if (group.id in expanded) expanded - group.id else expanded + group.id }, onToggleSelection, onTestServer, onSelect, { deleteTarget = group })
+                    PublicServerGroupCard(group, state.selectedGuids, group.id in expanded, { expanded = if (group.id in expanded) expanded - group.id else expanded + group.id }, onToggleSelection, onTestServer, onSelect, onAddToMyServers, { deleteTarget = group })
                 }
             }
         }
@@ -194,7 +204,7 @@ private fun <T> FilterRow(labels: List<Pair<T?, String>>, selected: T?, onSelect
 }
 
 @Composable
-private fun PublicServerGroupCard(group: PublicServerGroup, selectedGuids: Set<String>, isExpanded: Boolean, onExpand: () -> Unit, onToggleSelection: (String) -> Unit, onTestServer: (String) -> Unit, onSelect: (String) -> Unit, onDelete: () -> Unit) {
+private fun PublicServerGroupCard(group: PublicServerGroup, selectedGuids: Set<String>, isExpanded: Boolean, onExpand: () -> Unit, onToggleSelection: (String) -> Unit, onTestServer: (String) -> Unit, onSelect: (String) -> Unit, onAddToMyServers: (String) -> Unit, onDelete: () -> Unit) {
     val first = group.variants.first()
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -215,10 +225,11 @@ private fun PublicServerGroupCard(group: PublicServerGroup, selectedGuids: Set<S
             )
             Text(when (group.availability) { PublicAvailability.RESPONDED -> stringResource(R.string.free_servers_responded); PublicAvailability.NO_RESPONSE -> stringResource(R.string.free_servers_no_response); PublicAvailability.UNKNOWN -> stringResource(R.string.free_servers_not_tested) }, style = MaterialTheme.typography.bodySmall)
             Text(first.delayMillis?.let { "$it ms" } ?: stringResource(R.string.free_servers_not_tested), style = MaterialTheme.typography.labelLarge)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onExpand) { Text(stringResource(if (isExpanded) R.string.free_servers_collapse else R.string.free_servers_details)) }
                 TextButton(onClick = { onToggleSelection(first.guid) }) { Text(stringResource(if (first.guid in selectedGuids) R.string.free_servers_selected else R.string.free_servers_select)) }
                 TextButton(onClick = { onSelect(first.guid) }) { Text(stringResource(R.string.free_servers_choose)) }
+                TextButton(onClick = { onAddToMyServers(first.guid) }) { Text(stringResource(R.string.free_servers_add_to_mine)) }
                 TextButton(onClick = { onTestServer(first.guid) }) { Text(stringResource(R.string.free_servers_test)) }
             }
             if (group.variants.size > 1) Text(stringResource(R.string.free_servers_group_variants, group.variants.size))
@@ -235,10 +246,11 @@ private fun PublicServerGroupCard(group: PublicServerGroup, selectedGuids: Set<S
                     )
                     Details(variant.details)
                     if (variant.guid != first.guid) {
-                        Row {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
                             TextButton(onClick = { onToggleSelection(variant.guid) }) { Text(stringResource(R.string.free_servers_select)) }
                             TextButton(onClick = { onTestServer(variant.guid) }) { Text(stringResource(R.string.free_servers_test)) }
                             TextButton(onClick = { onSelect(variant.guid) }) { Text(stringResource(R.string.free_servers_choose)) }
+                            TextButton(onClick = { onAddToMyServers(variant.guid) }) { Text(stringResource(R.string.free_servers_add_to_mine)) }
                         }
                     }
                 }

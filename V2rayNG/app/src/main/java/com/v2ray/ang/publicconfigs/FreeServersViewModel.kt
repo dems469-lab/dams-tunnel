@@ -11,6 +11,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.dto.TestServiceMessage
+import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
@@ -129,8 +130,28 @@ internal class FreeServersViewModel(application: Application) : BaseViewModel(ap
         }
     }
 
-    fun load() {
-        val filters = _uiState.value.filters
+    /**
+     * Copies one public server into the local "My servers" group so the user keeps it
+     * after the public source is refreshed or removed. Returns the new profile GUID, or
+     * null when the profile is missing or cannot be copied.
+     */
+    suspend fun addToMyServers(guid: String): String? = withContext(Dispatchers.IO) {
+        val source = MmkvManager.decodeServerConfig(guid) ?: return@withContext null
+        if (!canCopyToMyServers(source.configType)) {
+            return@withContext null
+        }
+        val copy = source.copy(
+            subscriptionId = "",
+            policyGroupSubscriptionId = null,
+            addedTime = System.currentTimeMillis(),
+        )
+        val newGuid = MmkvManager.encodeServerConfig(Utils.getUuid(), copy)
+        SettingsChangeManager.makeSetupGroupTab()
+        load()
+        newGuid
+    }
+
+    fun load() {        val filters = _uiState.value.filters
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(loading = true, error = false)
@@ -167,3 +188,10 @@ internal class FreeServersViewModel(application: Application) : BaseViewModel(ap
         super.onCleared()
     }
 }
+
+/**
+ * Policy groups and proxy chains reference other profiles, so copying a single one of
+ * them into "My servers" would leave a broken profile behind.
+ */
+internal fun canCopyToMyServers(configType: EConfigType): Boolean =
+    configType != EConfigType.POLICYGROUP && configType != EConfigType.PROXYCHAIN
