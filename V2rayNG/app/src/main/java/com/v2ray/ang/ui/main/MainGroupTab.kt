@@ -13,10 +13,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.v2ray.ang.AppConfig
+import com.v2ray.ang.R
 import com.v2ray.ang.dto.GroupMapItem
 import com.v2ray.ang.dto.entities.ServersCache
 import kotlinx.coroutines.flow.StateFlow
@@ -65,10 +68,11 @@ private fun GroupTabItem(
     onClick: () -> Unit
 ) {
     val servers by serverFlow.collectAsStateWithLifecycle()
+    val name = groupDisplayName(group)
     val text = if (group.id.isEmpty()) {
-        group.remarks
+        name
     } else {
-        "${group.remarks} (${servers.size})"
+        "$name (${servers.size})"
     }
 
     Tab(
@@ -87,3 +91,24 @@ private fun GroupTabItem(
         }
     )
 }
+
+/**
+ * Localized label for a server group. The default group keeps its stored remarks so the
+ * persisted format does not change; only its display name is translated. A user who
+ * renames the default group keeps their own name.
+ */
+@Composable
+internal fun groupDisplayName(group: GroupMapItem): String =
+    if (usesDefaultGroupLabel(group.id, group.remarks)) {
+        stringResource(R.string.dams_default_group_name)
+    } else {
+        group.remarks
+    }
+
+/**
+ * True when the group is the internal default group and still carries the remarks
+ * written by older releases. Extracted from [groupDisplayName] so the branch can be
+ * asserted by a JVM test.
+ */
+internal fun usesDefaultGroupLabel(id: String, remarks: String): Boolean =
+    id == AppConfig.DEFAULT_SUBSCRIPTION_ID && remarks == AppConfig.DEFAULT_SUBSCRIPTION_REMARKS

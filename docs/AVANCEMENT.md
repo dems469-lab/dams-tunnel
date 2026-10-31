@@ -1,9 +1,26 @@
 # Avancement Dams Tunnel
 
-- Phase : 1 — base figée
-- Branche : `phase-1-base`
+- Phase : 2 — améliorations fonctionnelles
+- Branche : `feature/premium`
 - Base : v2rayNG 2.3.11 (`e1b73f2fa8487dfc303da52d109719c1e32386b4`)
 - Dernière vérification : sous-modules initialisés ; AAR Xray vérifié
-- Compilation locale : bloquée par l’hôte ARM64 du NDK officiel
-- Prochaine étape : publier la branche et exécuter la CI sur un runner x86_64
+- Compilation locale : impossible sur l'hôte ARM64 (JDK/SDK absents, NDK 30 en x86_64 uniquement)
+- Validation : GitHub Actions — `Dams CI` (tests unitaires + lint) et `Dams APK` (APK signé)
+- Prochaine étape : chantiers ci-dessous, un commit par chantier
 
+## Chantiers
+
+| # | Chantier | État |
+|---|---|---|
+| 1 | Partage de connexion (hotspot / LAN) | à faire |
+| 2 | Refonte de l'interface (animations, transparence, menu ⋮ à gauche) | à faire |
+| 3 | Gestion des serveurs (serveur public → « Mes serveurs ») | en cours |
+| 4 | Réorganisation des menus (Fournisseurs, IP Finder, Journal, sauvegarde) | en cours |
+| 5 | Console Xray (journal de diagnostic) | à faire |
+| 6 | Nouveaux paramètres (notifications, TLS global, taille de police, sauvegarde) | à faire |
+| 7 | Vérifications et performance | à faire |
+
+## Journal des modifications
+
+- Renommage de la catégorie par défaut `DEFAULT` en « Mes serveurs » (libellé traduit,
+  valeur stockée inchangée) et de « Abonnements » en « Fournisseurs ».

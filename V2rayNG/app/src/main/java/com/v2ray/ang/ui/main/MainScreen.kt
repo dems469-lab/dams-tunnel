@@ -307,7 +307,8 @@ fun MainScreen(
                     isRunning = isRunning,
                     isConnected = isConnected,
                     canStopService = canStopService,
-                    groupName = groups.firstOrNull { it.id == uiState.selectedGroupId }?.remarks,
+                    groupName = groups.firstOrNull { it.id == uiState.selectedGroupId }
+                        ?.let { groupDisplayName(it) },
                     selectedServerName = selectedServer?.profile?.remarks,
                     selectedServerAddress = selectedServer?.profile?.server,
                     protocolName = selectedServer?.profile?.configType?.protocolScheme?.uppercase(),

@@ -130,6 +130,7 @@
     <string name="dams_mobile_ip_title">IP mobile</string>
     <string name="dams_mobile_ip_source">Réseau cellulaire uniquement</string>
     <string name="dams_server_group">Groupe de serveurs</string>
+    <string name="dams_default_group_name">Mes serveurs</string>
     <string name="menu_item_add_config">Ajouter une configuration</string>
     <string name="menu_item_save_config">Enregistrer la configuration</string>
     <string name="menu_item_edit_config">Modifier la configuration</string>
@@ -462,7 +463,7 @@
     <string name="title_del_duplicate_config">Supprimer les configurations en doublon</string>
     <string name="title_del_invalid_config">Supprimer les configurations invalides</string>
     <string name="title_export_all">Copier les configurations dans le presse-papiers</string>
-    <string name="title_sub_setting">Abonnements</string>
+    <string name="title_sub_setting">Fournisseurs</string>
     <string name="premium_menu_my_subscription">Mon abonnement</string>
     <string name="premium_title">Mon abonnement Premium</string>
     <string name="premium_code_label">Entrer mon code</string>

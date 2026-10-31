@@ -19,6 +19,10 @@ object AppConfig {
     // Default subscription ID for ungrouped servers
     const val DEFAULT_SUBSCRIPTION_ID = "__default_subscription__"
 
+    // Remarks written by older releases for the default subscription. The UI shows a
+    // localized label while the stored value stays unchanged.
+    const val DEFAULT_SUBSCRIPTION_REMARKS = "Default"
+
     /** Preferences mapped to MMKV storage. */
     const val PREF_SNIFFING_ENABLED = "pref_sniffing_enabled"
     const val PREF_ROUTE_ONLY_ENABLED = "pref_route_only_enabled"
