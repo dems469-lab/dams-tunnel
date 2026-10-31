@@ -1,6 +1,7 @@
 package com.v2ray.ang.ui.settings
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -60,6 +61,7 @@ import com.v2ray.ang.ui.compose.ThemeManager
 import com.v2ray.ang.ui.compose.verticalScrollbar
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.PerformanceDiagnostics
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,6 +69,8 @@ import kotlinx.coroutines.withContext
 class SettingsActivity : BaseComponentActivity() {
 
     private val viewModel: SettingsViewModel by viewModels()
+    private val settingsLifecycleScope: CoroutineScope = lifecycleScope
+    private val settingsContext: Context = this
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -462,21 +466,21 @@ fun SettingsScreen(
                     checked = globalTls,
                     onCheckedChange = { enabled ->
                         globalTls = enabled
-                        this@SettingsActivity.lifecycleScope.launch {
+                        settingsLifecycleScope.launch {
                             val changed = withContext(Dispatchers.IO) {
                                 GlobalTlsManager.applyToMyServers(enabled)
                             }
                             SettingsChangeManager.makeSetupGroupTab()
                             if (enabled) {
                                 toastSuccess(
-                                    this@SettingsActivity.getString(
+                                    settingsContext.getString(
                                         R.string.global_tls_applied,
                                         changed
                                     )
                                 )
                             } else {
                                 toastSuccess(
-                                    this@SettingsActivity.getString(
+                                    settingsContext.getString(
                                         R.string.global_tls_removed,
                                         changed
                                     )

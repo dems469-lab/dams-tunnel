@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -120,8 +119,9 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
     private fun observeConsole() {
         viewModelScope.launch {
             // Coalesce bursts: at most one snapshot every 200 ms keeps the screen fluid while
-            // the core logs.
-            XrayConsole.revision.conflate().collect {
+            // the core logs. StateFlow already merges concurrent emissions, so no explicit
+            // conflate is applied here.
+            XrayConsole.revision.collect {
                 delay(200)
                 val snapshot = withContext(Dispatchers.Default) { XrayConsole.snapshot() }
                 _allEntries.value = snapshot
