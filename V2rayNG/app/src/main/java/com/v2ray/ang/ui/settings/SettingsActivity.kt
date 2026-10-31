@@ -28,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -140,6 +141,7 @@ fun SettingsScreen(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val systemVpnSettingsAvailable by viewModel.systemVpnSettingsAvailable.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val lifecycleScope = LocalLifecycleOwner.current.lifecycleScope
     var uiSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var vpnSettingsExpanded by rememberSaveable { mutableStateOf(true) }
@@ -474,19 +476,9 @@ fun SettingsScreen(
                             }
                             SettingsChangeManager.makeSetupGroupTab()
                             if (enabled) {
-                                context.toastSuccess(
-                                    context.getString(
-                                        R.string.global_tls_applied,
-                                        changed
-                                    )
-                                )
+                                context.toastSuccess(resources.getString(R.string.global_tls_applied, changed))
                             } else {
-                                context.toastSuccess(
-                                    context.getString(
-                                        R.string.global_tls_removed,
-                                        changed
-                                    )
-                                )
+                                context.toastSuccess(resources.getString(R.string.global_tls_removed, changed))
                             }
                         }
                     }
