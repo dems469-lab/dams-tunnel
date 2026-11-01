@@ -104,7 +104,6 @@ object CoreServiceManager {
     /** Appelé uniquement par une action explicite de l'utilisateur. */
     fun markUserStopped() {
         userStopped = true
-        permanentFailure = false
         reconnectJob?.cancel()
         reconnectJob = null
         healthCheckJob?.cancel()
@@ -350,13 +349,13 @@ object CoreServiceManager {
      * the VPN connected.
      */
     private fun measureDelayWithFallback(): Long {
-        val deadline = System.currentTimeMillis() + HEALTH_PROBE_TIMEOUT_MILLIS
+        val deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(HEALTH_PROBE_TIMEOUT_MILLIS)
         val primary = measureDelayWithTimeout(
             SettingsManager.getDelayTestUrl(),
             HEALTH_PROBE_TIMEOUT_MILLIS,
         )
         if (primary >= 0L) return primary
-        val remaining = deadline - System.currentTimeMillis()
+        val remaining = TimeUnit.NANOSECONDS.toMillis(deadlineNanos - System.nanoTime())
         if (remaining <= 0L) return -1L
         return measureDelayWithTimeout(SettingsManager.getDelayTestUrl(true), remaining)
     }
@@ -413,7 +412,7 @@ object CoreServiceManager {
                 try {
                     if (shouldTryFailoverAfterReconnect(reconnectAttempt)) {
                         val switched = tryFailover(currentService)
-                        if (permanentFailure) return@launch
+                        if (permanentFailure || userStopped) return@launch
                         if (switched) {
                             awaitNextReconnectVerification(
                                 previousJob = previousVerification,
@@ -437,7 +436,7 @@ object CoreServiceManager {
                     // Keep retrying after a transient launcher or core error.
                 }
                 // A configuration error cannot be fixed by another reconnect attempt.
-                if (permanentFailure) return@launch
+                if (permanentFailure || userStopped) return@launch
                 // Wait only for the probe started by this attempt. The old loop
                 // polled connectionVerified for up to 60 s after a failed probe,
                 // preventing this still-active job from scheduling the next retry.
