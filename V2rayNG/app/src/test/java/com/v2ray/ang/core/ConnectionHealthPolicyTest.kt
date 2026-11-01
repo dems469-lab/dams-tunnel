@@ -41,4 +41,18 @@ class ConnectionHealthPolicyTest {
         assertFalse(shouldTryFailoverAfterReconnect(4))
         assertTrue(shouldTryFailoverAfterReconnect(6))
     }
+
+    @Test
+    fun `reconnect is skipped after a user stop or a permanent configuration error`() {
+        assertTrue(shouldScheduleReconnect(userStopped = false, permanentFailure = false))
+        assertFalse(shouldScheduleReconnect(userStopped = true, permanentFailure = false))
+        assertFalse(shouldScheduleReconnect(userStopped = false, permanentFailure = true))
+    }
+
+    @Test
+    fun `traffic is polled only while the tunnel runs and the screen is on`() {
+        assertTrue(shouldPollTraffic(screenOn = true, running = true))
+        assertFalse(shouldPollTraffic(screenOn = false, running = true))
+        assertFalse(shouldPollTraffic(screenOn = true, running = false))
+    }
 }

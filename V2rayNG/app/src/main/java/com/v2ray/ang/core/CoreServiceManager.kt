@@ -9,6 +9,7 @@ import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.v2ray.ang.AppConfig
@@ -51,6 +52,11 @@ import kotlinx.coroutines.isActive
 import libv2ray.CoreCallbackHandler
 import libv2ray.CoreController
 import java.lang.ref.SoftReference
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 object CoreServiceManager {
 
@@ -76,6 +82,9 @@ object CoreServiceManager {
     private val failedFailoverProfiles = mutableSetOf<String>()
 
     @Volatile
+    private var delayProbeExecutor: ExecutorService = newDelayProbeExecutor()
+
+    @Volatile
     private var isReloading = false
 
     @Volatile
@@ -84,9 +93,18 @@ object CoreServiceManager {
     @Volatile
     private var connectionVerified = false
 
+    @Volatile
+    private var screenOn = true
+
+    @Volatile
+    private var permanentFailure = false
+
+    private const val HEALTH_PROBE_TIMEOUT_MILLIS = 5_000L
+
     /** Appelé uniquement par une action explicite de l'utilisateur. */
     fun markUserStopped() {
         userStopped = true
+        permanentFailure = false
         reconnectJob?.cancel()
         reconnectJob = null
         healthCheckJob?.cancel()
@@ -135,6 +153,7 @@ object CoreServiceManager {
 
         try {
             userStopped = false
+            permanentFailure = false
             failedFailoverProfiles.clear()
             connectionVerified = false
             doStartCoreLoop(service, vpnInterface)
@@ -157,6 +176,7 @@ object CoreServiceManager {
         mFilter.addAction(Intent.ACTION_SCREEN_OFF)
         mFilter.addAction(Intent.ACTION_USER_PRESENT)
         ContextCompat.registerReceiver(service, mMsgReceive, mFilter, Utils.receiverFlags())
+        screenOn = (service.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive ?: true
 
         currentVpnInterface = vpnInterface
         launchCore(service, vpnInterface)
@@ -165,13 +185,20 @@ object CoreServiceManager {
 
     @Throws(Exception::class)
     private fun launchCore(service: Service, vpnInterface: ParcelFileDescriptor?, isReload: Boolean = false) {
-        val guid = MmkvManager.getSelectServer() ?: error("No server selected")
-        val config = MmkvManager.decodeServerConfig(guid) ?: error("Failed to decode server config")
+        val guid = MmkvManager.getSelectServer() ?: run {
+            permanentFailure = true
+            error("No server selected")
+        }
+        val config = MmkvManager.decodeServerConfig(guid) ?: run {
+            permanentFailure = true
+            error("Failed to decode server config")
+        }
 
         LogUtil.i(AppConfig.TAG, "StartCore-Manager: Starting core loop for profile $guid")
         val result = CoreConfigManager.getV2rayConfig(service, guid)
         LogUtil.d(AppConfig.TAG, "Generated Xray configuration for profile $guid")
         if (!result.status) {
+            permanentFailure = true
             recordConnectionDiagnostic(config, result.errorMessage, result.content)
             error(result.errorMessage.ifBlank { "Failed to get V2Ray config" })
         }
@@ -292,9 +319,7 @@ object CoreServiceManager {
                 delay(20_000L)
                 if (!isRunning() || userStopped) break
                 val reachable = try {
-                    kotlinx.coroutines.withTimeoutOrNull(5_000L) {
-                        measureDelayWithFallback() >= 0L
-                    } == true
+                    measureDelayWithFallback() >= 0L
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
@@ -319,21 +344,61 @@ object CoreServiceManager {
 
     /**
      * Tests the configured endpoint and then the alternate endpoint when the first
-     * request returns a negative delay.  A negative result is a failed probe, not
-     * a reason to declare the VPN connected.
+     * request returns a negative delay. The whole check is bounded by
+     * [HEALTH_PROBE_TIMEOUT_MILLIS], because a JNI probe can ignore coroutine
+     * cancellation. A negative result is a failed probe, not a reason to declare
+     * the VPN connected.
      */
     private fun measureDelayWithFallback(): Long {
-        val primary = coreController.measureDelay(SettingsManager.getDelayTestUrl())
+        val deadline = System.currentTimeMillis() + HEALTH_PROBE_TIMEOUT_MILLIS
+        val primary = measureDelayWithTimeout(
+            SettingsManager.getDelayTestUrl(),
+            HEALTH_PROBE_TIMEOUT_MILLIS,
+        )
         if (primary >= 0L) return primary
-        return coreController.measureDelay(SettingsManager.getDelayTestUrl(true))
+        val remaining = deadline - System.currentTimeMillis()
+        if (remaining <= 0L) return -1L
+        return measureDelayWithTimeout(SettingsManager.getDelayTestUrl(true), remaining)
     }
 
+    /**
+     * Runs the blocking native probe on its own thread so a health check cannot
+     * exceed the configured budget when JNI does not react to coroutine cancellation.
+     */
+    private fun measureDelayWithTimeout(url: String, timeoutMillis: Long): Long {
+        val future = delayProbeExecutor.submit<Long> { coreController.measureDelay(url) }
+        return try {
+            future.get(timeoutMillis.coerceAtLeast(1L), TimeUnit.MILLISECONDS)
+        } catch (e: TimeoutException) {
+            future.cancel(true)
+            LogUtil.w(
+                AppConfig.TAG,
+                "StartCore-Manager: delay probe timed out after ${timeoutMillis.coerceAtLeast(1L)}ms",
+            )
+            -1L
+        } catch (e: InterruptedException) {
+            future.cancel(true)
+            throw CancellationException("Delay probe interrupted")
+        } catch (e: ExecutionException) {
+            LogUtil.w(AppConfig.TAG, "StartCore-Manager: delay probe failed", e.cause ?: e)
+            -1L
+        } catch (e: Exception) {
+            LogUtil.w(AppConfig.TAG, "StartCore-Manager: delay probe failed", e)
+            -1L
+        }
+    }
+
+    private fun newDelayProbeExecutor(): ExecutorService =
+        Executors.newCachedThreadPool { runnable ->
+            Thread(runnable, "dams-delay-probe").apply { isDaemon = true }
+        }
+
     private fun scheduleReconnect(service: Service) {
-        if (userStopped || reconnectJob?.isActive == true) return
+        if (!shouldScheduleReconnect(userStopped, permanentFailure) || reconnectJob?.isActive == true) return
         reconnectJob = connectionTestScope.launch {
             // Première tentative rapide ; le backoff augmente seulement si le réseau
             // reste réellement indisponible.
-            while (isActive && !userStopped && !connectionVerified) {
+            while (isActive && !userStopped && !permanentFailure && !connectionVerified) {
                 val wait = reconnectBackoffMillis(reconnectAttempt)
                 reconnectAttempt++
                 delay(wait)
@@ -346,12 +411,16 @@ object CoreServiceManager {
                 )
                 val previousVerification = connectionVerificationJob
                 try {
-                    if (shouldTryFailoverAfterReconnect(reconnectAttempt) && tryFailover(currentService)) {
-                        awaitNextReconnectVerification(
-                            previousJob = previousVerification,
-                            currentJob = { connectionVerificationJob },
-                        )
-                        continue
+                    if (shouldTryFailoverAfterReconnect(reconnectAttempt)) {
+                        val switched = tryFailover(currentService)
+                        if (permanentFailure) return@launch
+                        if (switched) {
+                            awaitNextReconnectVerification(
+                                previousJob = previousVerification,
+                                currentJob = { connectionVerificationJob },
+                            )
+                            continue
+                        }
                     }
                     if (isRunning()) {
                         // Borne chaque rechargement : un appel natif bloqué ne doit
@@ -367,6 +436,8 @@ object CoreServiceManager {
                 } catch (_: Exception) {
                     // Keep retrying after a transient launcher or core error.
                 }
+                // A configuration error cannot be fixed by another reconnect attempt.
+                if (permanentFailure) return@launch
                 // Wait only for the probe started by this attempt. The old loop
                 // polled connectionVerified for up to 60 s after a failed probe,
                 // preventing this still-active job from scheduling the next retry.
@@ -425,8 +496,9 @@ object CoreServiceManager {
         trafficStatsDiagnosticRead = 0
         trafficStatsJob = connectionTestScope.launch {
             var previousTime = System.currentTimeMillis()
-            while (isRunning()) {
+            while (isActive && isRunning()) {
                 delay(2_000L)
+                if (!shouldPollTraffic(screenOn, isRunning())) continue
                 val now = System.currentTimeMillis()
                 val diagnosticEnabled = BuildConfig.DEBUG || MmkvManager.decodeSettingsBool(
                     AppConfig.PREF_DIAGNOSTIC_TRAFFIC_STATS,
@@ -479,7 +551,10 @@ object CoreServiceManager {
         onCoreStopped: suspend () -> Unit = {},
     ): Boolean = lifecycleGate.stop {
         connectionVerified = false
+        permanentFailure = false
         if (cancelConnectionChecks) connectionTestScope.coroutineContext.cancelChildren()
+        delayProbeExecutor.shutdownNow()
+        delayProbeExecutor = newDelayProbeExecutor()
         healthCheckJob?.cancel()
         healthCheckJob = null
         reconnectJob?.cancel()
@@ -569,6 +644,7 @@ object CoreServiceManager {
 
             isReloading = true
             connectionVerified = false
+            permanentFailure = false
             if (cancelConnectionChecks) {
                 connectionVerificationJob?.cancel()
                 delayMeasurementJob?.cancel()
@@ -588,9 +664,21 @@ object CoreServiceManager {
             throw cancelled
         } catch (e: Exception) {
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
-            LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to reload core: $message", e)
-            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
-            if (!userStopped) scheduleReconnect(service)
+            val profileGuid = MmkvManager.getSelectServer().orEmpty()
+            LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to reload core for profile $profileGuid: $message", e)
+            if (permanentFailure) {
+                val configurationMessage = service.getString(com.v2ray.ang.R.string.connection_configuration_failed)
+                MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, configurationMessage)
+                NotificationManager.updateState(
+                    configurationMessage,
+                    android.graphics.Color.rgb(239, 68, 68),
+                )
+                // The tunnel has no running core; stop it instead of black-holing traffic.
+                LauncherManager.stopService(service)
+            } else {
+                MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
+                if (shouldScheduleReconnect(userStopped, permanentFailure)) scheduleReconnect(service)
+            }
             false
         } finally {
             isReloading = false
@@ -811,11 +899,13 @@ object CoreServiceManager {
             when (intent?.action) {
                 Intent.ACTION_SCREEN_OFF -> {
                     LogUtil.i(AppConfig.TAG, "StartCore-Manager: Screen off")
+                    screenOn = false
                     NotificationManager.stopSpeedNotification()
                 }
 
                 Intent.ACTION_SCREEN_ON -> {
                     LogUtil.i(AppConfig.TAG, "StartCore-Manager: Screen on")
+                    screenOn = true
                     NotificationManager.startSpeedNotification()
                 }
             }

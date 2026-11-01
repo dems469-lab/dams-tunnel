@@ -17,3 +17,11 @@ internal fun reconnectBackoffMillis(attempt: Int): Long {
 
 internal fun shouldTryFailoverAfterReconnect(attempt: Int): Boolean =
     attempt >= 3 && (attempt - 3) % 3 == 0
+
+/** A reconnect loop stops for an explicit stop or a definitive configuration error. */
+internal fun shouldScheduleReconnect(userStopped: Boolean, permanentFailure: Boolean): Boolean =
+    !userStopped && !permanentFailure
+
+/** Traffic counters are polled only while the tunnel runs and the screen is visible. */
+internal fun shouldPollTraffic(screenOn: Boolean, running: Boolean): Boolean =
+    screenOn && running

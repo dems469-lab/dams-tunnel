@@ -629,6 +629,7 @@
     <string name="diagnostic_tunnel">Routage des applications (non vérifié)</string>
     <string name="diagnostic_network_unavailable">Internet du téléphone indisponible.</string>
     <string name="connection_verification_failed">Connexion échouée : aucun trafic vérifié après le démarrage.</string>
+    <string name="connection_configuration_failed">Erreur de configuration. La reconnexion est arrêtée.</string>
     <string name="connection_running_task_left">Tests running: %s</string>
 
     <string name="import_subscription_success">Abonnement importé avec succès</string>

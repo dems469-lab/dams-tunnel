@@ -36,6 +36,18 @@ class LogRedactorTest {
     }
 
     @Test
+    fun `connection failure report masks wireguard private and pre-shared keys`() {
+        val result = LogRedactor.formatConnectionFailure(
+            protocol = "WIREGUARD",
+            error = "handshake failed",
+            generatedConfig = """{"secretKey":"private-key-value","preSharedKey":"pre-shared-value","publicKey":"public-value"}""",
+        )
+
+        assertFalse(result.contains("private-key-value"))
+        assertFalse(result.contains("pre-shared-value"))
+    }
+
+    @Test
     fun `connection failure report keeps protocol and error but masks outbound secrets and host`() {
         val result = LogRedactor.formatConnectionFailure(
             protocol = "VMESS",

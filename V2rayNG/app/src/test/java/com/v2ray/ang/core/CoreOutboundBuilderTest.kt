@@ -62,7 +62,9 @@ class CoreOutboundBuilderTest {
     @Test
     fun `VMess gRPC and Trojan websocket settings reach generated outbounds`() {
         val vmess = ProfileItem.create(EConfigType.VMESS).apply {
-            server = "vmess.example"
+            // Literal address and non-empty finalMask keep this a pure JVM test:
+            // both avoid the optional MMKV-backed settings lookups.
+            server = "192.0.2.10"
             serverPort = "443"
             password = "uuid"
             network = NetworkType.GRPC.type
@@ -70,9 +72,12 @@ class CoreOutboundBuilderTest {
             authority = "grpc.example"
             security = AppConfig.TLS
             sni = "sni.example"
+            finalMask = "{}"
         }
         val trojan = ProfileItem.create(EConfigType.TROJAN).apply {
-            server = "trojan.example"
+            // Literal address and non-empty finalMask keep this a pure JVM test:
+            // both avoid the optional MMKV-backed settings lookups.
+            server = "192.0.2.10"
             serverPort = "443"
             password = "secret"
             network = NetworkType.WS.type
@@ -80,6 +85,7 @@ class CoreOutboundBuilderTest {
             host = "cdn.example"
             security = AppConfig.TLS
             sni = "trojan-sni.example"
+            finalMask = "{}"
         }
 
         val vmessOutbound = CoreOutboundBuilder.buildProtocolOutbound(vmess)
