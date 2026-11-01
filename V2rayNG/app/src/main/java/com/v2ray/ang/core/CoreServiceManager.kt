@@ -296,7 +296,12 @@ object CoreServiceManager {
                 }
                 connectionVerified = false
                 val message = service.getString(com.v2ray.ang.R.string.connection_verification_failed)
-                LogUtil.e(AppConfig.TAG, "StartCore-Manager: no traffic after startup: ${lastError ?: "unknown error"}")
+                val cause = lastError ?: "aucune réponse du tunnel (EOF/timeout/reset/DNS/certificat)"
+                LogUtil.e(
+                    AppConfig.TAG,
+                    "StartCore-Manager: no traffic after startup: $cause. " +
+                        "Vérifiez le SNI, l'horloge (VMess), le certificat et le DNS du profil.",
+                )
                 // The core is still alive and the user did not stop it.  Keep the
                 // lifecycle in reconnecting state so the UI does not present a
                 // terminal failure while the backoff loop is still working.
@@ -387,8 +392,11 @@ object CoreServiceManager {
         }
     }
 
+    // At most 3 probes run in parallel. Cached pools are unbounded and let
+    // dozens of dials pile up during startup, which is what produced the
+    // "une dizaine de sondes simultanées" symptom.
     private fun newDelayProbeExecutor(): ExecutorService =
-        Executors.newCachedThreadPool { runnable ->
+        Executors.newFixedThreadPool(3) { runnable ->
             Thread(runnable, "dams-delay-probe").apply { isDaemon = true }
         }
 

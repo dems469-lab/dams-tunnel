@@ -425,8 +425,13 @@ class CoreVpnService : VpnService(), ServiceControl {
     }
 
     fun tryLockStart(): Boolean {
-        LogUtil.w(AppConfig.TAG, "StartCore-VPN: tryLockStart: ${isStartingLock.get()}")
-        return isStartingLock.compareAndSet(false, true)
+        val accepted = isStartingLock.compareAndSet(false, true)
+        if (accepted) {
+            LogUtil.i(AppConfig.TAG, "StartCore-VPN: démarrage accepté")
+        } else {
+            LogUtil.w(AppConfig.TAG, "StartCore-VPN: refusé : déjà en cours")
+        }
+        return accepted
     }
 
     fun unlockStart() {
