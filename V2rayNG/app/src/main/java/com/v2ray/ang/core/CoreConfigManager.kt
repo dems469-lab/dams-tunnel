@@ -217,7 +217,7 @@ object CoreConfigManager {
 
         applyObservability(v2rayConfig, balancerStrategies)
         applySpeedDisabled(v2rayConfig)
-        resolveOutboundDomainsToHosts(v2rayConfig, policyGroupBalancerTags.keys)
+        resolveOutboundDomainsToHosts(v2rayConfig)
 
         return v2rayConfig
     }
@@ -1058,30 +1058,25 @@ object CoreConfigManager {
     /**
      * Resolve outbound domains to IPs and write resolved hosts to DNS map.
      *
-     * Policy-group members are deliberately excluded: a group can contain dozens
-     * of servers and resolving every member sequentially made startup
-     * O(members × DNS). Xray resolves the member selected by the balancer lazily.
-     * The remaining unique domains are resolved on a bounded pool, so a slow
-     * resolver cannot hold the first connection for longer than the budget.
+     * Every proxy outbound is included, including policy-group members: the
+     * balancer can select any member, and its server domain must be in [V2rayConfig.DnsBean.hosts]
+     * before the core starts. Otherwise Xray asks its DNS module for that
+     * domain, the DNS query is routed through the proxy, and the proxy cannot
+     * connect until its own domain is resolved. The parallel resolver bounds
+     * the batch so a group of dozens of members does not delay startup by the
+     * sum of every lookup.
      */
-    private fun resolveOutboundDomainsToHosts(
-        v2rayConfig: V2rayConfig,
-        policyGroupTags: Set<String>,
-    ) {
+    private fun resolveOutboundDomainsToHosts(v2rayConfig: V2rayConfig) {
         if (MmkvManager.decodeSettingsString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, AppConfig.DEFAULT_OUTBOUND_DOMAIN_RESOLVE_METHOD) != "1") {
             return
         }
 
         val proxyOutboundList = v2rayConfig.getAllProxyOutbound()
-            .filterNot { isPolicyGroupMemberTag(it.tag, policyGroupTags) }
         val dns = v2rayConfig.dns ?: return
         val newHosts = dns.hosts?.toMutableMap() ?: mutableMapOf()
         val preferIpv6 = MmkvManager.decodeSettingsBool(AppConfig.PREF_PREFER_IPV6) == true
 
-        val pendingDomains = proxyOutboundList
-            .mapNotNull { it.getServerAddress() }
-            .filter { it.isNotBlank() && !newHosts.containsKey(it) }
-            .distinct()
+        val pendingDomains = collectProxyOutboundDomains(v2rayConfig, newHosts)
         val resolvedHosts = OutboundDomainResolver.resolve(pendingDomains) { domain ->
             HttpUtil.resolveHostToIP(domain, preferIpv6)
         }
@@ -1113,18 +1108,28 @@ object CoreConfigManager {
             AppConfig.TAG,
             "DNS pre-resolution: outbounds=${proxyOutboundList.size}, unique=${pendingDomains.size}, resolved=${resolvedHosts.size}",
         )
+        val unresolved = pendingDomains.size - resolvedHosts.size
+        if (unresolved > 0) {
+            LogUtil.w(
+                AppConfig.TAG,
+                "DNS pre-resolution incomplete: $unresolved/${pendingDomains.size} proxy domains unresolved; " +
+                    "remote DNS routed through the proxy may fail until they resolve",
+            )
+        }
     }
 
     /**
-     * Returns true when [tag] belongs to a member generated for a policy group.
-     * The member prefix is built by [handlePolicyGroupResolvedOutbound]:
-     * `proxy-<group tag>-<index>-<remarks>`.
+     * Domains to resolve before Xray starts. Includes policy-group members so
+     * the proxy server domain cannot loop through the proxied remote DNS.
      */
-    internal fun isPolicyGroupMemberTag(tag: String?, policyGroupTags: Set<String>): Boolean {
-        if (tag.isNullOrBlank() || policyGroupTags.isEmpty()) return false
-        return policyGroupTags.any { groupTag ->
-            groupTag.isNotBlank() && tag.startsWith("${AppConfig.TAG_PROXY}-$groupTag-")
-        }
+    internal fun collectProxyOutboundDomains(
+        v2rayConfig: V2rayConfig,
+        existingHosts: Map<String, Any>,
+    ): List<String> {
+        return v2rayConfig.getAllProxyOutbound()
+            .mapNotNull { it.getServerAddress() }
+            .filter { it.isNotBlank() && !Utils.isPureIpAddress(it) && !existingHosts.containsKey(it) }
+            .distinct()
     }
 
     /**

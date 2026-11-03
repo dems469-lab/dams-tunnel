@@ -300,7 +300,7 @@ object CoreServiceManager {
                 LogUtil.e(
                     AppConfig.TAG,
                     "StartCore-Manager: no traffic after startup: $cause. " +
-                        "Vérifiez le SNI, l'horloge (VMess), le certificat et le DNS du profil.",
+                        "Vérifiez le DNS du serveur proxy (DoH via proxy), le SNI, l'horloge (VMess) et le certificat.",
                 )
                 // The core is still alive and the user did not stop it.  Keep the
                 // lifecycle in reconnecting state so the UI does not present a

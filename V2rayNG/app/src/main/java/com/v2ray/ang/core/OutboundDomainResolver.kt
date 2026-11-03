@@ -13,12 +13,12 @@ import java.util.concurrent.TimeUnit
  * [java.net.InetAddress.getAllByName] has no timeout and can block for seconds
  * on a slow resolver. Resolving every proxy outbound sequentially made startup
  * the sum of all lookups. This helper bounds the whole batch and returns only
- * the hosts resolved in time; unresolved hosts are left to Xray, which resolves
- * the selected outbound lazily.
+ * the hosts resolved in time. Policy-group members are included because the
+ * proxy server domain must be resolved before the proxied remote DNS can work.
  */
 internal object OutboundDomainResolver {
-    private const val MAX_CONCURRENCY = 4
-    private const val DEFAULT_TIMEOUT_MILLIS = 4_000L
+    private const val MAX_CONCURRENCY = 8
+    private const val DEFAULT_TIMEOUT_MILLIS = 6_000L
 
     private val executor: ExecutorService = Executors.newFixedThreadPool(MAX_CONCURRENCY) { runnable ->
         Thread(runnable, "dams-dns-resolve").apply { isDaemon = true }
