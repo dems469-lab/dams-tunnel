@@ -595,22 +595,13 @@ object CoreOutboundBuilder {
     }
 
     /** Resolves TLS SNI without touching persistent settings or native state. */
-    /**
-     * Resolves TLS SNI following the common rule for every protocol:
-     *   sni from the link, then peer, then host, then the server address.
-     * The transport Host is an HTTP/WebSocket header and is only used as a
-     * fallback, never as the primary SNI, so profiles where Host differs from
-     * the target (or where SNI is omitted) remain valid.
-     */
     internal fun resolveTlsServerName(profileItem: ProfileItem, sniExt: String?): String? {
         val explicitSni = profileItem.sni?.trim().nullIfBlank()
         if (explicitSni != null) return explicitSni
 
-        // Note: this codebase has no dedicated "peer" field; the peer name is
-        // carried by sni itself. Fall back to host then the server address.
-        val host = profileItem.host?.trim().nullIfBlank()
-        if (host != null) return host
-
+        // The transport Host is an HTTP/WebSocket header, not a TLS SNI.
+        // Keep the target server as the default SNI so profiles where Host
+        // differs from the target (or where SNI is omitted) remain valid.
         return profileItem.server?.trim().nullIfBlank() ?: sniExt
     }
 
