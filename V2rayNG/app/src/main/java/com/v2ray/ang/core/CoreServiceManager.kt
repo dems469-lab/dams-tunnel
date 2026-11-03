@@ -503,8 +503,9 @@ object CoreServiceManager {
         trafficStatsDiagnosticRead = 0
         trafficStatsJob = connectionTestScope.launch {
             var previousTime = System.currentTimeMillis()
+            val pollIntervalMillis = trafficStatsPollIntervalMillis(currentOutboundTags.size)
             while (isActive && isRunning()) {
-                delay(2_000L)
+                delay(pollIntervalMillis)
                 if (!shouldPollTraffic(screenOn, isRunning())) continue
                 val now = System.currentTimeMillis()
                 val diagnosticEnabled = BuildConfig.DEBUG || MmkvManager.decodeSettingsBool(
@@ -532,7 +533,11 @@ object CoreServiceManager {
                 val dailyMobileUsage = if (snapshot.available && networkMonitor?.underlyingIsCellular == true) {
                     val uplink = stats.filter { it.direction == AppConfig.UPLINK }.sumOf { it.value.coerceAtLeast(0L) }
                     val downlink = stats.filter { it.direction == AppConfig.DOWNLINK }.sumOf { it.value.coerceAtLeast(0L) }
-                    MobileTrafficUsageStore.add(uplink, downlink)
+                    if (uplink > 0L || downlink > 0L) {
+                        MobileTrafficUsageStore.add(uplink, downlink)
+                    } else {
+                        MobileTrafficUsageStore.current()
+                    }
                 } else {
                     MobileTrafficUsageStore.current()
                 }

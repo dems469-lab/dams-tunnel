@@ -14,6 +14,14 @@ internal fun outboundTagsFromConfig(configContent: String): Set<String> = runCat
         .toSet()
 }.getOrDefault(emptySet())
 
+/**
+ * Large policy groups expose one outbound per member. Polling every two seconds
+ * then costs two JNI reads per member; slow the cadence once the tag count is
+ * high so the stats loop does not compete with the data path.
+ */
+internal fun trafficStatsPollIntervalMillis(outboundTagCount: Int): Long =
+    if (outboundTagCount > 24) 5_000L else 2_000L
+
 internal fun trafficSnapshotFromStats(
     stats: List<OutboundTrafficStat>,
     elapsedMillis: Long,

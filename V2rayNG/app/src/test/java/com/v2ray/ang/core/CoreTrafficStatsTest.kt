@@ -60,4 +60,11 @@ class CoreTrafficStatsTest {
         assertEquals(0, snapshot?.uplinkBytesPerSecond)
         assertFalse(snapshot?.available == false)
     }
+
+    @Test
+    fun largeOutboundSetsPollLessOften() {
+        assertEquals(2_000L, trafficStatsPollIntervalMillis(1))
+        assertEquals(2_000L, trafficStatsPollIntervalMillis(24))
+        assertEquals(5_000L, trafficStatsPollIntervalMillis(25))
+    }
 }

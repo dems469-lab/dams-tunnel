@@ -217,7 +217,7 @@ object CoreConfigManager {
 
         applyObservability(v2rayConfig, balancerStrategies)
         applySpeedDisabled(v2rayConfig)
-        resolveOutboundDomainsToHosts(v2rayConfig)
+        resolveOutboundDomainsToHosts(v2rayConfig, policyGroupBalancerTags.keys)
 
         return v2rayConfig
     }
@@ -1057,35 +1057,41 @@ object CoreConfigManager {
 
     /**
      * Resolve outbound domains to IPs and write resolved hosts to DNS map.
+     *
+     * Policy-group members are deliberately excluded: a group can contain dozens
+     * of servers and resolving every member sequentially made startup
+     * O(members × DNS). Xray resolves the member selected by the balancer lazily.
+     * The remaining unique domains are resolved on a bounded pool, so a slow
+     * resolver cannot hold the first connection for longer than the budget.
      */
-    private fun resolveOutboundDomainsToHosts(v2rayConfig: V2rayConfig) {
+    private fun resolveOutboundDomainsToHosts(
+        v2rayConfig: V2rayConfig,
+        policyGroupTags: Set<String>,
+    ) {
         if (MmkvManager.decodeSettingsString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, AppConfig.DEFAULT_OUTBOUND_DOMAIN_RESOLVE_METHOD) != "1") {
             return
         }
 
         val proxyOutboundList = v2rayConfig.getAllProxyOutbound()
+            .filterNot { isPolicyGroupMemberTag(it.tag, policyGroupTags) }
         val dns = v2rayConfig.dns ?: return
         val newHosts = dns.hosts?.toMutableMap() ?: mutableMapOf()
         val preferIpv6 = MmkvManager.decodeSettingsBool(AppConfig.PREF_PREFER_IPV6) == true
 
+        val pendingDomains = proxyOutboundList
+            .mapNotNull { it.getServerAddress() }
+            .filter { it.isNotBlank() && !newHosts.containsKey(it) }
+            .distinct()
+        val resolvedHosts = OutboundDomainResolver.resolve(pendingDomains) { domain ->
+            HttpUtil.resolveHostToIP(domain, preferIpv6)
+        }
+
         for (item in proxyOutboundList) {
-            val domain = item.getServerAddress()
-            if (domain.isNullOrEmpty()) {
-                continue
-            }
-
-            if (newHosts.containsKey(domain)) {
-                item.ensureSockopt().domainStrategy = "UseIP"
-                item.ensureSockopt().happyEyeballs = V2rayConfig.OutboundBean.StreamSettingsBean.HappyEyeballsBean(
-                    prioritizeIPv6 = preferIpv6,
-                    interleave = 2
-                )
-                continue
-            }
-
-            val resolvedIps = HttpUtil.resolveHostToIP(domain, preferIpv6)
-            if (resolvedIps.isNullOrEmpty()) {
-                continue
+            val domain = item.getServerAddress() ?: continue
+            val resolvedIps = when {
+                newHosts.containsKey(domain) -> null
+                resolvedHosts.containsKey(domain) -> resolvedHosts[domain]
+                else -> continue
             }
 
             item.ensureSockopt().domainStrategy = "UseIP"
@@ -1093,14 +1099,32 @@ object CoreConfigManager {
                 prioritizeIPv6 = preferIpv6,
                 interleave = 2
             )
-            newHosts[domain] = if (resolvedIps.size == 1) {
-                resolvedIps[0]
-            } else {
-                resolvedIps
+            if (resolvedIps != null) {
+                newHosts[domain] = if (resolvedIps.size == 1) {
+                    resolvedIps[0]
+                } else {
+                    resolvedIps
+                }
             }
         }
 
         dns.hosts = newHosts
+        LogUtil.d(
+            AppConfig.TAG,
+            "DNS pre-resolution: outbounds=${proxyOutboundList.size}, unique=${pendingDomains.size}, resolved=${resolvedHosts.size}",
+        )
+    }
+
+    /**
+     * Returns true when [tag] belongs to a member generated for a policy group.
+     * The member prefix is built by [handlePolicyGroupResolvedOutbound]:
+     * `proxy-<group tag>-<index>-<remarks>`.
+     */
+    internal fun isPolicyGroupMemberTag(tag: String?, policyGroupTags: Set<String>): Boolean {
+        if (tag.isNullOrBlank() || policyGroupTags.isEmpty()) return false
+        return policyGroupTags.any { groupTag ->
+            groupTag.isNotBlank() && tag.startsWith("${AppConfig.TAG_PROXY}-$groupTag-")
+        }
     }
 
     /**
