@@ -602,7 +602,14 @@ object CoreOutboundBuilder {
         // A domain server stays the default SNI (the WS Host header is separate).
         // An IP literal cannot be an SNI: fall back to the transport Host so
         // CDN profiles (server=IP, host=domain) keep a valid serverName.
-        return profileItem.server?.trim()?.takeIf { Utils.isDomainName(it) } ?: sniExt?.trim()?.nullIfBlank()
+        // Utils.isDomainName() relies on android Patterns and throws in JVM tests.
+        return profileItem.server?.trim()?.takeIf { isSniDomainCandidate(it) } ?: sniExt?.trim()?.nullIfBlank()
+    }
+
+    private fun isSniDomainCandidate(value: String): Boolean {
+        if (value.isEmpty() || Utils.isPureIpAddress(value)) return false
+        return value.contains('.') && !value.contains(' ') &&
+            !value.contains('/') && !value.contains(':') && !value.contains("://")
     }
 
     /**
