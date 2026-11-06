@@ -19,6 +19,13 @@ class CoreDnsPreResolutionTest {
     }
 
     @Test
+    fun `single domain resolves on a shorter timeout`() {
+        assertEquals(0L, CoreConfigManager.dnsResolveTimeoutMillis(0))
+        assertEquals(2_000L, CoreConfigManager.dnsResolveTimeoutMillis(1))
+        assertEquals(6_000L, CoreConfigManager.dnsResolveTimeoutMillis(3))
+    }
+
+    @Test
     fun `literal addresses and existing hosts are skipped`() {
         val config = configWith(
             outbound("proxy-ip", "192.0.2.10"),

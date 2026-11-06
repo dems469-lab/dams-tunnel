@@ -599,10 +599,10 @@ object CoreOutboundBuilder {
         val explicitSni = profileItem.sni?.trim().nullIfBlank()
         if (explicitSni != null) return explicitSni
 
-        // The transport Host is an HTTP/WebSocket header, not a TLS SNI.
-        // Keep the target server as the default SNI so profiles where Host
-        // differs from the target (or where SNI is omitted) remain valid.
-        return profileItem.server?.trim().nullIfBlank() ?: sniExt
+        // A domain server stays the default SNI (the WS Host header is separate).
+        // An IP literal cannot be an SNI: fall back to the transport Host so
+        // CDN profiles (server=IP, host=domain) keep a valid serverName.
+        return profileItem.server?.trim()?.takeIf { Utils.isDomainName(it) } ?: sniExt?.trim()?.nullIfBlank()
     }
 
     /**

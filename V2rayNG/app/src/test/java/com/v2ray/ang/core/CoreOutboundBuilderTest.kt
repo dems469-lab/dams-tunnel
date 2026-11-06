@@ -44,6 +44,29 @@ class CoreOutboundBuilderTest {
     }
 
     @Test
+    fun `IP server falls back to websocket host as TLS SNI`() {
+        val profile = ProfileItem.create(EConfigType.TROJAN).apply {
+            server = "192.0.2.10"
+            host = "cdn.example"
+            network = NetworkType.WS.type
+            security = AppConfig.TLS
+        }
+
+        assertEquals("cdn.example", CoreOutboundBuilder.resolveTlsServerName(profile, profile.host))
+    }
+
+    @Test
+    fun `IP server without host yields no serverName`() {
+        val profile = ProfileItem.create(EConfigType.TROJAN).apply {
+            server = "192.0.2.10"
+            network = NetworkType.TCP.type
+            security = AppConfig.TLS
+        }
+
+        assertEquals(null, CoreOutboundBuilder.resolveTlsServerName(profile, profile.host))
+    }
+
+    @Test
     fun `explicit SNI remains independent from websocket host`() {
         val stream = OutboundBean.StreamSettingsBean()
         val profile = ProfileItem.create(EConfigType.TROJAN).apply {

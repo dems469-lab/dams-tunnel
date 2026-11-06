@@ -64,6 +64,8 @@ object CoreServiceManager {
 
     private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
     private val mMsgReceive = ReceiveMessageHandler()
+    @Volatile
+    private var receiverRegistered = false
     private var currentConfig: ProfileItem? = null
     private var currentGeneratedConfig: String? = null
     private var currentOutboundTags: Set<String> = emptySet()
@@ -175,6 +177,7 @@ object CoreServiceManager {
         mFilter.addAction(Intent.ACTION_SCREEN_OFF)
         mFilter.addAction(Intent.ACTION_USER_PRESENT)
         ContextCompat.registerReceiver(service, mMsgReceive, mFilter, Utils.receiverFlags())
+        receiverRegistered = true
         screenOn = (service.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive ?: true
 
         currentVpnInterface = vpnInterface
@@ -612,10 +615,13 @@ object CoreServiceManager {
         ConnectionFeedback.onDisconnected(service)
         NotificationManager.cancelNotification()
 
-        try {
-            service.unregisterReceiver(mMsgReceive)
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to unregister receiver", e)
+        if (receiverRegistered) {
+            receiverRegistered = false
+            try {
+                service.unregisterReceiver(mMsgReceive)
+            } catch (e: Exception) {
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to unregister receiver", e)
+            }
         }
         true
     }

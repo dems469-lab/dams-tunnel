@@ -42,7 +42,7 @@ object ShadowsocksFmt : FmtBase() {
             Utils.decode(uri.userInfo).split(":", limit = 2)
         }
         if (result.count() == 2) {
-            config.method = result.first()
+            config.method = result.first().trim().lowercase()
             config.password = result.last()
         }
 

@@ -54,14 +54,25 @@ class TProxyService(
         LogUtil.d(AppConfig.TAG, "HevSocks5Tunnel configuration prepared")
 
         return try {
-//            LogUtil.i(AppConfig.TAG, "TProxyStartService...")
-            val started = TProxyStartService(configFile.absolutePath, vpnInterface.fd)
+            val fd = vpnInterface.fd
+            val socksPort = SettingsManager.getSocksPort()
+            LogUtil.d(AppConfig.TAG, "StartCore-VPN: starting HEV TUN fd=$fd port=$socksPort")
+            if (fd < 0) {
+                LogUtil.e(AppConfig.TAG, "StartCore-VPN: HevSocks5Tunnel start refused: invalid fd=$fd port=$socksPort")
+                return false
+            }
+            // A leftover instance from a previous attempt holds the same fd/port.
+            if (TProxyIsRunning()) {
+                LogUtil.w(AppConfig.TAG, "StartCore-VPN: stopping previous HEV TUN before start fd=$fd port=$socksPort")
+                TProxyStopService()
+            }
+            val started = TProxyStartService(configFile.absolutePath, fd)
             if (!started) {
-                LogUtil.e(AppConfig.TAG, "HevSocks5Tunnel refused to start")
+                LogUtil.e(AppConfig.TAG, "StartCore-VPN: HevSocks5Tunnel refused to start fd=$fd port=$socksPort")
             }
             started
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "HevSocks5Tunnel exception: ${e.message}")
+            LogUtil.e(AppConfig.TAG, "StartCore-VPN: HevSocks5Tunnel exception: ${e.message}", e)
             false
         }
     }

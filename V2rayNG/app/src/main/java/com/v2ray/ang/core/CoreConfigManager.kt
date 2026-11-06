@@ -1077,7 +1077,10 @@ object CoreConfigManager {
         val preferIpv6 = MmkvManager.decodeSettingsBool(AppConfig.PREF_PREFER_IPV6) == true
 
         val pendingDomains = collectProxyOutboundDomains(v2rayConfig, newHosts)
-        val resolvedHosts = OutboundDomainResolver.resolve(pendingDomains) { domain ->
+        val resolvedHosts = OutboundDomainResolver.resolve(
+            pendingDomains,
+            timeoutMillis = dnsResolveTimeoutMillis(pendingDomains.size),
+        ) { domain ->
             HttpUtil.resolveHostToIP(domain, preferIpv6)
         }
 
@@ -1108,14 +1111,20 @@ object CoreConfigManager {
             AppConfig.TAG,
             "DNS pre-resolution: outbounds=${proxyOutboundList.size}, unique=${pendingDomains.size}, resolved=${resolvedHosts.size}",
         )
-        val unresolved = pendingDomains.size - resolvedHosts.size
-        if (unresolved > 0) {
+        val unresolvedDomains = pendingDomains.filterNot { resolvedHosts.containsKey(it) }
+        if (unresolvedDomains.isNotEmpty()) {
             LogUtil.w(
                 AppConfig.TAG,
-                "DNS pre-resolution incomplete: $unresolved/${pendingDomains.size} proxy domains unresolved; " +
+                "DNS pre-resolution incomplete: ${unresolvedDomains.size}/${pendingDomains.size} proxy domains unresolved $unresolvedDomains; " +
                     "remote DNS routed through the proxy may fail until they resolve",
             )
         }
+    }
+
+    internal fun dnsResolveTimeoutMillis(pendingSize: Int): Long = when {
+        pendingSize <= 0 -> 0L
+        pendingSize == 1 -> 2_000L
+        else -> 6_000L
     }
 
     /**
