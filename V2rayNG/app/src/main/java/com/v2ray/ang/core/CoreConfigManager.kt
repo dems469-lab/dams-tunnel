@@ -217,7 +217,7 @@ object CoreConfigManager {
 
         applyObservability(v2rayConfig, balancerStrategies)
         applySpeedDisabled(v2rayConfig)
-        resolveOutboundDomainsToHosts(v2rayConfig)
+        resolveOutboundDomainsToHosts(context, v2rayConfig)
 
         return v2rayConfig
     }
@@ -1066,7 +1066,7 @@ object CoreConfigManager {
      * the batch so a group of dozens of members does not delay startup by the
      * sum of every lookup.
      */
-    private fun resolveOutboundDomainsToHosts(v2rayConfig: V2rayConfig) {
+    private fun resolveOutboundDomainsToHosts(context: Context, v2rayConfig: V2rayConfig) {
         if (MmkvManager.decodeSettingsString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, AppConfig.DEFAULT_OUTBOUND_DOMAIN_RESOLVE_METHOD) != "1") {
             return
         }
@@ -1076,50 +1076,54 @@ object CoreConfigManager {
         val newHosts = dns.hosts?.toMutableMap() ?: mutableMapOf()
         val preferIpv6 = MmkvManager.decodeSettingsBool(AppConfig.PREF_PREFER_IPV6) == true
 
+        // Une adresse déjà littérale n'est jamais résolue (collectProxyOutboundDomains).
         val pendingDomains = collectProxyOutboundDomains(v2rayConfig, newHosts)
-        val resolvedHosts = OutboundDomainResolver.resolve(
-            pendingDomains,
-            timeoutMillis = dnsResolveTimeoutMillis(pendingDomains.size),
-        ) { domain ->
-            HttpUtil.resolveHostToIP(domain, preferIpv6)
-        }
+        val resolution = ServerAddressResolver(
+            // Toujours le réseau sous-jacent, jamais le DNS du tunnel.
+            resolveDirect = { domain -> UnderlyingNetworkResolver(context).resolve(domain, preferIpv6) },
+            cache = MmkvServerAddressCache(),
+        ).resolve(pendingDomains, dnsResolveTimeoutMillis(pendingDomains.size))
 
         for (item in proxyOutboundList) {
             val domain = item.getServerAddress() ?: continue
-            val resolvedIps = when {
-                newHosts.containsKey(domain) -> null
-                resolvedHosts.containsKey(domain) -> resolvedHosts[domain]
-                else -> continue
-            }
+            if (newHosts.containsKey(domain)) continue
+            val resolvedIps = resolution.ips(domain) ?: continue
 
             item.ensureSockopt().domainStrategy = "UseIP"
             item.ensureSockopt().happyEyeballs = V2rayConfig.OutboundBean.StreamSettingsBean.HappyEyeballsBean(
                 prioritizeIPv6 = preferIpv6,
                 interleave = 2
             )
-            if (resolvedIps != null) {
-                newHosts[domain] = if (resolvedIps.size == 1) {
-                    resolvedIps[0]
-                } else {
-                    resolvedIps
-                }
+            newHosts[domain] = if (resolvedIps.size == 1) {
+                resolvedIps[0]
+            } else {
+                resolvedIps
             }
         }
 
         dns.hosts = newHosts
         LogUtil.d(
             AppConfig.TAG,
-            "DNS pre-resolution: outbounds=${proxyOutboundList.size}, unique=${pendingDomains.size}, resolved=${resolvedHosts.size}",
+            "DNS pre-resolution: outbounds=${proxyOutboundList.size}, unique=${pendingDomains.size}, " +
+                "fresh=${resolution.fresh.size}, cached=${resolution.cached.size}, unresolved=${resolution.unresolved.size}",
         )
-        val unresolvedDomains = pendingDomains.filterNot { resolvedHosts.containsKey(it) }
-        if (unresolvedDomains.isNotEmpty()) {
-            // Un domaine proxy non résolu serait résolu par le DoH distant routé via ce
-            // même proxy : deadlock DNS, aucun trafic. Refuser de démarrer est le seul
-            // comportement sûr.
-            val hosts = unresolvedDomains.joinToString(", ")
-            val message = "bootstrap DNS failed for $hosts, refusing to start to avoid DoH deadlock"
-            LogUtil.e(AppConfig.TAG, message)
-            error(message)
+
+        if (resolution.unresolved.isNotEmpty()) {
+            // Sans IP ni cache, le cœur démarre quand même : le domaine du serveur est
+            // résolu en direct (jamais via le proxy) par le module DNS de Xray, ce qui
+            // évite le deadlock DoH sans refuser la connexion.
+            v2rayConfig.routing.rules.add(
+                0,
+                V2rayConfig.RoutingBean.RulesBean(
+                    inboundTag = arrayListOf(AppConfig.TAG_DNS),
+                    domain = resolution.unresolved.map { "full:$it" },
+                    outboundTag = AppConfig.TAG_DIRECT,
+                ),
+            )
+            LogUtil.w(
+                AppConfig.TAG,
+                "DNS pre-resolution: ${resolution.unresolved.size} domain(s) unresolved, direct DNS fallback, starting anyway",
+            )
         }
     }
 

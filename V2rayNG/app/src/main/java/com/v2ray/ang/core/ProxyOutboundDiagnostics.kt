@@ -32,7 +32,7 @@ internal fun proxyOutboundDescriptor(configContent: String): ProxyOutboundDescri
     val outbounds = JsonParser.parseString(configContent)
         .takeIf { it.isJsonObject }
         ?.asJsonObject
-        ?.objectOrNull("outbounds")
+        ?.get("outbounds")
         ?.takeIf { it.isJsonArray }
         ?.asJsonArray
         ?: return@runCatching null

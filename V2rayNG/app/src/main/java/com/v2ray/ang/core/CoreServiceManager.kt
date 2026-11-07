@@ -71,6 +71,8 @@ object CoreServiceManager {
     private var currentGeneratedConfig: String? = null
     @Volatile
     private var proxyOutboundPort: Int? = null
+    @Volatile
+    private var startInProgress = false
     private var currentOutboundTags: Set<String> = emptySet()
     private var browserDialer: IDialerService? = null
     private var networkMonitor: NetworkMonitor? = null
@@ -144,32 +146,37 @@ object CoreServiceManager {
      * Starts the V2Ray core service.
      */
     suspend fun startCoreLoop(vpnInterface: ParcelFileDescriptor?): Boolean = lifecycleGate.start {
-        if (isRunning()) {
-            LogUtil.w(AppConfig.TAG, "StartCore-Manager: Core already running")
-            return@start false
-        }
-
-        val service = getService()
-        if (service == null) {
-            LogUtil.e(AppConfig.TAG, "StartCore-Manager: Service is null")
-            return@start false
-        }
-
+        startInProgress = true
         try {
-            userStopped = false
-            permanentFailure = false
-            failedFailoverProfiles.clear()
-            connectionVerified = false
-            doStartCoreLoop(service, vpnInterface)
-            true
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (e: Exception) {
-            val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
-            LogUtil.e(AppConfig.TAG, "StartCore-Manager: $message", e)
-            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
-            NotificationManager.cancelNotification()
-            false
+            if (isRunning()) {
+                LogUtil.w(AppConfig.TAG, "StartCore-Manager: Core already running")
+                return@start false
+            }
+
+            val service = getService()
+            if (service == null) {
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: Service is null")
+                return@start false
+            }
+
+            try {
+                userStopped = false
+                permanentFailure = false
+                failedFailoverProfiles.clear()
+                connectionVerified = false
+                doStartCoreLoop(service, vpnInterface)
+                true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: Exception) {
+                val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: $message", e)
+                MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
+                NotificationManager.cancelNotification()
+                false
+            }
+        } finally {
+            startInProgress = false
         }
     }
 
@@ -706,54 +713,71 @@ object CoreServiceManager {
      *
      * @return True if the core is running again.
      */
-    private suspend fun reloadCore(cancelConnectionChecks: Boolean = true): Boolean = lifecycleGate.start {
-        if (isReloading) return@start false
-        val service = getService() ?: return@start false
-        if (!isRunning()) return@start false
-
-        try {
-            val tunFd = currentVpnInterface
-
-            isReloading = true
-            connectionVerified = false
-            permanentFailure = false
-            if (cancelConnectionChecks) {
-                connectionVerificationJob?.cancel()
-                delayMeasurementJob?.cancel()
-                healthCheckJob?.cancel()
-                trafficStatsJob?.cancel()
+    private suspend fun reloadCore(cancelConnectionChecks: Boolean = true): Boolean {
+        // Aucune reconnexion ne doit démarrer pendant un démarrage : elle serait un
+        // second démarrage concurrent. Le plan fige aussi l'ordre des étapes.
+        val plan = planReconnect(startInProgress = startInProgress, tunnelRunning = isRunning())
+            ?: run {
+                LogUtil.i(AppConfig.TAG, "StartCore-Manager: reconnect skipped, a start is already in progress")
+                return false
             }
-            LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload start...")
-            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
-            NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_reconnecting), android.graphics.Color.rgb(245, 196, 81))
 
-            withContext(Dispatchers.IO) { coreController.stopLoop() }
-            launchCore(service, tunFd, isReload = true)
+        return lifecycleGate.start {
+            if (isReloading) return@start false
+            val service = getService() ?: return@start false
+            if (!isRunning()) return@start false
 
-            LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload finished")
-            true
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (e: Exception) {
-            val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
-            val profileGuid = MmkvManager.getSelectServer().orEmpty()
-            LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to reload core for profile $profileGuid: $message", e)
-            if (permanentFailure) {
-                val configurationMessage = service.getString(com.v2ray.ang.R.string.connection_configuration_failed)
-                MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, configurationMessage)
-                NotificationManager.updateState(
-                    configurationMessage,
-                    android.graphics.Color.rgb(239, 68, 68),
-                )
-                // The tunnel has no running core; stop it instead of black-holing traffic.
-                LauncherManager.stopService(service)
-            } else {
+            try {
+                val tunFd = currentVpnInterface
+
+                isReloading = true
+                connectionVerified = false
+                permanentFailure = false
+                if (cancelConnectionChecks) {
+                    connectionVerificationJob?.cancel()
+                    delayMeasurementJob?.cancel()
+                    healthCheckJob?.cancel()
+                    trafficStatsJob?.cancel()
+                }
+                DiagLog.step("reconnexion", "étapes=${plan.steps.joinToString(" > ")}")
+                LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload start...")
                 MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
-                if (shouldScheduleReconnect(userStopped, permanentFailure)) scheduleReconnect(service)
+                NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_reconnecting), android.graphics.Color.rgb(245, 196, 81))
+
+                // 1. Couper le tunnel précédent (le cœur qui le porte) avant toute résolution.
+                if (ReconnectStep.STOP_PREVIOUS_TUNNEL in plan.steps) {
+                    withContext(Dispatchers.IO) { coreController.stopLoop() }
+                    DiagLog.step("reconnexion: tunnel précédent coupé", "cœur arrêté avant résolution DNS")
+                }
+                // 2. Résoudre puis 3. redémarrer : launchCore construit la config (donc
+                //    pré-résout les domaines via le réseau sous-jacent) et relance le cœur.
+                launchCore(service, tunFd, isReload = true)
+
+                LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload finished")
+                true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: Exception) {
+                val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
+                val profileGuid = MmkvManager.getSelectServer().orEmpty()
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to reload core for profile $profileGuid: $message", e)
+                if (permanentFailure) {
+                    val configurationMessage = service.getString(com.v2ray.ang.R.string.connection_configuration_failed)
+                    MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, configurationMessage)
+                    NotificationManager.updateState(
+                        configurationMessage,
+                        android.graphics.Color.rgb(239, 68, 68),
+                    )
+                    // The tunnel has no running core; stop it instead of black-holing traffic.
+                    LauncherManager.stopService(service)
+                } else {
+                    MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
+                    if (shouldScheduleReconnect(userStopped, permanentFailure)) scheduleReconnect(service)
+                }
+                false
+            } finally {
+                isReloading = false
             }
-            false
-        } finally {
-            isReloading = false
         }
     }
 
