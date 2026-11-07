@@ -106,6 +106,9 @@
     <string name="dams_journal_empty">Aucune entrée dans le journal</string>
     <string name="dams_slogan">Une connexion. Des possibilités infinies.</string>
     <string name="dams_version_format">v%1$s</string>
+    <string name="dams_about_app_version">Version de l’application : %1$s (code : %2$d)</string>
+    <string name="dams_about_core_version">Version du cœur Xray : %1$s</string>
+    <string name="dams_about_base_version">Base : v2rayNG %1$s</string>
     <string name="dams_secure_connection">Connexion sécurisée</string>
     <string name="dams_privacy_protected">Votre vie privée est protégée</string>
     <string name="dams_tunnel_active">Tunnel actif</string>

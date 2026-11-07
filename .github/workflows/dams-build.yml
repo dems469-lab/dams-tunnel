@@ -60,6 +60,14 @@ jobs:
             17387858d760b6a24b7dc3805eaf8554fe5041f5356945e637fdcbe3cea455fa
           cp -r libs V2rayNG/app/
 
+      - name: Compute Dams version
+        id: dams_version
+        run: |
+          set -euo pipefail
+          base="$(sed -n 's/^damsVersionName=//p' V2rayNG/gradle.properties)"
+          test -n "$base"
+          echo "name=${base}+${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
       - name: Build signed release APKs
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -117,20 +125,20 @@ jobs:
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: dams-release-apks
+          name: DamsTunnel_${{ steps.dams_version.outputs.name }}_all-abis
           path: V2rayNG/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
 
       - name: Upload APK universel séparément
         uses: actions/upload-artifact@v4
         with:
-          name: dams-universal-apk
+          name: DamsTunnel_${{ steps.dams_version.outputs.name }}_universal
           path: V2rayNG/app/build/outputs/apk/playstore/release/*_universal.apk
           if-no-files-found: error
 
       - name: Upload APK arm64 séparément
         uses: actions/upload-artifact@v4
         with:
-          name: dams-arm64-apk
+          name: DamsTunnel_${{ steps.dams_version.outputs.name }}_arm64-v8a
           path: V2rayNG/app/build/outputs/apk/playstore/release/*_arm64-v8a.apk
           if-no-files-found: error

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.R
+import com.v2ray.ang.core.CoreNativeManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.ui.base.BaseViewModel
@@ -139,7 +140,10 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
             SettingsManager.isRootMode() -> "Root"
             else -> "Proxy"
         }
-        XrayConsole.event("System", "Dams Tunnel ${BuildConfig.VERSION_NAME}")
+        XrayConsole.event(
+            "System",
+            "DAMS TUNNEL ${BuildConfig.VERSION_NAME} / Xray ${CoreNativeManager.getLibVersion()}",
+        )
         XrayConsole.event("System", "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · ${Build.MODEL}")
         XrayConsole.event("System", "Mode: $mode")
     }

@@ -243,7 +243,7 @@ fun NavigationBarsBottomPadding(): PaddingValues {
 
 @Composable
 fun VersionInfoBlock(
-    versionText: String,
+    lines: List<String>,
     appIdText: String? = null,
     modifier: Modifier = Modifier
 ) {
@@ -253,7 +253,12 @@ fun VersionInfoBlock(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = versionText, style = MaterialTheme.typography.bodySmall)
+        lines.forEachIndexed { index, line ->
+            if (index > 0) {
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+            Text(text = line, style = MaterialTheme.typography.bodySmall)
+        }
         if (appIdText != null) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(text = appIdText, style = MaterialTheme.typography.bodySmall)

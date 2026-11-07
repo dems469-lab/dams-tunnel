@@ -64,7 +64,11 @@ fun AboutScreen(
     var showOssDialog by remember { mutableStateOf(false) }
 
     val libVersion = CoreNativeManager.getLibVersion()
-    val versionText = "v${BuildConfig.VERSION_NAME} ($libVersion)"
+    val versionLines = listOf(
+        stringResource(R.string.dams_about_app_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
+        stringResource(R.string.dams_about_core_version, libVersion),
+        stringResource(R.string.dams_about_base_version, BuildConfig.BASE_V2RAYNG_VERSION)
+    )
     val appIdText = BuildConfig.APPLICATION_ID
 
     Scaffold(
@@ -113,7 +117,7 @@ fun AboutScreen(
                 onClick = { Utils.openUri(context, AppConfig.APP_PRIVACY_POLICY) }
             )
             VersionInfoBlock(
-                versionText = versionText,
+                lines = versionLines,
                 appIdText = appIdText
             )
             NavigationBarsSpacer()

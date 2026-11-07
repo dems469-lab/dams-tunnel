@@ -14,6 +14,34 @@ val premiumDemoMode = premiumDemoModeProperty.toBooleanStrictOrNull()
 val premiumBaseUrls = providers.gradleProperty("premiumBaseUrls").orElse("").get()
 val premiumDebugBaseUrl = providers.gradleProperty("premiumDebugBaseUrl").orElse("").get()
 
+// Version Dams Tunnel : MAJEUR.MINEUR.CORRECTIF, définie uniquement dans gradle.properties.
+// La base amont reste visible dans « À propos » et ne sert plus de versionName.
+val damsVersionName = providers.gradleProperty("damsVersionName").get()
+val baseV2rayNgVersion = providers.gradleProperty("baseV2rayNgVersion").get()
+
+// versionCode : compteur de build. Le numéro de run GitHub Actions est prioritaire,
+// sinon le nombre de commits local. Chaque source est monotone.
+// L'offset conserve la monotonie face au dernier versionCode publié (751, base v2rayNG) :
+// sans lui, Android refuserait l'installation par-dessus l'application existante.
+val damsLegacyVersionCodeBase = 751
+val damsBuildCounter = providers.environmentVariable("GITHUB_RUN_NUMBER").orNull?.toIntOrNull()
+    ?: providers.provider {
+        runCatching {
+            providers.exec {
+                commandLine("git", "rev-list", "--count", "HEAD")
+            }.standardOutput.asText.get().trim().toInt()
+        }.getOrDefault(1)
+    }.get()
+val damsVersionCode = damsLegacyVersionCodeBase + damsBuildCounter
+
+// Suffixe affiché : hash court du commit sur le CI, « local » sinon.
+val damsVersionSuffix = if (providers.environmentVariable("GITHUB_ACTIONS").orNull.toBoolean()) {
+    providers.environmentVariable("GITHUB_SHA").orNull?.take(7) ?: "ci"
+} else {
+    "local"
+}
+val damsVersionFullName = "$damsVersionName+$damsVersionSuffix"
+
 fun buildConfigString(value: String): String =
     "\"${value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")}\""
 
@@ -25,8 +53,9 @@ android {
         applicationId = "com.v2ray.ang"
         minSdk = 24
         targetSdk = 37
-        versionCode = 751
-        versionName = "2.3.11"
+        versionCode = damsVersionCode
+        versionName = damsVersionFullName
+        buildConfigField("String", "BASE_V2RAYNG_VERSION", buildConfigString(baseV2rayNgVersion))
         buildConfigField("boolean", "PREMIUM_ENABLED", premiumEnabled.toString())
         buildConfigField("String", "PREMIUM_BASE_URLS", buildConfigString(premiumBaseUrls))
         buildConfigField("String", "PREMIUM_DEBUG_BASE_URL", buildConfigString(""))
