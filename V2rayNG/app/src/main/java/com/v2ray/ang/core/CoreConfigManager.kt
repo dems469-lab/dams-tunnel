@@ -217,7 +217,7 @@ object CoreConfigManager {
 
         applyObservability(v2rayConfig, balancerStrategies)
         applySpeedDisabled(v2rayConfig)
-        resolveOutboundDomainsToHosts(context, v2rayConfig)
+        resolveOutboundDomainsToHosts(configContext.context, v2rayConfig)
 
         return v2rayConfig
     }
