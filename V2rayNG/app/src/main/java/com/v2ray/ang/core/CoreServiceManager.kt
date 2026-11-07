@@ -34,6 +34,7 @@ import com.v2ray.ang.helper.MessageHelper
 import com.v2ray.ang.service.DialerNativeService
 import com.v2ray.ang.service.DialerWebviewService
 import com.v2ray.ang.service.NetworkMonitor
+import com.v2ray.ang.util.DiagLog
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import com.v2ray.ang.util.XrayConsole
@@ -68,6 +69,8 @@ object CoreServiceManager {
     private var receiverRegistered = false
     private var currentConfig: ProfileItem? = null
     private var currentGeneratedConfig: String? = null
+    @Volatile
+    private var proxyOutboundPort: Int? = null
     private var currentOutboundTags: Set<String> = emptySet()
     private var browserDialer: IDialerService? = null
     private var networkMonitor: NetworkMonitor? = null
@@ -208,8 +211,17 @@ object CoreServiceManager {
         currentOutboundTags = outboundTagsFromConfig(result.content)
         currentGeneratedConfig = result.content
 
+        val proxyOutbound = proxyOutboundDescriptor(result.content)
+        proxyOutboundPort = proxyOutbound?.port
+        DiagLog.step(
+            "config générée",
+            "profile=$guid type=${config.configType.name} taille=${result.content.length}",
+        )
+        proxyOutbound?.let { DiagLog.step("outbound proxy", it.toLogLine()) }
+
         currentConfig = config
-        var tunFd = vpnInterface?.fd ?: 0
+        val vpnFd = readTunFd(vpnInterface)
+        var tunFd = vpnFd
         val dialerMode = BrowserDialerMode.from(config.browserDialerMode)
         val dialerAddr = if (dialerMode != null) {
             "127.0.0.1:${Utils.findRandomFreePort()}"
@@ -218,6 +230,17 @@ object CoreServiceManager {
         }
         if (SettingsManager.isUsingHevTun()) {
             tunFd = 0
+        }
+        if (vpnInterface != null) {
+            DiagLog.step(
+                "TUN établi",
+                "vpnFd=$vpnFd coreTunFd=$tunFd hev=${SettingsManager.isUsingHevTun()}",
+            )
+        } else {
+            DiagLog.step("TUN absent", "mode sans interface VPN coreTunFd=$tunFd")
+        }
+        if (vpnInterface != null && SettingsManager.isUsingHevTun()) {
+            DiagLog.step("HEV démarré", "vpnFd=$vpnFd (relais démarré avant le cœur)")
         }
 
         NotificationManager.showNotification(currentConfig)
@@ -234,6 +257,10 @@ object CoreServiceManager {
         if (!isRunning()) {
             error("Core failed to start")
         }
+        DiagLog.step(
+            "cœur démarré",
+            "profile=$guid coreTunFd=$tunFd dialer=${dialerMode?.name ?: "aucun"}",
+        )
 
         if (browserDialer != null) {
             browserDialer!!.stop()
@@ -373,27 +400,53 @@ object CoreServiceManager {
      * exceed the configured budget when JNI does not react to coroutine cancellation.
      */
     private fun measureDelayWithTimeout(url: String, timeoutMillis: Long): Long {
+        val boundedTimeout = timeoutMillis.coerceAtLeast(1L)
+        val startedAtNanos = System.nanoTime()
+        DiagLog.step(
+            "sonde lancée",
+            "url=$url proxy=${AppConfig.TAG_PROXY} port=${proxyOutboundPort ?: -1} limiteMs=$boundedTimeout",
+        )
         val future = delayProbeExecutor.submit<Long> { coreController.measureDelay(url) }
         return try {
-            future.get(timeoutMillis.coerceAtLeast(1L), TimeUnit.MILLISECONDS)
+            val delayMillis = future.get(boundedTimeout, TimeUnit.MILLISECONDS)
+            DiagLog.step(
+                "sonde terminée",
+                "url=$url dureeMs=${elapsedMillisSince(startedAtNanos)} resultatMs=$delayMillis",
+            )
+            delayMillis
         } catch (e: TimeoutException) {
             future.cancel(true)
+            DiagLog.step(
+                "sonde échouée",
+                "url=$url dureeMs=${elapsedMillisSince(startedAtNanos)} cause=timeout limiteMs=$boundedTimeout",
+            )
             LogUtil.w(
                 AppConfig.TAG,
-                "StartCore-Manager: delay probe timed out after ${timeoutMillis.coerceAtLeast(1L)}ms",
+                "StartCore-Manager: delay probe timed out after ${boundedTimeout}ms",
             )
             -1L
         } catch (e: InterruptedException) {
             future.cancel(true)
             throw CancellationException("Delay probe interrupted")
         } catch (e: ExecutionException) {
+            DiagLog.exception(
+                "sonde échouée url=$url dureeMs=${elapsedMillisSince(startedAtNanos)}",
+                e.cause ?: e,
+            )
             LogUtil.w(AppConfig.TAG, "StartCore-Manager: delay probe failed", e.cause ?: e)
             -1L
         } catch (e: Exception) {
+            DiagLog.exception(
+                "sonde échouée url=$url dureeMs=${elapsedMillisSince(startedAtNanos)}",
+                e,
+            )
             LogUtil.w(AppConfig.TAG, "StartCore-Manager: delay probe failed", e)
             -1L
         }
     }
+
+    private fun elapsedMillisSince(startedAtNanos: Long): Long =
+        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos)
 
     // At most 3 probes run in parallel. Cached pools are unbounded and let
     // dozens of dials pile up during startup, which is what produced the
@@ -583,6 +636,7 @@ object CoreServiceManager {
         trafficStatsJob = null
         _trafficSnapshot.value = TrafficSnapshot()
         currentGeneratedConfig = null
+        proxyOutboundPort = null
         val service = getService() ?: return@stop false
 
         networkMonitor?.unregister()
@@ -799,6 +853,25 @@ object CoreServiceManager {
      */
     private fun getService(): Service? {
         return serviceControl?.get()?.getService()
+    }
+
+    /**
+     * Lit le descripteur TUN. Une lecture sur un [ParcelFileDescriptor] déjà fermé lève
+     * `IllegalStateException("Already closed")` : la pile complète et le nom de la ressource
+     * sont journalisés avant de propager l'exception à l'appelant.
+     */
+    private fun readTunFd(vpnInterface: ParcelFileDescriptor?): Int {
+        if (vpnInterface == null) return 0
+        return try {
+            vpnInterface.fd
+        } catch (e: IllegalStateException) {
+            DiagLog.exception(
+                context = "accès TUN fd",
+                error = e,
+                resource = "ParcelFileDescriptor(vpnInterface VPN)",
+            )
+            throw e
+        }
     }
 
     /**

@@ -6,6 +6,7 @@ import com.v2ray.ang.AppConfig
 import com.v2ray.ang.contracts.Tun2SocksControl
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
+import com.v2ray.ang.util.DiagLog
 import com.v2ray.ang.util.LogUtil
 import java.io.File
 
@@ -54,10 +55,12 @@ class TProxyService(
         LogUtil.d(AppConfig.TAG, "HevSocks5Tunnel configuration prepared")
 
         return try {
-            val fd = vpnInterface.fd
+            val fd = readTunFd()
             val socksPort = SettingsManager.getSocksPort()
+            DiagLog.step("HEV démarrage", "tunFd=$fd socksPort=$socksPort")
             LogUtil.d(AppConfig.TAG, "StartCore-VPN: starting HEV TUN fd=$fd port=$socksPort")
             if (fd < 0) {
+                DiagLog.step("HEV échec", "tunFd=$fd socksPort=$socksPort cause=fd-invalide")
                 LogUtil.e(AppConfig.TAG, "StartCore-VPN: HevSocks5Tunnel start refused: invalid fd=$fd port=$socksPort")
                 return false
             }
@@ -68,14 +71,36 @@ class TProxyService(
             }
             val started = TProxyStartService(configFile.absolutePath, fd)
             if (!started) {
+                DiagLog.step("HEV échec", "tunFd=$fd socksPort=$socksPort started=false running=${isHevRunning()}")
                 LogUtil.e(AppConfig.TAG, "StartCore-VPN: HevSocks5Tunnel refused to start fd=$fd port=$socksPort")
+            } else {
+                DiagLog.step("HEV démarré", "tunFd=$fd socksPort=$socksPort running=${isHevRunning()}")
             }
             started
         } catch (e: Exception) {
+            DiagLog.exception("HEV exception", e, resource = "hev-socks5-tunnel")
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: HevSocks5Tunnel exception: ${e.message}", e)
             false
         }
     }
+
+    /**
+     * Lit le descripteur TUN. Un descripteur déjà fermé lève
+     * `IllegalStateException("Already closed")` : la pile complète et le nom de la ressource
+     * sont journalisés avant de propager l'exception.
+     */
+    private fun readTunFd(): Int = try {
+        vpnInterface.fd
+    } catch (e: IllegalStateException) {
+        DiagLog.exception(
+            context = "accès TUN fd",
+            error = e,
+            resource = "ParcelFileDescriptor(mInterface VPN)",
+        )
+        throw e
+    }
+
+    private fun isHevRunning(): Boolean = runCatching { TProxyIsRunning() }.getOrDefault(false)
 
     private fun buildConfig(): String {
         val socksPort = SettingsManager.getSocksPort()
