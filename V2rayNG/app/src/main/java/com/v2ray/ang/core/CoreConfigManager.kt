@@ -1113,11 +1113,13 @@ object CoreConfigManager {
         )
         val unresolvedDomains = pendingDomains.filterNot { resolvedHosts.containsKey(it) }
         if (unresolvedDomains.isNotEmpty()) {
-            LogUtil.w(
-                AppConfig.TAG,
-                "DNS pre-resolution incomplete: ${unresolvedDomains.size}/${pendingDomains.size} proxy domains unresolved $unresolvedDomains; " +
-                    "remote DNS routed through the proxy may fail until they resolve",
-            )
+            // Un domaine proxy non résolu serait résolu par le DoH distant routé via ce
+            // même proxy : deadlock DNS, aucun trafic. Refuser de démarrer est le seul
+            // comportement sûr.
+            val hosts = unresolvedDomains.joinToString(", ")
+            val message = "bootstrap DNS failed for $hosts, refusing to start to avoid DoH deadlock"
+            LogUtil.e(AppConfig.TAG, message)
+            error(message)
         }
     }
 
