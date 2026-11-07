@@ -33,7 +33,7 @@ class ServerAddressResolverTest {
             NetworkCandidate(id = 3, isVpn = false, hasInternet = true, isValidated = true),
         )
 
-        assertEquals(3, selectUnderlyingNetwork(candidates)?.id)
+        assertEquals(3L, selectUnderlyingNetwork(candidates)?.id)
         assertNull(selectUnderlyingNetwork(listOf(NetworkCandidate(1, true, true, true))))
         assertNull(selectUnderlyingNetwork(listOf(NetworkCandidate(2, false, false, true))))
     }
