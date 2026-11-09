@@ -36,6 +36,7 @@ import com.v2ray.ang.service.NetworkMonitor
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import com.v2ray.ang.util.XrayConsole
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -62,7 +63,15 @@ object CoreServiceManager {
     private var currentOutboundTags: Set<String> = emptySet()
     private var browserDialer: IDialerService? = null
     private var networkMonitor: NetworkMonitor? = null
-    private val connectionTestScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    /**
+     * Une exception non rattrapée dans une coroutine détachée atteint le handler
+     * global du thread et tue le processus daemon (FATAL EXCEPTION). On la journalise
+     * au lieu de laisser mourir le service.
+     */
+    private val coreCoroutineErrorHandler = CoroutineExceptionHandler { _, throwable ->
+        LogUtil.e(AppConfig.TAG, "StartCore-Manager: uncaught error in core coroutine", throwable)
+    }
+    private val connectionTestScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + coreCoroutineErrorHandler)
     private val _trafficSnapshot = MutableStateFlow(TrafficSnapshot())
     val trafficSnapshot: StateFlow<TrafficSnapshot> = _trafficSnapshot.asStateFlow()
     private var trafficStatsJob: kotlinx.coroutines.Job? = null
@@ -320,45 +329,58 @@ object CoreServiceManager {
     private fun scheduleReconnect(service: Service) {
         if (userStopped || reconnectJob?.isActive == true) return
         reconnectJob = connectionTestScope.launch {
-            // Première tentative rapide ; le backoff augmente seulement si le réseau
-            // reste réellement indisponible.
-            val backoff = longArrayOf(1_000L, 3_000L, 8_000L, 20_000L)
-            while (isActive && !userStopped && !connectionVerified) {
-                val wait = backoff[reconnectAttempt.coerceAtMost(backoff.lastIndex)]
-                reconnectAttempt++
-                delay(wait)
-                if (userStopped) return@launch
-                val currentService = getService() ?: return@launch
-                MessageHelper.sendMsg2UI(currentService, AppConfig.MSG_STATE_RECONNECTING, "")
-                NotificationManager.updateState(
-                    currentService.getString(com.v2ray.ang.R.string.connection_reconnecting),
-                    android.graphics.Color.rgb(245, 196, 81),
-                )
-                val previousVerification = connectionVerificationJob
-                try {
-                    if (isRunning()) {
-                        // Borne chaque rechargement : un appel natif bloqué ne doit
-                        // pas empêcher les tentatives suivantes.
-                        kotlinx.coroutines.withTimeoutOrNull(12_000L) {
-                            reloadCore(cancelConnectionChecks = false)
-                        }
-                    } else {
-                        LauncherManager.startService(currentService)
+            // Une exception qui s'échappe d'une coroutine détachée atteint le
+            // handler global du thread et tue le processus daemon (FATAL
+            // EXCEPTION). On la journalise et on arrête proprement la boucle.
+            try {
+                runReconnectLoop()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: Exception) {
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: reconnect loop aborted", e)
+            }
+        }
+    }
+
+    private suspend fun CoroutineScope.runReconnectLoop() {
+        // Première tentative rapide ; le backoff augmente seulement si le réseau
+        // reste réellement indisponible.
+        val backoff = longArrayOf(1_000L, 3_000L, 8_000L, 20_000L)
+        while (isActive && !userStopped && !connectionVerified) {
+            val wait = backoff[reconnectAttempt.coerceAtMost(backoff.lastIndex)]
+            reconnectAttempt++
+            delay(wait)
+            if (userStopped) return
+            val currentService = getService() ?: return
+            MessageHelper.sendMsg2UI(currentService, AppConfig.MSG_STATE_RECONNECTING, "")
+            NotificationManager.updateState(
+                currentService.getString(com.v2ray.ang.R.string.connection_reconnecting),
+                android.graphics.Color.rgb(245, 196, 81),
+            )
+            val previousVerification = connectionVerificationJob
+            try {
+                if (isRunning()) {
+                    // Borne chaque rechargement : un appel natif bloqué ne doit
+                    // pas empêcher les tentatives suivantes.
+                    kotlinx.coroutines.withTimeoutOrNull(12_000L) {
+                        reloadCore(cancelConnectionChecks = false)
                     }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    // Keep retrying after a transient launcher or core error.
+                } else {
+                    LauncherManager.startService(currentService)
                 }
-                // Wait only for the probe started by this attempt. The old loop
-                // polled connectionVerified for up to 60 s after a failed probe,
-                // preventing this still-active job from scheduling the next retry.
-                if (!connectionVerified && !userStopped) {
-                    awaitNextReconnectVerification(
-                        previousJob = previousVerification,
-                        currentJob = { connectionVerificationJob },
-                    )
-                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Keep retrying after a transient launcher or core error.
+            }
+            // Wait only for the probe started by this attempt. The old loop
+            // polled connectionVerified for up to 60 s after a failed probe,
+            // preventing this still-active job from scheduling the next retry.
+            if (!connectionVerified && !userStopped) {
+                awaitNextReconnectVerification(
+                    previousJob = previousVerification,
+                    currentJob = { connectionVerificationJob },
+                )
             }
         }
     }
@@ -543,11 +565,17 @@ object CoreServiceManager {
 
             isReloading = true
             connectionVerified = false
+            // Toujours annuler les sondes en vol *avant* stopLoop() : une sonde qui
+            // survit à l'arrêt du core échoue sur "io: read/write on closed pipe".
+            connectionVerificationJob?.cancel()
+            connectionVerificationJob = null
+            delayMeasurementJob?.cancel()
+            delayMeasurementJob = null
             if (cancelConnectionChecks) {
-                connectionVerificationJob?.cancel()
-                delayMeasurementJob?.cancel()
                 healthCheckJob?.cancel()
+                healthCheckJob = null
                 trafficStatsJob?.cancel()
+                trafficStatsJob = null
             }
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload start...")
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")

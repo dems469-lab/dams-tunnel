@@ -50,8 +50,12 @@ object NotificationManager {
     }
 
     fun updateState(text: String, color: Int) {
-        mBuilder?.setContentText(text)?.setColor(color)
-        getNotificationManager()?.notify(NOTIFICATION_ID, mBuilder?.build())
+        // notify(int, Notification) lance une NPE si la notification est nulle :
+        // après un arrêt ou une reprise du service, le builder peut ne pas être prêt.
+        val builder = mBuilder ?: return
+        builder.setContentText(text).setColor(color)
+        val notification = builder.build() ?: return
+        getNotificationManager()?.notify(NOTIFICATION_ID, notification)
     }
 
     /**
