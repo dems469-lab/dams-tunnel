@@ -64,7 +64,20 @@ jobs:
         working-directory: V2rayNG
         run: |
           set -euo pipefail
-          ./gradlew testPlaystoreReleaseUnitTest --tests "com.v2ray.ang.core.ShadowsocksConfigValidatorTest"
+          # Les noms de tâches unitaires varient selon la version d'AGP : on
+          # découvre celle du variant Play Store au lieu de la coder en dur.
+          ./gradlew -q :app:tasks --all 2>/dev/null | grep -Eo 'test[A-Za-z0-9]*UnitTest' | sort -u > /tmp/unit_tasks.txt || true
+          echo "Tâches unitaires disponibles :"; cat /tmp/unit_tasks.txt || true
+          task="$(grep -i 'playstore' /tmp/unit_tasks.txt | head -1 || true)"
+          if [ -z "$task" ]; then
+            task="$(head -1 /tmp/unit_tasks.txt || true)"
+          fi
+          echo "Tâche utilisée : ${task:-introuvable}"
+          if [ -z "$task" ]; then
+            echo "::error title=Tâche de tests introuvable::Aucune tâche unit test n'a été trouvée."
+            exit 1
+          fi
+          ./gradlew "$task" --tests "com.v2ray.ang.core.ShadowsocksConfigValidatorTest"
 
       - name: Build signed release APKs
         env:
