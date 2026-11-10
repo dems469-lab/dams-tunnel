@@ -62,7 +62,6 @@ import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -458,26 +457,6 @@ private fun PowerOrb(
                 center = center,
                 style = Stroke(width = 1.6f.dp.toPx()),
             )
-            val sweep = when (state) {
-                HomePowerState.Connected -> 120f
-                HomePowerState.Connecting, HomePowerState.Reconnecting -> 80f
-                HomePowerState.Error -> 300f
-                HomePowerState.Disconnected -> 60f
-            }
-            rotate(rotation, center) {
-                drawArc(
-                    brush = Brush.sweepGradient(
-                        listOf(Color.Transparent, orbColor.copy(alpha = 0.95f), Color.Transparent),
-                        center = center,
-                    ),
-                    startAngle = 0f,
-                    sweepAngle = sweep,
-                    useCenter = false,
-                    topLeft = Offset(center.x - outer, center.y - outer),
-                    size = Size(outer * 2f, outer * 2f),
-                    style = Stroke(width = 2.6f.dp.toPx(), cap = StrokeCap.Round),
-                )
-            }
             // Second anneau, plus discret.
             drawCircle(
                 color = orbColor.copy(alpha = 0.10f + 0.12f * breath),
@@ -522,6 +501,34 @@ private fun PowerOrb(
                 radius = outer * 0.66f,
                 center = center,
                 style = Stroke(width = 2.dp.toPx()),
+            )
+        }
+        // Arc lumineux tournant : calque séparé, pivoté sans toucher au dessin
+        // statique (coût nul quand les animations sont désactivées).
+        Canvas(
+            modifier = Modifier
+                .size(248.dp)
+                .graphicsLayer { rotationZ = rotation }
+        ) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val outer = size.minDimension / 2f - 2f
+            val sweep = when (state) {
+                HomePowerState.Connected -> 120f
+                HomePowerState.Connecting, HomePowerState.Reconnecting -> 80f
+                HomePowerState.Error -> 300f
+                HomePowerState.Disconnected -> 60f
+            }
+            drawArc(
+                brush = Brush.sweepGradient(
+                    listOf(Color.Transparent, orbColor.copy(alpha = 0.95f), Color.Transparent),
+                    center = center,
+                ),
+                startAngle = 0f,
+                sweepAngle = sweep,
+                useCenter = false,
+                topLeft = Offset(center.x - outer, center.y - outer),
+                size = Size(outer * 2f, outer * 2f),
+                style = Stroke(width = 2.6f.dp.toPx(), cap = StrokeCap.Round),
             )
         }
         Icon(
