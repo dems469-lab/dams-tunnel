@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -322,29 +323,29 @@ fun MainScreen(
             floatingActionButton = {},
         ) { innerPadding ->
             when (selectedTab) {
-                DamsTab.Home -> DamsDashboard(
+                DamsTab.Home -> DamsHomeScreen(
                     contentPadding = innerPadding,
-                    displayText = displayText,
-                    isRunning = isRunning,
-                    isConnected = isConnected,
+                    connectionSubtitle = stringResource(
+                        connectionSubtitleRes(uiState.status, uiState.perAppProxyEnabled)
+                    ),
+                    powerState = homePowerState(uiState.status, uiState.isRunning, uiState.diagnostic),
                     canStopService = canStopService,
-                    groupName = groups.firstOrNull { it.id == uiState.selectedGroupId }
-                        ?.let { groupDisplayName(it) },
-                    selectedServerName = selectedServer?.profile?.remarks,
-                    selectedServerAddress = selectedServer?.profile?.server,
-                    protocolName = selectedServer?.profile?.configType?.protocolScheme?.uppercase(),
-                    // L'accueil n'affiche que le ping de la session active, jamais
-                    // le dernier résultat de test enregistré dans le profil.
+                    serverAlias = publicServerAlias(
+                        selectedServer?.profile?.remarks,
+                        stringResource(R.string.dams_no_server_selected),
+                    ),
+                    hasServer = selectedServer?.profile != null,
+                    // Seul le ping de la session active est affiché, jamais le
+                    // dernier résultat de test enregistré dans le profil.
                     delayMillis = homeSessionPing(uiState.isRunning, uiState.connectionDelayMillis),
                     downloadBytesPerSecond = traffic.downlinkBytesPerSecond,
                     uploadBytesPerSecond = traffic.uplinkBytesPerSecond,
                     trafficAvailable = traffic.available,
-                    mobileDailyUplinkBytes = traffic.mobileDailyUplinkBytes,
-                    mobileDailyDownlinkBytes = traffic.mobileDailyDownlinkBytes,
+                    sessionTotalBytes = traffic.uplinkTotalBytes + traffic.downlinkTotalBytes,
+                    mobileDailyBytes = traffic.mobileDailyUplinkBytes + traffic.mobileDailyDownlinkBytes,
                     trafficHistory = uiState.trafficHistory,
                     mobileIp = uiState.mobileIp,
                     diagnostic = uiState.diagnostic,
-                    connectionSubtitle = stringResource(connectionSubtitleRes(uiState.status, uiState.perAppProxyEnabled)),
                     autoSwitchDefaultServer = autoSwitchDefaultServer,
                     onAutoSwitchDefaultServerChange = { autoSwitchDefaultServer = it },
                     onOpenServers = { selectedTab = DamsTab.Configs },
@@ -433,47 +434,103 @@ private enum class DamsTab {
 
 @Composable
 private fun DamsNavigationBar(selected: DamsTab, onSelect: (DamsTab) -> Unit) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = DamsTheme.navigationSurfaceAlpha)) {
-        listOf(
-            Triple(DamsTab.Home, R.drawable.ic_home_24dp, R.string.dams_tab_home),
-            Triple(DamsTab.Configs, R.drawable.ic_subscriptions_24dp, R.string.dams_tab_configs),
-            Triple(DamsTab.IpFinder, R.drawable.ic_ip_finder_24dp, R.string.dams_tab_ip_finder),
-            Triple(DamsTab.Settings, R.drawable.ic_settings_24dp, R.string.title_settings),
-        ).forEach { (tab, icon, label) ->
-            NavigationBarItem(
-                selected = selected == tab,
-                onClick = { onSelect(tab) },
-                icon = { Icon(painterResource(icon), contentDescription = null) },
-                label = { Text(stringResource(label), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            )
+    val theme = DamsTheme
+    Column {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color.Transparent,
+                            theme.accent.copy(alpha = 0.55f),
+                            Color.Transparent,
+                        )
+                    )
+                )
+        )
+        NavigationBar(
+            containerColor = theme.fond.copy(alpha = theme.navigationSurfaceAlpha),
+            tonalElevation = 0.dp,
+        ) {
+            listOf(
+                Triple(DamsTab.Home, R.drawable.ic_home_24dp, R.string.dams_tab_home),
+                Triple(DamsTab.Configs, R.drawable.ic_subscriptions_24dp, R.string.dams_tab_configs),
+                Triple(DamsTab.IpFinder, R.drawable.ic_ip_finder_24dp, R.string.dams_tab_ip_finder),
+                Triple(DamsTab.Settings, R.drawable.ic_settings_24dp, R.string.title_settings),
+            ).forEach { (tab, icon, label) ->
+                val isSelected = selected == tab
+                NavigationBarItem(
+                    selected = isSelected,
+                    onClick = { onSelect(tab) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = theme.accent,
+                        selectedTextColor = theme.accent,
+                        indicatorColor = theme.accent.copy(alpha = 0.14f),
+                        unselectedIconColor = theme.texteDoux,
+                        unselectedTextColor = theme.texteDoux,
+                    ),
+                    icon = {
+                        Icon(
+                            painter = painterResource(icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(damsNavigationIconSize(isSelected)),
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = stringResource(label),
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                )
+            }
         }
     }
 }
 
+private fun damsNavigationIconSize(selected: Boolean) = if (selected) 25.dp else 23.dp
+
 @Composable
 private fun DamsHeader(onMenuClick: () -> Unit, onOpenJournal: () -> Unit) {
     var showMoreMenu by remember { mutableStateOf(false) }
-    Surface(color = MaterialTheme.colorScheme.background.copy(alpha = DamsTheme.headerSurfaceAlpha)) {
+    val theme = DamsTheme
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        theme.fond.copy(alpha = theme.headerSurfaceAlpha),
+                        theme.fond.copy(alpha = theme.headerSurfaceAlpha * 0.55f),
+                    )
+                )
+            )
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 8.dp)
-                .padding(top = 10.dp, bottom = 14.dp),
+                .padding(horizontal = 10.dp)
+                .padding(top = 6.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box {
-                IconButton(onClick = { showMoreMenu = true }, modifier = Modifier.size(48.dp)) {
+                IconButton(onClick = { showMoreMenu = true }, modifier = Modifier.size(44.dp)) {
                     Icon(
                         painter = painterResource(R.drawable.ic_more_vert_24dp),
                         contentDescription = stringResource(R.string.acc_more),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = theme.accent,
                     )
                 }
                 DropdownMenu(
                     expanded = showMoreMenu,
                     onDismissRequest = { showMoreMenu = false },
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = theme.surface,
                 ) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.title_logcat)) },
@@ -481,6 +538,7 @@ private fun DamsHeader(onMenuClick: () -> Unit, onOpenJournal: () -> Unit) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_logcat_24dp),
                                 contentDescription = null,
+                                tint = theme.accent,
                             )
                         },
                         onClick = {
@@ -490,480 +548,64 @@ private fun DamsHeader(onMenuClick: () -> Unit, onOpenJournal: () -> Unit) {
                     )
                 }
             }
-            IconButton(onClick = onMenuClick, modifier = Modifier.size(48.dp)) {
+            IconButton(onClick = onMenuClick, modifier = Modifier.size(44.dp)) {
                 Icon(
                     painter = painterResource(R.drawable.ic_menu_24dp),
                     contentDescription = stringResource(R.string.acc_open_menu),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = theme.accent,
                 )
             }
-            Image(
-                painter = painterResource(R.mipmap.ic_launcher_foreground),
-                contentDescription = null,
-                modifier = Modifier.size(44.dp).clip(CircleShape),
-            )
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(theme.accent.copy(alpha = 0.10f), CircleShape)
+                    .border(1.dp, theme.accent.copy(alpha = 0.45f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(
+                    painter = painterResource(R.mipmap.ic_launcher_foreground),
+                    contentDescription = null,
+                    modifier = Modifier.size(38.dp).clip(CircleShape),
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 10.dp)
+            ) {
                 Text(
                     text = stringResource(R.string.app_name).uppercase(),
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    color = theme.accent,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Black,
                     letterSpacing = 3.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = stringResource(R.string.dams_version_format, BuildConfig.VERSION_NAME),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
+                    color = theme.texteDoux,
+                    fontSize = 10.5.sp,
+                    maxLines = 1,
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun DamsDashboard(
-    contentPadding: PaddingValues,
-    displayText: String,
-    isRunning: Boolean,
-    isConnected: Boolean,
-    canStopService: Boolean,
-    groupName: String?,
-    selectedServerName: String?,
-    selectedServerAddress: String?,
-    protocolName: String?,
-    delayMillis: Long?,
-    downloadBytesPerSecond: Long,
-    uploadBytesPerSecond: Long,
-    trafficAvailable: Boolean,
-    mobileDailyUplinkBytes: Long,
-    mobileDailyDownlinkBytes: Long,
-    trafficHistory: List<com.v2ray.ang.dto.TrafficSnapshot>,
-    mobileIp: String?,
-    diagnostic: ConnectionDiagnostic?,
-    connectionSubtitle: String,
-    autoSwitchDefaultServer: Boolean,
-    onAutoSwitchDefaultServerChange: (Boolean) -> Unit,
-    onOpenServers: () -> Unit,
-    onOpenIpFinder: () -> Unit,
-    onToggleConnection: () -> Unit,
-) {
-    val powerActionLabel = stringResource(if (canStopService) R.string.acc_stop else R.string.acc_start)
-    val serverSummary = if (selectedServerAddress.isNullOrBlank()) {
-        stringResource(R.string.dams_select_server_prompt)
-    } else {
-        // The target address is sensitive metadata.  It must not be exposed on the
-        // dashboard or accidentally captured in a screenshot.
-        stringResource(R.string.dams_connection_details_hidden)
-    }
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
-    val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
-    val theme = DamsTheme
-    val context = LocalContext.current
-    val powerSaveMode = remember(context) {
-        (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode ?: false
-    }
-    val particlesActive = resumed && theme.animationsEnabled && theme.particules && !powerSaveMode
-    val particlePhase = if (particlesActive) {
-        rememberInfiniteTransition(label = "themeParticles").animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(theme.respirationMillis * 3, easing = LinearEasing),
-            ),
-            label = "particlePhase",
-        ).value
-    } else 0f
-    val shimmerPhase = if (resumed && theme.animationsEnabled && theme.shimmerAlpha > 0f) {
-        rememberInfiniteTransition(label = "goldButtonShimmer").animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(theme.shimmerMillis, easing = LinearEasing),
-            ),
-            label = "goldShimmerPhase",
-        ).value
-    } else null
-    val haptic = LocalHapticFeedback.current
-    var previouslyConnected by remember { mutableStateOf(isConnected) }
-    LaunchedEffect(isConnected, theme.style) {
-        if (isConnected && !previouslyConnected && theme.style == "organic") {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        }
-        previouslyConnected = isConnected
-    }
-    val ringAlpha: Float
-    val ringScale: Float
-    val powerScale: Float
-    val statusDotAlpha: Float
-    if (resumed && isConnected && theme.animationsEnabled) {
-        val transition = rememberInfiniteTransition(label = "connectedPulse")
-        ringAlpha = transition.animateFloat(
-            initialValue = theme.ringAlphaMax,
-            targetValue = theme.ringAlphaMin,
-            animationSpec = infiniteRepeatable(
-                animation = tween(theme.respirationMillis, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-            label = "ringAlpha",
-        ).value
-        ringScale = transition.animateFloat(
-            initialValue = theme.ringScaleMin,
-            targetValue = theme.ringScaleMax,
-            animationSpec = infiniteRepeatable(
-                animation = tween(theme.respirationMillis, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-            label = "ringScale",
-        ).value
-        powerScale = 1f
-        statusDotAlpha = transition.animateFloat(
-            initialValue = theme.statusPulseMinAlpha,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(theme.ondeMillis, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-            label = "connectedStatusPulse",
-        ).value
-    } else if (resumed && !isRunning && theme.animationsEnabled) {
-        val transition = rememberInfiniteTransition(label = "idlePowerBreath")
-        powerScale = transition.animateFloat(
-            initialValue = 1f,
-            targetValue = theme.idlePowerScaleMax,
-            animationSpec = infiniteRepeatable(
-                animation = tween(theme.respirationMillis, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-            label = "idlePowerScale",
-        ).value
-        ringAlpha = 0f
-        ringScale = 1f
-        statusDotAlpha = 1f
-    } else {
-        ringAlpha = if (isConnected) theme.ringAlphaMid else 0f
-        ringScale = 1f
-        powerScale = 1f
-        statusDotAlpha = 1f
-    }
-    val waveFactor = if (theme.style == "fluid" && particlesActive) {
-        sin(particlePhase * 6.283f) * theme.waveAmplitude
-    } else 0f
-    val borderColor = if (isConnected) theme.succes else theme.bordure
-    val borderWidth by animateDpAsState(
-        targetValue = if (isConnected) 2.dp else 1.dp,
-        animationSpec = tween(if (theme.animationsEnabled) theme.ondeMillis else 0),
-        label = "borderWidth",
-    )
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(contentPadding)
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        theme.fondRadial.copy(alpha = theme.backgroundRadialAlpha),
-                        theme.fond,
-                        MaterialTheme.colorScheme.background,
-                    )
-                )
-            )
-            .drawBehind {
-                if (theme.style == "fluid" && particlesActive) {
-                    val gradientOffset = (particlePhase * 2f - 1f) * size.height
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                theme.fondRadial.copy(alpha = theme.backgroundRadialAlpha),
-                                Color.Transparent,
-                            ),
-                            startY = gradientOffset,
-                            endY = gradientOffset + size.height,
-                        ),
-                    )
-                }
-                if (particlesActive) {
-                    repeat(10) { index ->
-                        val xFraction = ((index * 37) % 97 + 1) / 100f
-                        val yFraction = (particlePhase + index * 0.137f) % 1f
-                        val shimmer = kotlin.math.abs(sin((particlePhase + index * 0.19f) * 6.283f))
-                        drawCircle(
-                            color = theme.accentClair.copy(
-                                alpha = theme.particleAlphaMin + shimmer * (theme.particleAlphaMax - theme.particleAlphaMin)
-                            ),
-                            radius = theme.particleRadiusDp.dp.toPx(),
-                            center = androidx.compose.ui.geometry.Offset(xFraction * size.width, yFraction * size.height),
-                        )
-                    }
-                }
-            }
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = stringResource(R.string.dams_slogan),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 4.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(236.dp)
-                    .graphicsLayer { scaleX = 1f + waveFactor; scaleY = 1f - waveFactor }
-                    .border(1.dp, theme.accent.copy(alpha = theme.ringAlphaMin), CircleShape)
-            )
-            Box(
-                modifier = Modifier
-                    .size(214.dp)
-                    .graphicsLayer { scaleX = 1f - waveFactor; scaleY = 1f + waveFactor }
-                    .border(1.dp, theme.accentClair.copy(alpha = theme.ringAlphaMid), CircleShape)
-            )
-            if (isConnected) {
-                Box(
-                    modifier = Modifier
-                        .size(204.dp)
-                        .graphicsLayer { scaleX = ringScale; scaleY = ringScale }
-                        .background(theme.succes.copy(alpha = ringAlpha), CircleShape)
-                ) {}
-            }
-            Surface(
-                modifier = Modifier
-                    .size(188.dp)
-                    .graphicsLayer { scaleX = powerScale; scaleY = powerScale }
-                    .clip(CircleShape)
-                    .border(
-                        width = borderWidth,
-                        color = borderColor,
-                        shape = CircleShape,
-                    )
-                    .drawBehind {
-                        shimmerPhase?.let { phase ->
-                            val stripeWidth = size.width * 0.24f
-                            val stripeStart = (size.width + stripeWidth) * phase - stripeWidth
-                            drawRect(
-                                brush = Brush.horizontalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        theme.accentClair.copy(alpha = theme.shimmerAlpha),
-                                        Color.Transparent,
-                                    ),
-                                    startX = stripeStart,
-                                    endX = stripeStart + stripeWidth * 2f,
-                                ),
-                                topLeft = androidx.compose.ui.geometry.Offset(stripeStart, 0f),
-                                size = androidx.compose.ui.geometry.Size(stripeWidth * 2f, size.height),
-                            )
-                        }
-                    }
-                    .clickable(role = Role.Button, onClick = onToggleConnection)
-                    .semantics {
-                        contentDescription = powerActionLabel
-                        stateDescription = displayText
-                    },
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = CircleShape,
-                tonalElevation = 0.dp,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_power_24dp),
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = if (isConnected) theme.succes else theme.accentClair,
-                    )
-                }
-            }
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = theme.statusSurfaceAlpha)),
-            shape = MaterialTheme.shapes.large,
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .padding(end = 12.dp)
-                        .size(14.dp)
-                        .graphicsLayer { alpha = statusDotAlpha }
-                        .background(
-                            when {
-                                isConnected -> theme.succes
-                                isRunning -> theme.accentClair
-                                else -> theme.accent
-                            },
-                            CircleShape,
-                        ),
-                )
-                Column {
-                    Crossfade(
-                        targetState = displayText.uppercase(),
-                        animationSpec = tween(if (theme.animationsEnabled) theme.ondeMillis else 0),
-                        label = "connectionStatus",
-                    ) { status ->
-                        Text(
-                            text = status,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = when {
-                                isConnected -> theme.succes
-                                isRunning -> theme.accentClair
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                    Text(
-                        text = connectionSubtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpenServers),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = theme.cardAlpha)),
-            shape = MaterialTheme.shapes.large,
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = if (selectedServerAddress.isNullOrBlank()) {
-                            selectedServerName ?: groupName ?: stringResource(R.string.dams_no_server_selected)
-                        } else {
-                            stringResource(R.string.dams_active_configuration)
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = serverSummary,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Text("›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineMedium)
-            }
-        }
-
-        if (!isRunning) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = theme.cardAlpha)),
-                shape = MaterialTheme.shapes.large,
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.default_server_switch_title),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = stringResource(R.string.default_server_switch_summary),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    androidx.compose.material3.Switch(
-                        checked = autoSwitchDefaultServer,
-                        onCheckedChange = onAutoSwitchDefaultServerChange,
-                    )
-                }
-            }
-        }
-
-        Card(
+        Box(
             modifier = Modifier
+                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .clickable(role = Role.Button, onClick = onOpenIpFinder),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = theme.cardAlpha)),
-            shape = MaterialTheme.shapes.large,
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.ip_finder_drawer_entry),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                .height(1.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color.Transparent,
+                            theme.accent.copy(alpha = 0.45f),
+                            Color.Transparent,
+                        )
                     )
-                    Text(
-                        text = mobileIp ?: stringResource(R.string.dams_metric_unavailable),
-                        style = MaterialTheme.typography.displaySmall,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = stringResource(R.string.dams_mobile_ip_source),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text("›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.headlineMedium)
-            }
-        }
-
-        diagnostic?.let { result ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = theme.cardAlpha)),
-                shape = MaterialTheme.shapes.large,
-            ) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    DiagnosticRow(stringResource(R.string.diagnostic_network), result.networkAvailable)
-                    DiagnosticRow(stringResource(R.string.diagnostic_server), result.serverReachable)
-                    DiagnosticRow(stringResource(R.string.diagnostic_tunnel), result.tunnelVerified)
-                    result.pingMillis?.let { ping ->
-                        Text("Ping : $ping ms", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-        }
+                )
+        )
     }
-}
-
-@Composable
-private fun DiagnosticRow(label: String, value: Boolean?) {
-    val symbol = when (value) {
-        true -> "✅"
-        false -> "❌"
-        null -> "…"
-    }
-    Text("$symbol  $label", style = MaterialTheme.typography.bodySmall)
-}
-
-@Composable
-private fun trafficMetric(isRunning: Boolean, available: Boolean, bytesPerSecond: Long): String = when {
-    !isRunning -> "—"
-    !available -> stringResource(R.string.dams_metric_unavailable)
-    else -> bytesPerSecond.toSpeedString()
 }
 
 @Composable

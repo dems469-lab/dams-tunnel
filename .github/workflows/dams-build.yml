@@ -60,7 +60,7 @@ jobs:
             17387858d760b6a24b7dc3805eaf8554fe5041f5356945e637fdcbe3cea455fa
           cp -r libs V2rayNG/app/
 
-      - name: Validate Shadowsocks configuration rules
+      - name: Validate unit rules (Shadowsocks + accueil)
         working-directory: V2rayNG
         run: |
           set -euo pipefail
@@ -77,7 +77,7 @@ jobs:
             echo "::error title=Tâche de tests introuvable::Aucune tâche unit test n'a été trouvée."
             exit 1
           fi
-          ./gradlew "$task" --tests "com.v2ray.ang.core.ShadowsocksConfigValidatorTest"
+          ./gradlew "$task" --tests "com.v2ray.ang.core.ShadowsocksConfigValidatorTest" --tests "com.v2ray.ang.ui.main.DamsHomeStateTest"
 
       - name: Build signed release APKs
         env:
