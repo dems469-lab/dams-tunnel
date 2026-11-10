@@ -186,18 +186,18 @@ object NotificationManager {
         lastTrafficText = contentText
         lastTrafficUplinkTotal = proxyTraffic
         lastTrafficDownlinkTotal = directTraffic
-        if (mBuilder != null) {
-            if (proxyTraffic < NOTIFICATION_ICON_THRESHOLD && directTraffic < NOTIFICATION_ICON_THRESHOLD) {
-                mBuilder?.setSmallIcon(R.drawable.ic_stat_name)
-            } else if (proxyTraffic > directTraffic) {
-                mBuilder?.setSmallIcon(R.drawable.ic_stat_proxy)
-            } else {
-                mBuilder?.setSmallIcon(R.drawable.ic_stat_direct)
-            }
-            mBuilder?.setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
-            mBuilder?.setContentText(contentText)
-            getNotificationManager()?.notify(NOTIFICATION_ID, mBuilder?.build())
+        val builder = mBuilder ?: return
+        if (proxyTraffic < NOTIFICATION_ICON_THRESHOLD && directTraffic < NOTIFICATION_ICON_THRESHOLD) {
+            builder.setSmallIcon(R.drawable.ic_stat_name)
+        } else if (proxyTraffic > directTraffic) {
+            builder.setSmallIcon(R.drawable.ic_stat_proxy)
+        } else {
+            builder.setSmallIcon(R.drawable.ic_stat_direct)
         }
+        builder.setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
+        builder.setContentText(contentText)
+        val notification = builder.build() ?: return
+        getNotificationManager()?.notify(NOTIFICATION_ID, notification)
     }
 
     /**

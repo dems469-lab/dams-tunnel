@@ -160,11 +160,17 @@ object CoreOutboundBuilder {
     }
 
     private fun toOutboundShadowsocks(profileItem: ProfileItem): OutboundBean? {
+        // Le moteur refuse de démarrer sur un profil incohérent (clé 2022 invalide,
+        // méthode ou mot de passe absent). On le dit une fois, clairement, au lieu
+        // de laisser la boucle de reconnexion tourner sans fin.
+        val port = profileItem.serverPort?.trim()?.toIntOrNull()
+        ShadowsocksConfigValidator.validate(profileItem.method, profileItem.password, port)
+
         val outboundBean = createInitOutbound(EConfigType.SHADOWSOCKS)
 
         outboundBean?.settings?.let { settings ->
             settings.address = getServerAddress(profileItem)
-            settings.port = profileItem.serverPort.orEmpty().toInt()
+            settings.port = port ?: throw ConfigValidationException("Shadowsocks : port invalide")
             settings.password = profileItem.password
             settings.method = profileItem.method
             settings.level = AppConfig.DEFAULT_LEVEL

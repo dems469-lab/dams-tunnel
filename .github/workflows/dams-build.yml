@@ -60,6 +60,12 @@ jobs:
             17387858d760b6a24b7dc3805eaf8554fe5041f5356945e637fdcbe3cea455fa
           cp -r libs V2rayNG/app/
 
+      - name: Validate Shadowsocks configuration rules
+        working-directory: V2rayNG
+        run: |
+          set -euo pipefail
+          ./gradlew testPlaystoreReleaseUnitTest --tests "com.v2ray.ang.core.ShadowsocksConfigValidatorTest"
+
       - name: Build signed release APKs
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}

@@ -92,6 +92,14 @@ object CoreServiceManager {
     @Volatile
     private var connectionVerified = false
 
+    /**
+     * Motif d'une configuration que le moteur refuse définitivement. Tant qu'il est
+     * renseigné, la boucle de reconnexion s'arrête : relancer un profil invalide en
+     * boucle ne peut pas réussir et masque la vraie erreur.
+     */
+    @Volatile
+    private var fatalConfigError: String? = null
+
     /** Appelé uniquement par une action explicite de l'utilisateur. */
     fun markUserStopped() {
         userStopped = true
@@ -145,6 +153,7 @@ object CoreServiceManager {
             userStopped = false
             failoverAttempted = false
             connectionVerified = false
+            fatalConfigError = null
             doStartCoreLoop(service, vpnInterface)
             true
         } catch (cancelled: CancellationException) {
@@ -327,6 +336,7 @@ object CoreServiceManager {
     }
 
     private fun scheduleReconnect(service: Service) {
+        if (fatalConfigError != null) return
         if (userStopped || reconnectJob?.isActive == true) return
         reconnectJob = connectionTestScope.launch {
             // Une exception qui s'échappe d'une coroutine détachée atteint le
@@ -346,7 +356,7 @@ object CoreServiceManager {
         // Première tentative rapide ; le backoff augmente seulement si le réseau
         // reste réellement indisponible.
         val backoff = longArrayOf(1_000L, 3_000L, 8_000L, 20_000L)
-        while (isActive && !userStopped && !connectionVerified) {
+        while (isActive && !userStopped && !connectionVerified && fatalConfigError == null) {
             val wait = backoff[reconnectAttempt.coerceAtMost(backoff.lastIndex)]
             reconnectAttempt++
             delay(wait)
@@ -482,6 +492,7 @@ object CoreServiceManager {
         reconnectJob?.cancel()
         reconnectJob = null
         reconnectAttempt = 0
+        fatalConfigError = null
         connectionVerificationJob?.cancel()
         connectionVerificationJob = null
         delayMeasurementJob?.cancel()
@@ -588,6 +599,15 @@ object CoreServiceManager {
             true
         } catch (cancelled: CancellationException) {
             throw cancelled
+        } catch (e: ConfigValidationException) {
+            // Configuration invalide : le moteur échouerait à chaque tentative.
+            // On arrête proprement et on remonte le motif au lieu de boucler.
+            val message = e.message?.takeUnless { it.isBlank() } ?: "Configuration invalide"
+            fatalConfigError = message
+            LogUtil.e(AppConfig.TAG, "StartCore-Manager: invalid configuration: $message")
+            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
+            NotificationManager.cancelNotification()
+            false
         } catch (e: Exception) {
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to reload core: $message", e)
