@@ -94,7 +94,8 @@ class DamsHomeStateTest {
     @Test
     fun `sparkline stays empty instead of inventing a curve`() {
         assertTrue(sparklineFractions(emptyList()).isEmpty())
-        assertEquals(listOf(1f), sparklineFractions(listOf(0L)))
+        assertEquals(listOf(0f), sparklineFractions(listOf(0L)))
+        assertEquals(listOf(1f), sparklineFractions(listOf(120_000L)))
         assertEquals(listOf(0.5f, 1f, 0f), sparklineFractions(listOf(50L, 100L, 0L)))
     }
 
