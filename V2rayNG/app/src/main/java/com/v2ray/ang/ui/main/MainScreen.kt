@@ -335,10 +335,9 @@ fun MainScreen(
                         stringResource(R.string.dams_no_server_selected),
                     ),
                     hasServer = selectedServer?.profile != null,
-                    // Seul le ping de la session active est affiché, jamais le
-                    // dernier résultat de test enregistré dans le profil.
-                    // Latence réelle mesurée par la sonde du tunnel ; à défaut,
-                    // dernier test explicite de la configuration sélectionnée.
+                    // Latence réelle mesurée par la sonde du tunnel sur la
+                    // session active ; à défaut, dernier test explicite lancé
+                    // depuis l'application (jamais la valeur du profil).
                     delayMillis = uiState.sessionMetrics.averageRttMillis
                         ?: homeSessionPing(uiState.isRunning, uiState.connectionDelayMillis),
                     downloadBytesPerSecond = traffic.downlinkBytesPerSecond,
