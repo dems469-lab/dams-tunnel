@@ -212,8 +212,7 @@ class XrayJsonConfigTest {
 
     @Test
     fun `trojan normalized outbound is valid and contains no vnext`() {
-        val json = XrayJsonConfig.buildOutboundJson(profile(EConfigType.TROJAN))
-        assertNotNull(json)
+        val json = XrayJsonConfig.buildOutboundJson(profile(EConfigType.TROJAN))!!
         assertTrue(XrayJsonConfig.isOutboundValid(json, EConfigType.TROJAN))
         assertTrue(json.contains("\"servers\""))
         assertFalse(json.contains("\"vnext\""))
@@ -221,10 +220,8 @@ class XrayJsonConfigTest {
 
     @Test
     fun `probe config keeps the proxy first and lets the native probe add its inbound`() {
-        val outbound = XrayJsonConfig.buildOutboundJson(profile())
-        assertNotNull(outbound)
-        val probe = XrayJsonConfig.buildProbeConfig(outbound)
-        assertNotNull(probe)
+        val outbound = XrayJsonConfig.buildOutboundJson(profile())!!
+        val probe = XrayJsonConfig.buildProbeConfig(outbound)!!
 
         val root = JsonParser.parseString(probe).asJsonObject
         val outbounds = root.getAsJsonArray("outbounds")
