@@ -201,7 +201,7 @@ internal class ReconfigurationDao(
             testState = if (test == ReconfigTestState.RUNNING) ReconfigTestState.PENDING else test,
             lastPingAt = long(ReconfigurationDatabase.COLUMN_LAST_PING_AT),
             lastTestAt = long(ReconfigurationDatabase.COLUMN_LAST_TEST_AT),
-            errorMessage = if (cursor.isNull(errorIndex)) null else cursor.getString(errorIndex),
+            errorMessage = if (isNull(errorIndex)) null else getString(errorIndex),
             isValid = bool(ReconfigurationDatabase.COLUMN_IS_VALID),
             isFunctional = bool(ReconfigurationDatabase.COLUMN_IS_FUNCTIONAL),
         )
