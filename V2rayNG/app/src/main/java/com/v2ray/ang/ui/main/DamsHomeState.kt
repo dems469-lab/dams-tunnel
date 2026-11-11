@@ -44,20 +44,6 @@ internal enum class ConnectionQuality {
     Excellent,
 }
 
-internal fun connectionQuality(
-    isConnected: Boolean,
-    delayMillis: Long?,
-): ConnectionQuality {
-    if (!isConnected) return ConnectionQuality.Unavailable
-    val delay = delayMillis?.takeIf { it >= 0L } ?: return ConnectionQuality.Unavailable
-    return when {
-        delay <= 60L -> ConnectionQuality.Excellent
-        delay <= 120L -> ConnectionQuality.Good
-        delay <= 220L -> ConnectionQuality.Fair
-        else -> ConnectionQuality.Weak
-    }
-}
-
 /** Nombre de barres de signal (0 = mesure indisponible, 4 = meilleur). */
 internal fun signalBarCount(delayMillis: Long?): Int {
     val delay = delayMillis?.takeIf { it >= 0L } ?: return 0

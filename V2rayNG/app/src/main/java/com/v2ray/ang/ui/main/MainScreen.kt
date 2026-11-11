@@ -337,13 +337,17 @@ fun MainScreen(
                     hasServer = selectedServer?.profile != null,
                     // Seul le ping de la session active est affiché, jamais le
                     // dernier résultat de test enregistré dans le profil.
-                    delayMillis = homeSessionPing(uiState.isRunning, uiState.connectionDelayMillis),
+                    // Latence réelle mesurée par la sonde du tunnel ; à défaut,
+                    // dernier test explicite de la configuration sélectionnée.
+                    delayMillis = uiState.sessionMetrics.averageRttMillis
+                        ?: homeSessionPing(uiState.isRunning, uiState.connectionDelayMillis),
                     downloadBytesPerSecond = traffic.downlinkBytesPerSecond,
                     uploadBytesPerSecond = traffic.uplinkBytesPerSecond,
                     trafficAvailable = traffic.available,
                     sessionTotalBytes = traffic.uplinkTotalBytes + traffic.downlinkTotalBytes,
                     mobileDailyBytes = traffic.mobileDailyUplinkBytes + traffic.mobileDailyDownlinkBytes,
                     trafficHistory = uiState.trafficHistory,
+                    sessionMetrics = uiState.sessionMetrics,
                     mobileIp = uiState.mobileIp,
                     diagnostic = uiState.diagnostic,
                     autoSwitchDefaultServer = autoSwitchDefaultServer,

@@ -92,6 +92,9 @@ class MainViewModel(
     )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
+    // Accumulateur borné des latences publiées par la sonde du tunnel.
+    private val sessionMetricsTracker = SessionMetricsTracker()
+
     // ---------- Keyword filtering ----------
     @Volatile
     private var keywordFilter: String = ""
@@ -141,10 +144,12 @@ class MainViewModel(
     private fun handleServiceEvent(event: MainServiceEvent) {
         when (event) {
             MainServiceEvent.StateConnecting -> {
+                sessionMetricsTracker.reset()
                 testRequests.invalidateCurrent()
                 _uiState.update { clearEphemeralConnectionData(it, MainStatus.Connecting, showPendingDiagnostic = true) }
             }
             MainServiceEvent.StateReconnecting -> {
+                sessionMetricsTracker.reset()
                 testRequests.invalidateCurrent()
                 _uiState.update { clearEphemeralConnectionData(it, MainStatus.Reconnecting, showPendingDiagnostic = true) }
             }
@@ -159,6 +164,7 @@ class MainViewModel(
             }
 
             is MainServiceEvent.StateStartFailure -> {
+                sessionMetricsTracker.reset()
                 showStartSuccessToast = false
                 if (!event.message.isNullOrBlank()) {
                     toastError(event.message)
@@ -170,6 +176,7 @@ class MainViewModel(
             }
 
             MainServiceEvent.StateStopSuccess -> {
+                sessionMetricsTracker.reset()
                 showStartSuccessToast = false
                 _uiState.update { clearEphemeralConnectionData(it, MainStatus.Disconnected) }
             }
@@ -178,6 +185,11 @@ class MainViewModel(
                     traffic = event.snapshot,
                     trafficHistory = (it.trafficHistory + event.snapshot).takeLast(30),
                 )
+            }
+            is MainServiceEvent.SessionRtt -> {
+                if (!uiState.value.isRunning) return
+                val metrics = sessionMetricsTracker.add(event.sample)
+                _uiState.update { it.copy(sessionMetrics = metrics) }
             }
             is MainServiceEvent.MeasureDelayResult -> {
                 if (!uiState.value.isRunning || !testRequests.completeCurrent(event.requestId)) return
@@ -865,6 +877,7 @@ class MainViewModel(
             if (it.selectedGuid == guid) it else it.copy(
                 selectedGuid = guid,
                 connectionDelayMillis = null,
+                sessionMetrics = SessionMetrics(),
                 diagnostic = null,
             )
         }

@@ -1,5 +1,6 @@
 package com.v2ray.ang.ui.main
 
+import com.v2ray.ang.dto.SessionRttSample
 import java.util.Locale
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -52,18 +53,135 @@ class DamsHomeStateTest {
 
     @Test
     fun `quality is unavailable without a real measurement`() {
-        assertEquals(ConnectionQuality.Unavailable, connectionQuality(false, 40L))
-        assertEquals(ConnectionQuality.Unavailable, connectionQuality(true, null))
-        assertEquals(ConnectionQuality.Unavailable, connectionQuality(true, -1L))
+        assertEquals(ConnectionQuality.Unavailable, evaluateConnectionQuality(false, metrics()))
+        // Connecté mais sans aucune mesure : on n'invente pas d'évaluation.
+        assertEquals(ConnectionQuality.Unavailable, evaluateConnectionQuality(true, metrics()))
+        // Trop peu de mesures pour être fiable.
+        assertEquals(
+            ConnectionQuality.Unavailable,
+            evaluateConnectionQuality(true, metrics(rtt = 20L, samples = 2)),
+        )
     }
 
     @Test
     fun `quality thresholds use the measured latency`() {
-        assertEquals(ConnectionQuality.Excellent, connectionQuality(true, 12L))
-        assertEquals(ConnectionQuality.Good, connectionQuality(true, 90L))
-        assertEquals(ConnectionQuality.Fair, connectionQuality(true, 180L))
-        assertEquals(ConnectionQuality.Weak, connectionQuality(true, 600L))
+        assertEquals(ConnectionQuality.Excellent, evaluateConnectionQuality(true, metrics(rtt = 12L)))
+        assertEquals(ConnectionQuality.Excellent, evaluateConnectionQuality(true, metrics(rtt = 52L)))
+        assertEquals(ConnectionQuality.Good, evaluateConnectionQuality(true, metrics(rtt = 90L)))
+        assertEquals(ConnectionQuality.Fair, evaluateConnectionQuality(true, metrics(rtt = 180L)))
+        assertEquals(ConnectionQuality.Weak, evaluateConnectionQuality(true, metrics(rtt = 600L)))
     }
+
+    @Test
+    fun `high throughput never hides a high latency`() {
+        val highLatency = metrics(rtt = 300L, samples = 6)
+        assertEquals(
+            ConnectionQuality.Fair,
+            evaluateConnectionQuality(true, highLatency, downlinkStability = 1.0, uplinkStability = 1.0),
+        )
+    }
+
+    @Test
+    fun `jitter and loss degrade the evaluation`() {
+        val clean = metrics(rtt = 50L, jitter = 5L, loss = 0.0, continuity = 100.0)
+        val unstable = metrics(rtt = 50L, jitter = 120L, loss = 30.0, continuity = 80.0)
+        assertEquals(ConnectionQuality.Excellent, evaluateConnectionQuality(true, clean))
+        assertEquals(ConnectionQuality.Weak, evaluateConnectionQuality(true, unstable))
+    }
+
+    @Test
+    fun `unstable throughput degrades the evaluation`() {
+        val stable = metrics(rtt = 70L)
+        assertEquals(
+            ConnectionQuality.Good,
+            evaluateConnectionQuality(true, stable, downlinkStability = 0.9, uplinkStability = 0.8),
+        )
+        assertEquals(
+            ConnectionQuality.Fair,
+            evaluateConnectionQuality(true, stable, downlinkStability = 0.05, uplinkStability = 0.9),
+        )
+    }
+
+    @Test
+    fun `session tracker aggregates real samples`() {
+        val tracker = SessionMetricsTracker()
+        assertEquals(SessionMetrics(), tracker.snapshot())
+
+        var last = SessionMetrics()
+        listOf(40L, 60L, 80L).forEach { rtt ->
+            last = tracker.add(sample(rtt))
+        }
+        assertEquals(3, last.rttSampleCount)
+        assertEquals(80L, last.lastRttMillis)
+        assertEquals(60L, last.averageRttMillis)
+        // Jitter moyen : (|60-40| + |80-60|) / 2 = 20
+        assertEquals(20L, last.jitterMillis)
+        // Moins de 5 sondes : la perte n'est pas encore significative.
+        assertEquals(null, last.lossPercent)
+        assertEquals(3, last.probeCount)
+
+        tracker.reset()
+        assertEquals(SessionMetrics(), tracker.snapshot())
+    }
+
+    @Test
+    fun `session tracker reports loss and continuity from probe outcomes`() {
+        val tracker = SessionMetricsTracker()
+        repeat(8) { tracker.add(sample(50L)) }
+        tracker.add(SessionRttSample(-1L, 1L, success = false))
+        tracker.add(SessionRttSample(-1L, 2L, success = false))
+        val metrics = tracker.snapshot()
+
+        assertEquals(10, metrics.probeCount)
+        // Fenêtre de perte = 10 sondes, dont 2 échecs.
+        assertEquals(20.0, metrics.lossPercent)
+        // Continuité calculée sur les mêmes 10 sondes (< 10 exige 10 minimum).
+        assertEquals(80.0, metrics.continuityPercent)
+        // Les échecs n'entrent pas dans la moyenne de latence.
+        assertEquals(50L, metrics.averageRttMillis)
+    }
+
+    @Test
+    fun `session tracker keeps a bounded window`() {
+        val tracker = SessionMetricsTracker(rttWindow = 4, lossWindow = 4, continuityWindow = 4)
+        repeat(10) { index -> tracker.add(sample(50L + index)) }
+        val metrics = tracker.snapshot()
+        assertEquals(4, metrics.probeCount)
+        assertEquals(4, metrics.rttSampleCount)
+        assertEquals(59L, metrics.lastRttMillis)
+        assertEquals(58L, metrics.averageRttMillis)
+    }
+
+    @Test
+    fun `throughput stability needs enough active samples`() {
+        assertEquals(null, throughputStability(listOf(0L, 0L, 10L)))
+        val steady = List(6) { 1_000_000L }
+        assertEquals(1.0, throughputStability(steady)!!, 0.001)
+        val erratic = listOf(100L, 1_000_000L, 50L, 900_000L, 10L, 800_000L)
+        val value = throughputStability(erratic)!!
+        assertTrue(value < 0.35, "débit instable mal évalué : $value")
+        // Un tunnel au repos n'est ni stable ni instable : mesure inconnue.
+        assertEquals(null, throughputStability(List(10) { 0L }))
+    }
+
+    private fun sample(rtt: Long) = SessionRttSample(rtt, rtt, success = true)
+
+    private fun metrics(
+        rtt: Long? = null,
+        samples: Int = 5,
+        jitter: Long? = null,
+        loss: Double? = null,
+        continuity: Double? = null,
+    ) = SessionMetrics(
+        probeCount = samples,
+        rttSampleCount = if (rtt == null) 0 else samples,
+        lastRttMillis = rtt,
+        averageRttMillis = rtt,
+        jitterMillis = jitter,
+        lossPercent = loss,
+        continuityPercent = continuity,
+        updatedAtMillis = 1L,
+    )
 
     @Test
     fun `signal bars are zero when nothing was measured`() {

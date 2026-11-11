@@ -12,6 +12,7 @@ import com.v2ray.ang.dto.ConnectionTestResult
 import com.v2ray.ang.dto.RealPingResult
 import com.v2ray.ang.dto.TrafficSnapshot
 import com.v2ray.ang.dto.SubscriptionUpdateResult
+import com.v2ray.ang.dto.SessionRttSample
 import com.v2ray.ang.dto.TestServiceMessage
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.dto.entities.ServerAffiliationInfo
@@ -88,6 +89,9 @@ class MainRepository(
                 AppConfig.MSG_TRAFFIC_UPDATE -> safeIntent
                     .serializable<TrafficSnapshot>("content")
                     ?.let { MainServiceEvent.TrafficUpdate(it) }
+                AppConfig.MSG_SESSION_RTT -> safeIntent
+                    .serializable<SessionRttSample>("content")
+                    ?.let { MainServiceEvent.SessionRtt(it) }
                 AppConfig.MSG_MEASURE_DELAY_RESULT -> safeIntent
                     .serializable<ConnectionTestResult>("content")
                     ?.let { MainServiceEvent.MeasureDelayResult(it, requestId) }

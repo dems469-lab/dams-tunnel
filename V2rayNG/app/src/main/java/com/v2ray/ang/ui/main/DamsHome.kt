@@ -109,6 +109,7 @@ internal fun DamsHomeScreen(
     sessionTotalBytes: Long,
     mobileDailyBytes: Long,
     trafficHistory: List<TrafficSnapshot>,
+    sessionMetrics: SessionMetrics,
     mobileIp: String?,
     diagnostic: ConnectionDiagnostic?,
     autoSwitchDefaultServer: Boolean,
@@ -174,6 +175,7 @@ internal fun DamsHomeScreen(
                 uploadBytesPerSecond = uploadBytesPerSecond,
                 delayMillis = delayMillis,
                 history = trafficHistory,
+                sessionMetrics = sessionMetrics,
             )
 
             UsageCard(
@@ -760,10 +762,13 @@ private fun PerformanceRow(
     uploadBytesPerSecond: Long,
     delayMillis: Long?,
     history: List<TrafficSnapshot>,
+    sessionMetrics: SessionMetrics,
 ) {
     val theme = DamsTheme
     val downloadHistory = remember(history) { history.map { it.downlinkBytesPerSecond } }
     val uploadHistory = remember(history) { history.map { it.uplinkBytesPerSecond } }
+    val downlinkStability = remember(downloadHistory) { throughputStability(downloadHistory) }
+    val uplinkStability = remember(uploadHistory) { throughputStability(uploadHistory) }
     val downloadText = when {
         !isConnected -> stringResource(R.string.dams_home_metric_idle)
         !trafficAvailable -> stringResource(R.string.dams_metric_unavailable)
@@ -779,7 +784,12 @@ private fun PerformanceRow(
         delayMillis == null || delayMillis < 0L -> stringResource(R.string.dams_metric_unavailable)
         else -> delayMillis.toString()
     }
-    val quality = connectionQuality(isConnected, delayMillis)
+    val quality = evaluateConnectionQuality(
+        isConnected = isConnected,
+        metrics = sessionMetrics,
+        downlinkStability = downlinkStability,
+        uplinkStability = uplinkStability,
+    )
 
     Row(
         modifier = Modifier

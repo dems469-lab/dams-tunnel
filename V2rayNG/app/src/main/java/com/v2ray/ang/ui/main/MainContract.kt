@@ -82,6 +82,7 @@ internal fun clearEphemeralConnectionData(
     isTesting = false,
     status = status,
     connectionDelayMillis = null,
+    sessionMetrics = SessionMetrics(),
     traffic = state.traffic.copy(
         uplinkBytesPerSecond = 0L,
         downlinkBytesPerSecond = 0L,
@@ -104,6 +105,8 @@ data class MainUiState(
     val isTesting: Boolean = false,
     val status: MainStatus = MainStatus.Disconnected,
     val connectionDelayMillis: Long? = null,
+    /** Latence, jitter, perte et continuité mesurés pendant la session. */
+    val sessionMetrics: SessionMetrics = SessionMetrics(),
     val traffic: TrafficSnapshot = TrafficSnapshot(
         mobileDailyUplinkBytes = MobileTrafficUsageStore.current().uplinkBytes,
         mobileDailyDownlinkBytes = MobileTrafficUsageStore.current().downlinkBytes,

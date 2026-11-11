@@ -17,6 +17,7 @@ import com.v2ray.ang.contracts.IDialerService
 import com.v2ray.ang.contracts.ServiceControl
 import com.v2ray.ang.dto.ConnectionTestResult
 import com.v2ray.ang.dto.OutboundTrafficStat
+import com.v2ray.ang.dto.SessionRttSample
 import com.v2ray.ang.dto.TrafficSnapshot
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.BrowserDialerMode
@@ -269,6 +270,12 @@ object CoreServiceManager {
             if (delayMillis >= 0 && isRunning()) {
                 connectionVerified = true
                 reconnectAttempt = 0
+                // Première latence réelle disponible immédiatement pour l'accueil.
+                MessageHelper.sendMsg2UI(
+                    service,
+                    AppConfig.MSG_SESSION_RTT,
+                    SessionRttSample(delayMillis, System.currentTimeMillis(), true),
+                )
                 startHealthCheck(service)
                 NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_connected), android.graphics.Color.rgb(34, 211, 238))
                 XrayConsole.event("Core", "Connection verified, tunnel is up")
@@ -303,13 +310,21 @@ object CoreServiceManager {
                 // Détecter une coupure rapidement sans attendre deux secondes complètes.
                 delay(1_000L)
                 if (!isRunning() || userStopped) break
-                val reachable = try {
-                    measureDelayWithFallback() >= 0L
+                val probe = try {
+                    measureDelayWithFallback()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
-                    false
+                    -1L
                 }
+                val reachable = probe >= 0L
+                // La sonde de santé traverse déjà le tunnel : on publie son
+                // résultat tel quel, sans requête supplémentaire.
+                MessageHelper.sendMsg2UI(
+                    service,
+                    AppConfig.MSG_SESSION_RTT,
+                    SessionRttSample(probe, System.currentTimeMillis(), reachable),
+                )
                 if (!reachable) {
                     connectionVerified = false
                     MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")

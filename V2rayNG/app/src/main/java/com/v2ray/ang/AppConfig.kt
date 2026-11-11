@@ -204,6 +204,7 @@ object AppConfig {
     const val MSG_STATE_START_SUCCESS = 31
     const val MSG_STATE_START_FAILURE = 32
     const val MSG_TRAFFIC_UPDATE = 33
+    const val MSG_SESSION_RTT = 36
     const val MSG_STATE_CONNECTING = 34
     const val MSG_STATE_RECONNECTING = 35
     const val MSG_STATE_STOP = 4
