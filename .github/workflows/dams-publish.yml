@@ -1,0 +1,39 @@
+name: Dams Publish APK
+
+# Republie les APK déjà construits (artefacts d'un run) vers une release.
+# Utile quand la connexion locale ne permet pas d'envoyer l'APK universel.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Identifiant du run de build contenant les artefacts"
+        required: true
+      tag:
+        description: "Tag de la release cible (ex. v1.8.1)"
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download APKs from build run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh run download "${{ inputs.run_id }}" -R "${{ github.repository }}" -n dams-arm64-apk -D dist/arm64
+          gh run download "${{ inputs.run_id }}" -R "${{ github.repository }}" -n dams-universal-apk -D dist/universal
+          find dist -name '*.apk' -exec ls -lh {} \;
+
+      - name: Upload APKs to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release upload "${{ inputs.tag }}" dist/arm64/*.apk dist/universal/*.apk --clobber -R "${{ github.repository }}"
+          gh release view "${{ inputs.tag }}" -R "${{ github.repository }}" --json assets \
+            -q '.assets[] | .name + " " + (.size|tostring)'
