@@ -118,6 +118,7 @@ internal fun hasMeasuredFreeServerLatency(delayMillis: Long): Boolean = delayMil
 class FreeServersActivity : BaseComponentActivity() {
     private val viewModel: FreeServersViewModel by viewModels()
 
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun ScreenContent() {
         BackHandler { finish() }

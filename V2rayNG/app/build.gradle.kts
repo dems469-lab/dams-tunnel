@@ -25,8 +25,8 @@ android {
         applicationId = "com.v2ray.ang"
         minSdk = 24
         targetSdk = 37
-        versionCode = 756
-        versionName = "1.8.1"
+        versionCode = 757
+        versionName = "1.9.0"
         buildConfigField("boolean", "PREMIUM_ENABLED", premiumEnabled.toString())
         buildConfigField("String", "PREMIUM_BASE_URLS", buildConfigString(premiumBaseUrls))
         buildConfigField("String", "PREMIUM_DEBUG_BASE_URL", buildConfigString(""))

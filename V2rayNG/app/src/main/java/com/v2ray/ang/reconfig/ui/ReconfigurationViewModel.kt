@@ -185,9 +185,9 @@ internal class ReconfigurationViewModel(application: Application) : BaseViewMode
             if (targets.isEmpty()) return@launch
             val total = targets.size
             val processed = AtomicInteger(0)
-            var functional = 0
-            var notFunctional = 0
-            var invalid = 0
+            val functional = AtomicInteger(0)
+            val notFunctional = AtomicInteger(0)
+            val invalid = AtomicInteger(0)
             _uiState.update { it.copy(progress = ReconfigurationProgress(ReconfigurationOperation.TEST, 0, total)) }
             try {
                 // Le testeur limite déjà la concurrence native à trois instances.
@@ -204,7 +204,7 @@ internal class ReconfigurationViewModel(application: Application) : BaseViewMode
                                 )
                             }
                             if (profile == null) {
-                                invalid++
+                                invalid.incrementAndGet()
                                 withContext(Dispatchers.IO) {
                                     repository.updateTest(
                                         server.id,
@@ -217,9 +217,11 @@ internal class ReconfigurationViewModel(application: Application) : BaseViewMode
                                 applyTest(server.id, ReconfigTestState.INVALID_CONFIG, functional = false)
                             } else {
                                 val outcome = tester.test(profile)
-                                if (outcome.state == ReconfigTestState.FUNCTIONAL) functional++ else if (
-                                    outcome.state == ReconfigTestState.INVALID_CONFIG
-                                ) invalid++ else notFunctional++
+                                when (outcome.state) {
+                                    ReconfigTestState.FUNCTIONAL -> functional.incrementAndGet()
+                                    ReconfigTestState.INVALID_CONFIG -> invalid.incrementAndGet()
+                                    else -> notFunctional.incrementAndGet()
+                                }
                                 withContext(Dispatchers.IO) {
                                     repository.updateTest(
                                         server.id,
@@ -249,8 +251,8 @@ internal class ReconfigurationViewModel(application: Application) : BaseViewMode
                     it.copy(
                         notice = ReconfigurationNotice(
                             R.string.reconfig_test_summary,
-                            listOf(functional, notFunctional, invalid),
-                            error = notFunctional > 0,
+                            listOf(functional.get(), notFunctional.get(), invalid.get()),
+                            error = notFunctional.get() > 0,
                         ),
                     )
                 }
