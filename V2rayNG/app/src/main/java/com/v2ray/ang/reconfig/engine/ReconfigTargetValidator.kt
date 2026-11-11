@@ -42,6 +42,11 @@ internal object ReconfigTargetValidator {
         if (value.length > MAX_HOST_LENGTH) {
             return ReconfigTargetValidation(null, ReconfigTargetError.TOO_LONG)
         }
+        // Un schéma, un chemin ou des identifiants sont refusés avant l'analyse
+        // des deux-points, pour que « https://… » ne soit pas pris pour une IPv6.
+        if (value.any { it == '/' || it == '@' || it == '\\' }) {
+            return ReconfigTargetValidation(null, ReconfigTargetError.INVALID_CHARACTERS)
+        }
         if (value.contains(':')) {
             // Une IPv6 (ou un hôte avec port) est ambiguë dans une URI VPN.
             return ReconfigTargetValidation(null, ReconfigTargetError.IPV6_NOT_SUPPORTED)

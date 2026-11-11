@@ -28,6 +28,11 @@ class ReconfigurationBatchRunnerTest {
         }
     }
 
+    // Le codec Android n'existe pas sur la JVM : la validation structurelle du
+    // moteur reste active, seule la sérialisation d'URI est désactivée.
+    private fun createRunner(store: ReconfigurationStore) =
+        ReconfigurationBatchRunner(store, LocalReconfigurationEngine(codec = null))
+
     private fun profile(address: String) = ProfileItem.create(EConfigType.VLESS).apply {
         server = address
         serverPort = "443"
@@ -39,7 +44,7 @@ class ReconfigurationBatchRunnerTest {
     @Test
     fun `traite chaque configuration et rapporte la progression`() = runBlocking {
         val store = FakeStore()
-        val runner = ReconfigurationBatchRunner(store)
+        val runner = createRunner(store)
         val progress = mutableListOf<Pair<Int, Int>>()
 
         val result = runner.run(
@@ -68,7 +73,7 @@ class ReconfigurationBatchRunnerTest {
     @Test
     fun `compte les doublons sans echouer`() = runBlocking {
         val store = FakeStore().apply { duplicateCount = 0 }
-        val runner = ReconfigurationBatchRunner(store)
+        val runner = createRunner(store)
         val result = runner.run(
             inputs = listOf("a" to profile("a.example.com")),
             method = ReconfigMethod.MAXIT_MOBILE,
@@ -82,7 +87,7 @@ class ReconfigurationBatchRunnerTest {
     @Test
     fun `une cible invalide ignore tout sans rien enregistrer`() = runBlocking {
         val store = FakeStore()
-        val runner = ReconfigurationBatchRunner(store)
+        val runner = createRunner(store)
         val result = runner.run(
             inputs = listOf("a" to profile("a.example.com"), "b" to profile("b.example.com")),
             method = ReconfigMethod.CUSTOM,
@@ -97,7 +102,7 @@ class ReconfigurationBatchRunnerTest {
     @Test
     fun `une liste vide ne fait rien`() = runBlocking {
         val store = FakeStore()
-        val runner = ReconfigurationBatchRunner(store)
+        val runner = createRunner(store)
         val result = runner.run(emptyList(), ReconfigMethod.API_CONNECT, "api-connect.orange.bf")
         assertEquals(0, result.processed)
         assertFalse(result.cancelled)
@@ -107,7 +112,7 @@ class ReconfigurationBatchRunnerTest {
     @Test
     fun `le lot s arrete quand la coroutine est annulee`() = runBlocking {
         val store = FakeStore()
-        val runner = ReconfigurationBatchRunner(store)
+        val runner = createRunner(store)
         var cancelJob: Job? = null
         cancelJob = launch {
             runner.run(

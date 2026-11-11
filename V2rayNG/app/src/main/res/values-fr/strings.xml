@@ -1099,4 +1099,12 @@
     <string name="reconfig_free_servers_action">Reconfigurer</string>
     <string name="reconfig_ping_only_tcp">TCP</string>
     <string name="reconfig_created_on">Créé le %1$s</string>
+    <string name="reconfig_ping_running">Mesure…</string>
+    <string name="reconfig_local_note">La transformation est locale et hors ligne. Le ping et le test de tunnel nécessitent Internet.</string>
+    <string name="reconfig_selection_count">%1$d sélectionné(s)</string>
+    <string name="reconfig_count">%1$d serveur(s) préparé(s)</string>
+    <string name="reconfig_reset_filters">Réinitialiser les filtres</string>
+    <string name="reconfig_no_match">Aucun serveur préparé ne correspond à ces filtres.</string>
+    <string name="reconfig_detail_note">Seule l\'adresse de connexion a changé : le SNI, l\'en-tête Host, le port et les identifiants sont inchangés. Le serveur d\'origine n\'est jamais modifié.</string>
+    <string name="reconfig_detail_originals">Les serveurs d\'origine ne sont jamais modifiés.</string>
 </resources>

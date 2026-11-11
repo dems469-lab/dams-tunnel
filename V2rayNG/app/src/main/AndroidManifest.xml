@@ -214,6 +214,9 @@
             android:name=".publicconfigs.FreeServersActivity"
             android:exported="false" />
         <activity
+            android:name=".reconfig.ui.ReconfigurationActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.userasset.UserAssetActivity"
             android:exported="false" />
         <activity

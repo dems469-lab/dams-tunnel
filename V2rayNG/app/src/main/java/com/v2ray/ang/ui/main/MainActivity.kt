@@ -38,6 +38,7 @@ import com.v2ray.ang.ipfinder.IpFinderActivity
 import com.v2ray.ang.ipfinder.IpFinderRecoveryStore
 import com.v2ray.ang.publicconfigs.PublicConfigsActivity
 import com.v2ray.ang.publicconfigs.FreeServersActivity
+import com.v2ray.ang.reconfig.ui.ReconfigurationActivity
 import com.v2ray.ang.premium.PremiumFeatureGate
 import com.v2ray.ang.premium.PremiumExpiryStateStore
 import com.v2ray.ang.premium.PremiumProfilePolicy
@@ -302,6 +303,7 @@ class MainActivity : HelperBaseComponentActivity() {
         val intent = when (destination) {
             MainDestination.Subscriptions -> Intent(this, SubSettingActivity::class.java)
             MainDestination.FreeServers -> Intent(this, FreeServersActivity::class.java)
+            MainDestination.Reconfiguration -> Intent(this, ReconfigurationActivity::class.java)
             MainDestination.PremiumSubscription -> Intent(this, PremiumSubscriptionActivity::class.java)
             MainDestination.PerAppProxy -> Intent(this, PerAppProxyActivity::class.java)
             MainDestination.Routing -> Intent(this, RoutingSettingActivity::class.java)

@@ -1,5 +1,6 @@
 package com.v2ray.ang.publicconfigs
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.activity.viewModels
@@ -102,6 +103,8 @@ import com.v2ray.ang.extension.toastError
 import com.v2ray.ang.extension.toastSuccess
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
+import com.v2ray.ang.reconfig.ui.ReconfigureSheet
+import com.v2ray.ang.reconfig.ui.ReconfigurationActivity
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.compose.DamsTheme
 import java.text.DateFormat
@@ -119,6 +122,8 @@ class FreeServersActivity : BaseComponentActivity() {
     override fun ScreenContent() {
         BackHandler { finish() }
         val state by viewModel.uiState.collectAsStateWithLifecycle()
+        val reconfigureState by viewModel.reconfigureState.collectAsStateWithLifecycle()
+        var showReconfigure by rememberSaveable { mutableStateOf(false) }
         FreeServersScreen(
             state = state,
             onBack = ::finish,
@@ -128,6 +133,9 @@ class FreeServersActivity : BaseComponentActivity() {
             onTestServer = viewModel::testServer,
             onClearSelection = viewModel::clearSelection,
             onCancelTest = viewModel::cancelTest,
+            onReconfigure = {
+                if (state.selectedGuids.isNotEmpty()) showReconfigure = true
+            },
             onRefresh = {
                 lifecycleScope.launch {
                     try {
@@ -155,6 +163,38 @@ class FreeServersActivity : BaseComponentActivity() {
             },
             onDeleteProvider = ::deleteProvider,
         )
+
+        if (showReconfigure) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    if (reconfigureState.running) viewModel.cancelReconfigure()
+                    viewModel.resetReconfigure()
+                    showReconfigure = false
+                },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = DamsTheme.surface,
+            ) {
+                ReconfigureSheet(
+                    selectedCount = state.selectedGuids.size,
+                    state = reconfigureState,
+                    onDismiss = {
+                        if (reconfigureState.running) viewModel.cancelReconfigure()
+                        viewModel.resetReconfigure()
+                        showReconfigure = false
+                    },
+                    onRun = viewModel::reconfigureSelection,
+                    onCancelRun = viewModel::cancelReconfigure,
+                    onOpenReconfiguration = {
+                        viewModel.resetReconfigure()
+                        showReconfigure = false
+                        startActivity(
+                            Intent(this@FreeServersActivity, ReconfigurationActivity::class.java),
+                        )
+                    },
+                    onReset = viewModel::resetReconfigure,
+                )
+            }
+        }
     }
 
     private fun deleteProvider(id: String) {
@@ -178,6 +218,7 @@ private fun FreeServersScreen(
     onTestServer: (String) -> Unit,
     onClearSelection: () -> Unit,
     onCancelTest: () -> Unit,
+    onReconfigure: () -> Unit,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onSelect: (String) -> Unit,
@@ -229,6 +270,7 @@ private fun FreeServersScreen(
                 testing = state.testing,
                 animationsEnabled = theme.animationsEnabled && isResumed,
                 onTest = if (state.testing) onCancelTest else onTest,
+                onReconfigure = onReconfigure,
                 onRefresh = onRefresh,
             )
         },
@@ -539,35 +581,55 @@ private fun FreeServersBottomActions(
     testing: Boolean,
     animationsEnabled: Boolean,
     onTest: () -> Unit,
+    onReconfigure: () -> Unit,
     onRefresh: () -> Unit,
 ) {
     val theme = DamsTheme
-    Row(
+    Column(
         Modifier.fillMaxWidth()
             .animateContentSize(animationSpec = if (animationsEnabled) spring(stiffness = Spring.StiffnessMediumLow) else tween(0))
             .background(Brush.verticalGradient(listOf(theme.fond.copy(alpha = 0f), theme.fond, theme.fond)))
             .navigationBarsPadding()
             .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        OutlinedButton(
-            onClick = onTest,
-            enabled = selectedCount > 0 || testing,
-            modifier = Modifier.weight(1f).height(56.dp),
-            contentPadding = PaddingValues(horizontal = 8.dp),
-        ) {
-            Text(if (testing) stringResource(R.string.free_servers_cancel_test) else stringResource(R.string.free_servers_test_selected, selectedCount), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (selectedCount > 0 && !testing) {
+            OutlinedButton(
+                onClick = onReconfigure,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+            ) {
+                Icon(
+                    painterResource(R.drawable.ic_reconfig_24dp),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.reconfig_free_servers_action))
+            }
         }
-        Button(
-            onClick = onRefresh,
-            enabled = !refreshing,
-            modifier = Modifier.weight(1f).height(56.dp),
-            contentPadding = PaddingValues(horizontal = 8.dp),
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(painterResource(R.drawable.ic_restore_24dp), contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(stringResource(if (refreshing) R.string.free_servers_refreshing else R.string.free_servers_refresh_short), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            OutlinedButton(
+                onClick = onTest,
+                enabled = selectedCount > 0 || testing,
+                modifier = Modifier.weight(1f).height(56.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp),
+            ) {
+                Text(if (testing) stringResource(R.string.free_servers_cancel_test) else stringResource(R.string.free_servers_test_selected, selectedCount), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Button(
+                onClick = onRefresh,
+                enabled = !refreshing,
+                modifier = Modifier.weight(1f).height(56.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp),
+            ) {
+                Icon(painterResource(R.drawable.ic_restore_24dp), contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(if (refreshing) R.string.free_servers_refreshing else R.string.free_servers_refresh_short), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }

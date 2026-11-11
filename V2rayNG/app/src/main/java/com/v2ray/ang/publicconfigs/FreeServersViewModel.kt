@@ -16,6 +16,10 @@ import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.helper.MessageHelper
+import com.v2ray.ang.reconfig.data.ReconfigurationRepository
+import com.v2ray.ang.reconfig.engine.ReconfigMethod
+import com.v2ray.ang.reconfig.engine.ReconfigurationBatchRunner
+import com.v2ray.ang.reconfig.ui.FreeReconfigureState
 import com.v2ray.ang.ui.base.BaseViewModel
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +46,10 @@ internal class FreeServersViewModel(application: Application) : BaseViewModel(ap
     val uiState: StateFlow<FreeServersUiState> = _uiState.asStateFlow()
     private var requestId: String? = null
     private var loadJob: Job? = null
+    private var reconfigureJob: Job? = null
+
+    private val _reconfigureState = MutableStateFlow(FreeReconfigureState())
+    val reconfigureState: StateFlow<FreeReconfigureState> = _reconfigureState.asStateFlow()
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -115,6 +123,60 @@ internal class FreeServersViewModel(application: Application) : BaseViewModel(ap
             TestServiceMessage(AppConfig.MSG_MEASURE_CONFIG_CANCEL),
             id,
         )
+    }
+
+    /**
+     * Reconfigure localement les serveurs gratuits sélectionnés.
+     *
+     * Aucune requête réseau : seules les adresses de connexion sont réécrites,
+     * puis les profils préparés sont enregistrés en base. Les profils d'origine
+     * restent intacts.
+     */
+    fun reconfigureSelection(method: ReconfigMethod, target: String) {
+        if (_reconfigureState.value.running) return
+        val guids = _uiState.value.selectedGuids.toList()
+        if (guids.isEmpty()) return
+        _reconfigureState.value = FreeReconfigureState(running = true, total = guids.size)
+        reconfigureJob = viewModelScope.launch(Dispatchers.Default) {
+            val inputs = withContext(Dispatchers.IO) {
+                guids.mapNotNull { guid ->
+                    MmkvManager.decodeServerConfig(guid)?.let { guid to it }
+                }
+            }
+            val runner = ReconfigurationBatchRunner(ReconfigurationRepository(getApplication<Application>()))
+            try {
+                val result = runner.run(inputs, method, target) { processed, total ->
+                    _reconfigureState.value = _reconfigureState.value.copy(
+                        processed = processed,
+                        total = total,
+                    )
+                }
+                _reconfigureState.value = _reconfigureState.value.copy(
+                    running = false,
+                    processed = result.processed,
+                    total = inputs.size,
+                    prepared = result.prepared,
+                    duplicates = result.duplicates,
+                    ignored = result.ignored,
+                    done = true,
+                    cancelled = result.cancelled,
+                )
+            } catch (_: CancellationException) {
+                _reconfigureState.value = _reconfigureState.value.copy(
+                    running = false,
+                    done = true,
+                    cancelled = true,
+                )
+            }
+        }
+    }
+
+    fun cancelReconfigure() {
+        reconfigureJob?.cancel()
+    }
+
+    fun resetReconfigure() {
+        _reconfigureState.value = FreeReconfigureState()
     }
 
     suspend fun refreshSources(): Int = withContext(Dispatchers.IO) {
