@@ -1,5 +1,6 @@
 package com.v2ray.ang.reconfig.engine
 
+import com.google.gson.JsonParser
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -297,5 +298,54 @@ class LocalReconfigurationEngineTest {
         val result = LocalReconfigurationEngine.processLink("ss://abc@example.com:8388", "MAXIT")
         assertFalse(result.success)
         assertNull(result.newLink)
+    }
+
+    @Test
+    fun `vless stocke un JSON Xray vnext et jamais le lien brut`() {
+        val outcome = transform(vless(), ReconfigMethod.API_CONNECT, "api-connect.orange.bf")
+
+        val config = outcome.transformedConfig
+        assertTrue(config != null)
+        assertFalse(config!!.startsWith("vless://"))
+        assertTrue(outcome.transformed!!.insecure == true)
+
+        val root = JsonParser.parseString(config).asJsonObject
+        assertEquals("vless", root.get("protocol").asString)
+        val settings = root.getAsJsonObject("settings")
+        assertTrue(settings.has("vnext"))
+        assertFalse(settings.has("servers"))
+        assertEquals(
+            "11111111-2222-3333-4444-555555555555",
+            settings.getAsJsonArray("vnext")[0].asJsonObject
+                .getAsJsonArray("users")[0].asJsonObject
+                .get("id").asString,
+        )
+    }
+
+    @Test
+    fun `trojan stocke un JSON Xray servers et jamais vnext`() {
+        val trojan = ProfileItem.create(EConfigType.TROJAN).apply {
+            server = "trojan.example.com"
+            serverPort = "8443"
+            password = "p@ss"
+            network = "ws"
+            security = "tls"
+            sni = "trojan.example.com"
+            host = "trojan.example.com"
+            path = "/trojanws"
+        }
+
+        val outcome = transform(trojan, ReconfigMethod.MAXIT_MOBILE, "")
+        val config = outcome.transformedConfig
+        assertTrue(config != null)
+
+        val root = JsonParser.parseString(config!!).asJsonObject
+        assertEquals("trojan", root.get("protocol").asString)
+        val settings = root.getAsJsonObject("settings")
+        assertTrue(settings.has("servers"))
+        assertFalse(settings.has("vnext"))
+        val server = settings.getAsJsonArray("servers")[0].asJsonObject
+        assertEquals("p@ss", server.get("password").asString)
+        assertEquals(443, server.get("port").asInt)
     }
 }

@@ -599,10 +599,12 @@ object CoreOutboundBuilder {
         val explicitSni = profileItem.sni?.trim().nullIfBlank()
         if (explicitSni != null) return explicitSni
 
-        // The transport Host is an HTTP/WebSocket header, not a TLS SNI.
-        // Keep the target server as the default SNI so profiles where Host
-        // differs from the target (or where SNI is omitted) remain valid.
-        return profileItem.server?.trim().nullIfBlank() ?: sniExt
+        // Beaucoup de passerelles n'exposent pas `sni=` et attendent le Host
+        // WebSocket comme SNI. Le domaine de connexion reste le dernier recours.
+        val host = profileItem.host?.trim().nullIfBlank()
+        if (host != null) return host
+
+        return profileItem.server?.trim().nullIfBlank() ?: sniExt?.trim().nullIfBlank()
     }
 
     /**

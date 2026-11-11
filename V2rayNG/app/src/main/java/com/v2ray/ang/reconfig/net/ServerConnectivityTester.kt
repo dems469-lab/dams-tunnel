@@ -1,14 +1,12 @@
 package com.v2ray.ang.reconfig.net
 
 import android.content.Context
-import com.v2ray.ang.core.CoreConfigManager
 import com.v2ray.ang.core.CoreNativeManager
+import com.v2ray.ang.core.XrayJsonConfig
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.handler.MmkvManager
-import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.reconfig.data.ReconfigTestState
 import com.v2ray.ang.service.RealPingExecutionLimiter
-import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -29,22 +27,25 @@ internal data class TunnelTestOutcome(
 /**
  * Test réel du tunnel d'une configuration préparée.
  *
- * Le test réutilise la chaîne du projet, celle du « vrai ping » des serveurs :
- * 1. construction de la configuration Xray via [CoreConfigManager] ;
- * 2. démarrage d'une instance temporaire du cœur ;
- * 3. requête HTTP réelle à travers cette instance ([CoreNativeManager.measureOutboundDelay]).
+ * Le test part du JSON Xray généré pour le profil, puis :
+ * 1. construit une configuration minimale dont le proxy est le premier
+ *    outbound ;
+ * 2. démarre une instance temporaire du cœur ;
+ * 3. exécute une vraie requête HTTP à travers cet outbound
+ *    ([CoreNativeManager.measureOutboundDelay]).
  *
- * Le résultat n'est déclaré fonctionnel que si la requête aboutit : un simple
- * démarrage du cœur ne suffit pas.
+ * Le probe natif utilise `core.Dial` (équivalent à un SOCKS local interne),
+ * retire les inbounds et n'accepte que les réponses 200/204. Aucun port local
+ * fixe n'est réservé : le module ne peut pas entrer en conflit avec le SOCKS
+ * de l'application.
  *
- * Le profil est écrit sous un identifiant temporaire puis supprimé dans tous les
- * cas. L'instance temporaire du cœur ne crée aucun TUN et n'entre pas en conflit
- * avec la connexion VPN active de l'utilisateur, qui n'est jamais interrompue.
+ * Le résultat n'est déclaré fonctionnel que si la requête aboutit en moins de
+ * [MAX_TEST_DELAY_MS] : un simple démarrage du cœur ne suffit pas.
  */
 internal class ServerConnectivityTester(
     context: Context,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val delayUrlProvider: () -> String = { SettingsManager.getDelayTestUrl() },
+    private val delayUrlProvider: () -> String = { TEST_URL },
 ) {
     private val appContext = context.applicationContext
 
@@ -53,32 +54,28 @@ internal class ServerConnectivityTester(
     }
 
     private suspend fun performTest(profile: ProfileItem): TunnelTestOutcome {
-        val tempGuid = "$TEMP_PROFILE_PREFIX${UUID.randomUUID()}"
+        // Le JSON est celui que le module stocke : vnext pour VLESS/VMess,
+        // servers pour Trojan, SNI et Host dynamiques.
+        val outbound = XrayJsonConfig.buildOutboundJson(profile)
+            ?: return TunnelTestOutcome(ReconfigTestState.INVALID_CONFIG, detail = "profile")
+        val config = XrayJsonConfig.buildProbeConfig(outbound)
+            ?: return TunnelTestOutcome(ReconfigTestState.INVALID_CONFIG, detail = "config")
+
         return try {
             CoreNativeManager.initCoreEnv(appContext)
-            val storedGuid = runCatching {
-                MmkvManager.encodeServerConfig(tempGuid, profile.copy(subscriptionId = ""))
-            }.getOrNull() ?: return TunnelTestOutcome(ReconfigTestState.CORE_ERROR, detail = "store")
-
-            val config = CoreConfigManager.getV2rayConfig4Speedtest(appContext, storedGuid)
-            if (!config.status || config.content.isBlank()) {
-                return TunnelTestOutcome(ReconfigTestState.INVALID_CONFIG, detail = "config")
-            }
-
             val delay = RealPingExecutionLimiter.run(profile.configType) {
-                CoreNativeManager.measureOutboundDelay(config.content, delayUrlProvider())
+                CoreNativeManager.measureOutboundDelay(config, delayUrlProvider())
             }
-            if (delay >= 0L) {
-                TunnelTestOutcome(ReconfigTestState.FUNCTIONAL, delay)
-            } else {
-                TunnelTestOutcome(ReconfigTestState.UNREACHABLE, detail = "probe")
+            when {
+                delay < 0L -> TunnelTestOutcome(ReconfigTestState.UNREACHABLE, detail = "probe")
+                delay > MAX_TEST_DELAY_MS ->
+                    TunnelTestOutcome(ReconfigTestState.UNREACHABLE, detail = "timeout")
+                else -> TunnelTestOutcome(ReconfigTestState.FUNCTIONAL, delay)
             }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
             TunnelTestOutcome(ReconfigTestState.CORE_ERROR, detail = "core")
-        } finally {
-            runCatching { MmkvManager.removeServer(tempGuid) }
         }
     }
 
@@ -91,11 +88,20 @@ internal class ServerConnectivityTester(
          */
         const val MAX_CONCURRENT_TESTS = 3
 
+        /** URL de contrôle demandée par le module de reconfiguration. */
+        const val TEST_URL = "https://cp.cloudflare.com/generate_204"
+
+        /**
+         * Le probe natif a son propre garde-fou ; au-delà de 5 s la réponse est
+         * considérée comme un échec pour respecter le contrat du module.
+         */
+        const val MAX_TEST_DELAY_MS = 5_000L
+
         private val nativeProbeSemaphore = Semaphore(MAX_CONCURRENT_TESTS)
 
         /**
-         * Supprime les profils temporaires laissés par un test interrompu par un
-         * arrêt du processus. Aucun profil utilisateur n'est concerné.
+         * Supprime les profils temporaires laissés par une version antérieure
+         * du test. Aucun profil utilisateur n'est concerné.
          */
         fun purgeTemporaryProfiles() {
             runCatching {

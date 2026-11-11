@@ -455,10 +455,16 @@ object CoreConfigManager {
      * Serialize a runtime configuration into a standard result object.
      */
     private fun toConfigResult(configContext: CoreConfigContext, v2rayConfig: V2rayConfig): ConfigResult {
+        // Le modèle interne conserve les champs du serveur à plat dans
+        // `settings`. Xray exige `settings.vnext` (VMess/VLESS) ou
+        // `settings.servers` (Trojan/Shadowsocks/SOCKS/HTTP) : la conversion
+        // est faite ici, au seul point de sérialisation runtime.
+        val content = XrayJsonConfig.toXrayJson(v2rayConfig)
         return ConfigResult(
-            status = true,
+            status = content.isNotBlank(),
             guid = configContext.guid,
-            content = JsonUtil.toJsonPretty(v2rayConfig) ?: ""
+            content = content,
+            errorMessage = if (content.isBlank()) "Failed to serialize Xray config" else ""
         )
     }
 

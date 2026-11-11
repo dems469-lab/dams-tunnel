@@ -40,7 +40,8 @@ internal enum class ReconfigTestState {
  * Serveur préparé par le module de reconfiguration.
  *
  * Les deux représentations textuelles sont conservées :
- * - [transformedConfig] : URI de partage, lisible et exportable ;
+ * - [transformedConfig] : JSON Xray complet de l'outbound (`vnext` pour
+ *   VLESS/VMess, `servers` pour Trojan), jamais le lien brut ;
  * - [transformedProfileJson] : profil complet, utilisé pour le transfert vers
  *   Configs afin de ne perdre aucun paramètre.
  *

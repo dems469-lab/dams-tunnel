@@ -1,5 +1,6 @@
 package com.v2ray.ang.reconfig.data
 
+import com.v2ray.ang.core.XrayJsonConfig
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
@@ -54,6 +55,17 @@ internal class ConfigsTransferManager(
             servers.forEach { server ->
                 val profile = decodeProfile(server)
                 if (profile == null || !isTransferable(profile)) {
+                    invalid++
+                    return@forEach
+                }
+
+                // Le champ de configuration doit contenir un JSON Xray
+                // exploitable. Les lignes créées avant cette version
+                // contenaient un lien brut : on les régénère depuis le profil.
+                val xrayConfig = server.transformedConfig
+                    .takeIf { XrayJsonConfig.isOutboundValid(it, profile.configType) }
+                    ?: XrayJsonConfig.buildOutboundJson(profile)
+                if (xrayConfig == null) {
                     invalid++
                     return@forEach
                 }

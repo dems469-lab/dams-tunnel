@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 
 class CoreOutboundBuilderTest {
     @Test
-    fun `websocket host is not used as implicit TLS SNI`() {
+    fun `websocket host is used as fallback TLS SNI`() {
         val stream = OutboundBean.StreamSettingsBean()
         val profile = ProfileItem.create(EConfigType.VMESS).apply {
             server = "target.example"
@@ -21,7 +21,7 @@ class CoreOutboundBuilderTest {
 
         CoreOutboundBuilder.populateTransportSettings(stream, profile)
         assertEquals("header.example", stream.wsSettings?.host)
-        assertEquals("target.example", CoreOutboundBuilder.resolveTlsServerName(profile, profile.host))
+        assertEquals("header.example", CoreOutboundBuilder.resolveTlsServerName(profile, profile.host))
     }
 
     @Test

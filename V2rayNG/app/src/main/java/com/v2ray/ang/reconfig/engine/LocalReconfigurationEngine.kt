@@ -2,6 +2,7 @@ package com.v2ray.ang.reconfig.engine
 
 import android.util.Base64
 import android.util.Log
+import com.v2ray.ang.core.XrayJsonConfig
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
 import java.net.URLDecoder
@@ -20,7 +21,9 @@ import org.json.JSONObject
  * 2. Pour une adresse IP, le SNI (ou à défaut l'en-tête Host) sert de domaine.
  * 3. Les hôtes `api-connect.orange.bf` et `apigw-maxit2.orange.bf` ne sont
  *    jamais modifiés et un préfixe déjà présent n'est jamais répété.
- * 4. Le port de connexion est forcé à 443.
+ * 4. Le port de connexion est forcé à 443 et le TLS passe en `allowInsecure`
+ *    pour que le JSON généré, le test réel et la connexion depuis Configs
+ *    utilisent la même politique.
  * 5. Le profil d'origine n'est jamais modifié : le résultat est une copie.
  *
  * Ce moteur ne valide pas le résultat par un aller-retour de sérialisation :
@@ -226,13 +229,27 @@ internal object LocalReconfigurationEngine {
         )
 
         // `copy` conserve tous les autres champs : SNI, Host, chemin,
-        // transport, sécurité, identifiants et champs inconnus.
-        val transformed = profile.copy(server = newAddress, serverPort = FORCED_PORT)
+        // transport, sécurité, identifiants et champs inconnus. Le TLS est
+        // marqué `insecure` pour que le JSON généré, le test réel et la
+        // connexion depuis Configs utilisent exactement la même politique.
+        val transformed = profile.copy(
+            server = newAddress,
+            serverPort = FORCED_PORT,
+            insecure = if (profile.security.equals("tls", ignoreCase = true)) {
+                true
+            } else {
+                profile.insecure
+            },
+        )
 
-        // La sérialisation n'est qu'une information d'export : son échec ne
-        // remet jamais en cause la transformation, qui reste valide.
-        val originalConfig = AppConfigurationCodec.encode(profile)
-        val transformedConfig = AppConfigurationCodec.encode(transformed)
+        // Le champ de configuration stocké est un JSON Xray complet
+        // (settings.vnext pour VLESS/VMess, settings.servers pour Trojan),
+        // jamais le lien brut. Le profil complet reste conservé à part pour
+        // le transfert vers Configs.
+        val originalConfig = XrayJsonConfig.buildOutboundJson(profile)
+            ?: AppConfigurationCodec.encode(profile)
+        val transformedConfig = XrayJsonConfig.buildOutboundJson(transformed)
+            ?: AppConfigurationCodec.encode(transformed)
 
         log("Resultat: true - ${method.storageKey}")
 

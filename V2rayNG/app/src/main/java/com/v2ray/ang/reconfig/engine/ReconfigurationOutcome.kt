@@ -22,8 +22,8 @@ internal enum class ReconfigurationStatus {
  *
  * @property original profil d'origine, jamais modifié.
  * @property transformed nouveau profil, `null` en cas d'échec.
- * @property originalConfig URI d'origine (information, peut être vide).
- * @property transformedConfig URI du résultat (information, peut être vide).
+ * @property originalConfig JSON Xray de l'outbound d'origine (information, peut être vide).
+ * @property transformedConfig JSON Xray de l'outbound transformé (information, peut être vide).
  */
 internal data class ReconfigurationOutcome(
     val status: ReconfigurationStatus,
