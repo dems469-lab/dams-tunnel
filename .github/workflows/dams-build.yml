@@ -77,7 +77,10 @@ jobs:
             echo "::error title=Tâche de tests introuvable::Aucune tâche unit test n'a été trouvée."
             exit 1
           fi
-          ./gradlew "$task" --tests "com.v2ray.ang.core.ShadowsocksConfigValidatorTest" --tests "com.v2ray.ang.ui.main.DamsHomeStateTest"
+          ./gradlew "$task" \
+            --tests "com.v2ray.ang.core.ShadowsocksConfigValidatorTest" \
+            --tests "com.v2ray.ang.ui.main.DamsHomeStateTest" \
+            --tests "com.v2ray.ang.reconfig.*"
 
       - name: Build signed release APKs
         env:
