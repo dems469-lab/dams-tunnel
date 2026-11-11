@@ -1090,7 +1090,7 @@
     <string name="reconfig_sheet_error_domain">Ce nom de domaine n\'est pas valide.</string>
     <string name="reconfig_sheet_error_ipv6">Les adresses IPv6 et les ports ne sont pas acceptés ici.</string>
     <string name="reconfig_sheet_error_long">Cette valeur est trop longue.</string>
-    <string name="reconfig_sheet_note">Transformation locale et hors ligne : aucune requête réseau. Seule l\'adresse de connexion change ; le SNI, l\'en-tête Host, le port et les identifiants sont conservés. N\'utilisez que des cibles que vous êtes autorisé à utiliser.</string>
+    <string name="reconfig_sheet_note">Transformation locale et hors ligne : aucune requête réseau. Seule l\'adresse de connexion change et le port est fixé à 443 ; le SNI, l\'en-tête Host et les identifiants sont conservés. N\'utilisez que des cibles que vous êtes autorisé à utiliser.</string>
     <string name="reconfig_sheet_run">Reconfigurer %1$d</string>
     <string name="reconfig_sheet_ineligible">%1$d configuration(s) non préparée(s) (protocole, adresse ou doublon)</string>
     <string name="reconfig_sheet_done">%1$d préparée(s), %2$d ignorée(s), originaux intacts</string>
@@ -1105,6 +1105,6 @@
     <string name="reconfig_count">%1$d serveur(s) préparé(s)</string>
     <string name="reconfig_reset_filters">Réinitialiser les filtres</string>
     <string name="reconfig_no_match">Aucun serveur préparé ne correspond à ces filtres.</string>
-    <string name="reconfig_detail_note">Seule l\'adresse de connexion a changé : le SNI, l\'en-tête Host, le port et les identifiants sont inchangés. Le serveur d\'origine n\'est jamais modifié.</string>
+    <string name="reconfig_detail_note">Seule l\'adresse de connexion a changé et le port est désormais 443 : le SNI, l\'en-tête Host et les identifiants sont inchangés. Le serveur d\'origine n\'est jamais modifié.</string>
     <string name="reconfig_detail_originals">Les serveurs d\'origine ne sont jamais modifiés.</string>
 </resources>

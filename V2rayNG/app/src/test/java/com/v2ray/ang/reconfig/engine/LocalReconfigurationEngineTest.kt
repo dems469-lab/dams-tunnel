@@ -10,38 +10,41 @@ import org.junit.jupiter.api.Test
 
 class LocalReconfigurationEngineTest {
 
-    // Le codec Android n'est pas disponible sur la JVM : la validation
-    // structurelle, elle, est entièrement testée ici.
-    private val engine = LocalReconfigurationEngine(codec = null)
+    private fun vless(address: String = "edge.example.com", port: String = "443") =
+        ProfileItem.create(EConfigType.VLESS).apply {
+            remarks = "Paris"
+            server = address
+            serverPort = port
+            password = "11111111-2222-3333-4444-555555555555"
+            method = "none"
+            network = "ws"
+            security = "tls"
+            sni = "sni.example.com"
+            host = "host.example.com"
+            path = "/ray"
+            alpn = "h2,http/1.1"
+            fingerPrint = "chrome"
+            insecure = false
+        }
 
-    private fun vlessWs(): ProfileItem = ProfileItem.create(EConfigType.VLESS).apply {
-        remarks = "Paris"
-        server = "edge.example.com"
-        serverPort = "443"
-        password = "11111111-2222-3333-4444-555555555555"
-        method = "none"
-        network = "ws"
-        security = "tls"
-        sni = "sni.example.com"
-        host = "host.example.com"
-        path = "/ray"
-        alpn = "h2,http/1.1"
-        fingerPrint = "chrome"
-        insecure = false
-    }
+    private fun transform(
+        profile: ProfileItem,
+        method: ReconfigMethod,
+        target: String,
+    ): ReconfigurationOutcome = LocalReconfigurationEngine.reconfigure(profile, method, target)
 
     @Test
-    fun `vless websocket tls remplace uniquement l adresse`() {
-        val original = vlessWs()
-        val outcome = engine.reconfigure(original, ReconfigMethod.API_CONNECT, "api-connect.orange.bf")
+    fun `vless api connect remplace l adresse et force le port 443`() {
+        val original = vless()
+        val outcome = transform(original, ReconfigMethod.API_CONNECT, "api-connect.orange.bf")
 
         assertTrue(outcome.isSuccess, "statut inattendu : ${outcome.status}")
         val transformed = outcome.transformed!!
         assertEquals("api-connect.orange.bf", transformed.server)
+        assertEquals("443", transformed.serverPort)
         // L'original n'est jamais modifié.
         assertEquals("edge.example.com", original.server)
         // Tout le reste est préservé, y compris SNI et Host.
-        assertEquals("443", transformed.serverPort)
         assertEquals("11111111-2222-3333-4444-555555555555", transformed.password)
         assertEquals("ws", transformed.network)
         assertEquals("tls", transformed.security)
@@ -69,12 +72,12 @@ class LocalReconfigurationEngineTest {
             shortId = "abcd"
             fingerPrint = "firefox"
         }
-        val outcome = engine.reconfigure(original, ReconfigMethod.API_GATEWAY, "apigw-maxit2.orange.bf")
+        val outcome = transform(original, ReconfigMethod.API_GATEWAY, "apigw-maxit2.orange.bf")
 
         assertTrue(outcome.isSuccess)
         val transformed = outcome.transformed!!
         assertEquals("apigw-maxit2.orange.bf", transformed.server)
-        assertEquals("8443", transformed.serverPort)
+        assertEquals("443", transformed.serverPort)
         assertEquals("grpc", transformed.network)
         assertEquals("grpc-service", transformed.serviceName)
         assertEquals("gun", transformed.mode)
@@ -86,7 +89,7 @@ class LocalReconfigurationEngineTest {
     }
 
     @Test
-    fun `vmess websocket conserve identifiant et parametres`() {
+    fun `vmess conserve identifiant et parametres`() {
         val original = ProfileItem.create(EConfigType.VMESS).apply {
             server = "vmess.example.com"
             serverPort = "443"
@@ -98,7 +101,7 @@ class LocalReconfigurationEngineTest {
             host = "cdn.example.com"
             path = "/vm"
         }
-        val outcome = engine.reconfigure(original, ReconfigMethod.API_CONNECT, "api-connect.orange.bf")
+        val outcome = transform(original, ReconfigMethod.API_CONNECT, "api-connect.orange.bf")
 
         assertTrue(outcome.isSuccess)
         val transformed = outcome.transformed!!
@@ -113,7 +116,7 @@ class LocalReconfigurationEngineTest {
     }
 
     @Test
-    fun `trojan websocket conserve le mot de passe et le transport`() {
+    fun `trojan prefixe le domaine avec maxit`() {
         val original = ProfileItem.create(EConfigType.TROJAN).apply {
             server = "trojan.example.com"
             serverPort = "443"
@@ -124,7 +127,7 @@ class LocalReconfigurationEngineTest {
             host = "cdn.example.com"
             path = "/tr"
         }
-        val outcome = engine.reconfigure(original, ReconfigMethod.MAXIT_MOBILE, "Maxit-mobile.orange.bf")
+        val outcome = transform(original, ReconfigMethod.MAXIT_MOBILE, "Maxit-mobile.orange.bf")
 
         assertTrue(outcome.isSuccess)
         val transformed = outcome.transformed!!
@@ -139,55 +142,73 @@ class LocalReconfigurationEngineTest {
     }
 
     @Test
-    fun `le prefixe n est applique qu une seule fois`() {
-        val original = ProfileItem.create(EConfigType.VLESS).apply {
-            server = "Maxit-mobile.orange.bf.edge.example.com"
-            serverPort = "443"
-            password = "uuid"
-            security = "tls"
-        }
-        val outcome = engine.reconfigure(original, ReconfigMethod.MAXIT_MOBILE, "Maxit-mobile.orange.bf")
-        assertEquals(ReconfigurationStatus.ALREADY_TRANSFORMED, outcome.status)
-        assertNull(outcome.transformed)
-    }
-
-    @Test
-    fun `le prefixe refuse une adresse ip`() {
-        val original = ProfileItem.create(EConfigType.VLESS).apply {
-            server = "192.0.2.10"
-            serverPort = "443"
-            password = "uuid"
-            security = "tls"
-        }
-        val outcome = engine.reconfigure(original, ReconfigMethod.MAXIT_MOBILE, "Maxit-mobile.orange.bf")
-        assertEquals(ReconfigurationStatus.INVALID_ADDRESS, outcome.status)
-    }
-
-    @Test
-    fun `une adresse ip peut etre remplacee`() {
-        val original = ProfileItem.create(EConfigType.VLESS).apply {
-            server = "192.0.2.10"
-            serverPort = "443"
-            password = "uuid"
-            security = "tls"
-        }
-        val outcome = engine.reconfigure(original, ReconfigMethod.CUSTOM, "gateway.example.com")
+    fun `le port d origine est toujours remplace par 443`() {
+        val outcome = transform(vless(port = "8443"), ReconfigMethod.API_CONNECT, "api-connect.orange.bf")
         assertTrue(outcome.isSuccess)
-        assertEquals("gateway.example.com", outcome.transformed!!.server)
+        assertEquals("443", outcome.transformed!!.serverPort)
     }
 
     @Test
-    fun `refuse un port invalide`() {
-        val original = vlessWs().apply { serverPort = "0" }
-        assertEquals(
-            ReconfigurationStatus.INVALID_PORT,
-            engine.reconfigure(original, ReconfigMethod.API_CONNECT, "api-connect.orange.bf").status,
+    fun `une adresse ip utilise le sni puis le host`() {
+        val viaSni = transform(vless(address = "192.0.2.10"), ReconfigMethod.MAXIT_MOBILE, "Maxit-mobile.orange.bf")
+        assertEquals("Maxit-mobile.orange.bf.sni.example.com", viaSni.transformed!!.server)
+
+        val viaHost = transform(
+            vless(address = "192.0.2.10").apply { sni = null },
+            ReconfigMethod.MAXIT_MOBILE,
+            "Maxit-mobile.orange.bf",
         )
-        original.serverPort = "abc"
-        assertEquals(
-            ReconfigurationStatus.INVALID_PORT,
-            engine.reconfigure(original, ReconfigMethod.API_CONNECT, "api-connect.orange.bf").status,
-        )
+        assertEquals("Maxit-mobile.orange.bf.host.example.com", viaHost.transformed!!.server)
+    }
+
+    @Test
+    fun `une adresse ip sans sni ni host est laissee intacte`() {
+        val original = vless(address = "192.0.2.10").apply {
+            sni = null
+            host = null
+        }
+        val outcome = transform(original, ReconfigMethod.MAXIT_MOBILE, "Maxit-mobile.orange.bf")
+        assertTrue(outcome.isSuccess)
+        assertEquals("192.0.2.10", outcome.transformed!!.server)
+    }
+
+    @Test
+    fun `une adresse ip avec api connect est remplacee directement`() {
+        val outcome = transform(vless(address = "192.0.2.10"), ReconfigMethod.API_CONNECT, "api-connect.orange.bf")
+        assertTrue(outcome.isSuccess)
+        assertEquals("api-connect.orange.bf", outcome.transformed!!.server)
+    }
+
+    @Test
+    fun `un prefixe deja present n est pas repete`() {
+        val original = vless(address = "Maxit-mobile.orange.bf.edge.example.com")
+        val outcome = transform(original, ReconfigMethod.MAXIT_MOBILE, "Maxit-mobile.orange.bf")
+        assertTrue(outcome.isSuccess)
+        assertEquals("Maxit-mobile.orange.bf.edge.example.com", outcome.transformed!!.server)
+        assertEquals("443", outcome.transformed!!.serverPort)
+    }
+
+    @Test
+    fun `les hotes d api ne sont jamais modifies`() {
+        listOf("api-connect.orange.bf", "apigw-maxit2.orange.bf").forEach { host ->
+            val outcome = transform(vless(address = host), ReconfigMethod.MAXIT_MOBILE, "Maxit-mobile.orange.bf")
+            assertTrue(outcome.isSuccess, "hôte $host")
+            assertEquals(host, outcome.transformed!!.server)
+        }
+    }
+
+    @Test
+    fun `une cible personnalisee est appliquee comme prefixe`() {
+        val outcome = transform(vless(), ReconfigMethod.CUSTOM, "gateway.example.com")
+        assertTrue(outcome.isSuccess)
+        assertEquals("gateway.example.com.edge.example.com", outcome.transformed!!.server)
+    }
+
+    @Test
+    fun `une cible personnalisee ipv4 est acceptee`() {
+        val outcome = transform(vless(), ReconfigMethod.CUSTOM, "192.0.2.10")
+        assertTrue(outcome.isSuccess)
+        assertEquals("192.0.2.10.edge.example.com", outcome.transformed!!.server)
     }
 
     @Test
@@ -200,45 +221,81 @@ class LocalReconfigurationEngineTest {
         }
         assertEquals(
             ReconfigurationStatus.UNSUPPORTED_PROTOCOL,
-            engine.reconfigure(original, ReconfigMethod.API_CONNECT, "api-connect.orange.bf").status,
-        )
-    }
-
-    @Test
-    fun `refuse une cible invalide`() {
-        val original = vlessWs()
-        assertEquals(
-            ReconfigurationStatus.INVALID_TARGET,
-            engine.reconfigure(original, ReconfigMethod.CUSTOM, " ").status,
-        )
-        assertEquals(
-            ReconfigurationStatus.INVALID_TARGET,
-            engine.reconfigure(original, ReconfigMethod.CUSTOM, "https://x.example.com").status,
+            transform(original, ReconfigMethod.API_CONNECT, "api-connect.orange.bf").status,
         )
     }
 
     @Test
     fun `refuse une adresse source vide`() {
-        val original = vlessWs().apply { server = "" }
         assertEquals(
             ReconfigurationStatus.INVALID_ADDRESS,
-            engine.reconfigure(original, ReconfigMethod.API_CONNECT, "api-connect.orange.bf").status,
+            transform(vless(address = ""), ReconfigMethod.API_CONNECT, "api-connect.orange.bf").status,
         )
     }
 
     @Test
-    fun `la methode personnalisee accepte un domaine ou une ip`() {
-        val original = vlessWs()
-        assertTrue(engine.reconfigure(original, ReconfigMethod.CUSTOM, "gateway.example.com").isSuccess)
-        assertTrue(engine.reconfigure(original, ReconfigMethod.CUSTOM, "192.0.2.10").isSuccess)
+    fun `refuse une cible personnalisee invalide`() {
+        assertEquals(
+            ReconfigurationStatus.INVALID_TARGET,
+            transform(vless(), ReconfigMethod.CUSTOM, " ").status,
+        )
+        assertEquals(
+            ReconfigurationStatus.INVALID_TARGET,
+            transform(vless(), ReconfigMethod.CUSTOM, "https://x.example.com").status,
+        )
+        assertEquals(
+            ReconfigurationStatus.INVALID_TARGET,
+            transform(vless(), ReconfigMethod.CUSTOM, "2001:db8::1").status,
+        )
     }
 
     @Test
     fun `un echec ne produit jamais de configuration`() {
-        val outcome = engine.reconfigure(vlessWs(), ReconfigMethod.MAXIT_MOBILE, "")
+        val outcome = transform(vless(), ReconfigMethod.CUSTOM, "")
         assertFalse(outcome.isSuccess)
         assertNull(outcome.transformed)
         assertNull(outcome.transformedConfig)
         assertEquals(ReconfigurationStatus.INVALID_TARGET, outcome.status)
+    }
+
+    @Test
+    fun `l original n est jamais modifie`() {
+        val original = vless()
+        val before = original.copy()
+        transform(original, ReconfigMethod.MAXIT_MOBILE, "Maxit-mobile.orange.bf")
+        assertEquals(before, original)
+    }
+
+    @Test
+    fun `processLink vless applique le prefixe et force le port`() {
+        val link = "vless://11111111-2222-3333-4444-555555555555@edge.example.com:8443" +
+            "?type=ws&security=tls&sni=sni.example.com&host=host.example.com&path=%2Fray#Paris"
+        val result = LocalReconfigurationEngine.processLink(link, "MAXIT")
+
+        assertTrue(result.success, result.errorMessage.orEmpty())
+        assertEquals(
+            "vless://11111111-2222-3333-4444-555555555555@Maxit-mobile.orange.bf.edge.example.com:443" +
+                "?type=ws&security=tls&sni=sni.example.com&host=host.example.com&path=%2Fray#Paris",
+            result.newLink,
+        )
+    }
+
+    @Test
+    fun `processLink trojan accepte un mot de passe contenant un arobase`() {
+        val link = "trojan://p@ss@trojan.example.com:443?security=tls&sni=sni.example.com#T"
+        val result = LocalReconfigurationEngine.processLink(link, "MAXIT")
+
+        assertTrue(result.success, result.errorMessage.orEmpty())
+        assertEquals(
+            "trojan://p@ss@Maxit-mobile.orange.bf.trojan.example.com:443?security=tls&sni=sni.example.com#T",
+            result.newLink,
+        )
+    }
+
+    @Test
+    fun `processLink refuse un protocole inconnu`() {
+        val result = LocalReconfigurationEngine.processLink("ss://abc@example.com:8388", "MAXIT")
+        assertFalse(result.success)
+        assertNull(result.newLink)
     }
 }

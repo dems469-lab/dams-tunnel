@@ -28,10 +28,10 @@ class ReconfigurationBatchRunnerTest {
         }
     }
 
-    // Le codec Android n'existe pas sur la JVM : la validation structurelle du
-    // moteur reste active, seule la sérialisation d'URI est désactivée.
+    // Le moteur est un objet sans état : aucun codec ni dépendance Android
+    // n'est nécessaire pour tester le traitement par lots sur la JVM.
     private fun createRunner(store: ReconfigurationStore) =
-        ReconfigurationBatchRunner(store, LocalReconfigurationEngine(codec = null))
+        ReconfigurationBatchRunner(store)
 
     private fun profile(address: String) = ProfileItem.create(EConfigType.VLESS).apply {
         server = address

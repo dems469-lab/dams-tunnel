@@ -1,64 +1,201 @@
 package com.v2ray.ang.reconfig.engine
 
+import android.util.Base64
+import android.util.Log
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
-
-internal enum class ReconfigurationStatus {
-    SUCCESS,
-    UNSUPPORTED_PROTOCOL,
-    INVALID_ADDRESS,
-    INVALID_PORT,
-    INVALID_TARGET,
-    ALREADY_TRANSFORMED,
-    VALIDATION_FAILED,
-    SERIALIZATION_FAILED,
-}
+import java.net.URLDecoder
+import org.json.JSONObject
 
 /**
- * Résultat d'une reconfiguration locale.
+ * Moteur de reconfiguration local, fondé sur une manipulation de chaînes pure.
  *
- * @property original profil d'origine, jamais modifié.
- * @property transformed nouveau profil, `null` en cas d'échec.
- * @property originalConfig URI d'origine (information, peut être vide).
- * @property transformedConfig URI du résultat (information, peut être vide).
- */
-internal data class ReconfigurationOutcome(
-    val status: ReconfigurationStatus,
-    val original: ProfileItem,
-    val method: ReconfigMethod,
-    val target: String,
-    val transformed: ProfileItem? = null,
-    val originalConfig: String? = null,
-    val transformedConfig: String? = null,
-) {
-    val isSuccess: Boolean get() = status == ReconfigurationStatus.SUCCESS && transformed != null
-    val originalAddress: String get() = original.server.orEmpty()
-    val transformedAddress: String get() = transformed?.server.orEmpty()
-    val originalPort: String get() = original.serverPort.orEmpty()
-    val transformedPort: String get() = transformed?.serverPort.orEmpty()
-}
-
-/**
- * Moteur de reconfiguration local.
+ * Aucune résolution DNS et aucune connexion réseau : les liens sont découpés
+ * manuellement, sans `java.net.URI`, ce qui évite les exceptions des parseurs
+ * stricts sur les liens réels et accepte notamment les mots de passe Trojan
+ * contenant des caractères spéciaux.
  *
  * Règles appliquées :
- * - seuls VLESS, VMess et Trojan sont reconfigurables ;
- * - seule l'adresse de connexion (`server`) est modifiée ;
- * - SNI, en-tête Host, chemin, transport, sécurité, port et identifiants sont
- *   conservés tels quels (une modification de l'adresse ne change jamais le
- *   SNI/Host, qui restent les seuls garants de l'identité TLS du serveur) ;
- * - le port n'est jamais forcé : il dépend du point d'accès cible ;
- * - un préfixe n'est appliqué qu'à un nom de domaine et une seule fois ;
- * - le profil d'origine n'est jamais modifié : le résultat est une copie ;
- * - le résultat est validé avant d'être annoncé comme réussi.
+ * 1. MAXIT-Mobile préfixe un domaine par `Maxit-mobile.orange.bf`.
+ * 2. Pour une adresse IP, le SNI (ou à défaut l'en-tête Host) sert de domaine.
+ * 3. Les hôtes `api-connect.orange.bf` et `apigw-maxit2.orange.bf` ne sont
+ *    jamais modifiés et un préfixe déjà présent n'est jamais répété.
+ * 4. Le port de connexion est forcé à 443.
+ * 5. Le profil d'origine n'est jamais modifié : le résultat est une copie.
  *
- * @param codec sérialiseur utilisé pour vérifier que le résultat reste
- * décodable. `null` désactive cette vérification (tests unitaires JVM).
+ * Ce moteur ne valide pas le résultat par un aller-retour de sérialisation :
+ * une configuration réelle qui ne se réencode pas à l'identique reste
+ * transformable. La seule vérification est structurelle (protocole, adresse,
+ * cible personnalisée).
  */
-internal class LocalReconfigurationEngine(
-    private val codec: ConfigurationCodec? = AppConfigurationCodec,
-) {
-    fun reconfigure(
+internal object LocalReconfigurationEngine {
+
+    private const val TAG = "RECONFIG"
+    private const val PREFIX_MAXIT = "Maxit-mobile.orange.bf"
+    private const val HOST_API_CONNECT = "api-connect.orange.bf"
+    private const val HOST_API_GATEWAY = "apigw-maxit2.orange.bf"
+    private const val FORCED_PORT = "443"
+
+    private const val METHOD_MAXIT = "MAXIT"
+    private const val METHOD_API_CONNECT = "API_CONNECT"
+    private const val METHOD_API_GATEWAY = "API_GATEWAY"
+    private const val METHOD_CUSTOM = "CUSTOM"
+
+    private val EXCEPTIONS = listOf(HOST_API_CONNECT, HOST_API_GATEWAY)
+    private val IPV4_REGEX = Regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}$")
+
+    data class ReconfigResult(
+        val success: Boolean,
+        val originalLink: String,
+        val newLink: String?,
+        val errorMessage: String? = null,
+    )
+
+    /**
+     * Transforme un lien brut VLESS, VMess ou Trojan.
+     *
+     * @param method `MAXIT`, `API_CONNECT`, `API_GATEWAY` ou `CUSTOM`.
+     * @param customTarget domaine ou IPv4 utilisé par la méthode `CUSTOM`.
+     */
+    fun processLink(rawLink: String, method: String, customTarget: String = ""): ReconfigResult {
+        val link = rawLink.trim()
+        val result = try {
+            when {
+                link.startsWith("vless://") -> processUriProtocol(link, "vless", method, customTarget)
+                link.startsWith("trojan://") -> processUriProtocol(link, "trojan", method, customTarget)
+                link.startsWith("vmess://") -> processVmess(link, method, customTarget)
+                else -> ReconfigResult(false, link, null, "Protocole non supporté")
+            }
+        } catch (e: Exception) {
+            ReconfigResult(false, link, null, "Erreur de parsing : ${e.message}")
+        }
+        log("Resultat: ${result.success} - ${result.errorMessage}")
+        return result
+    }
+
+    private fun processUriProtocol(
+        link: String,
+        protocol: String,
+        method: String,
+        customTarget: String,
+    ): ReconfigResult {
+        val rest = link.substringAfter("$protocol://")
+
+        // L'autorité s'arrête au premier « ? » ou « # ».
+        val queryIndex = rest.indexOf('?')
+        val hashIndex = rest.indexOf('#')
+        val authorityEnd = listOf(queryIndex, hashIndex)
+            .filter { it >= 0 }
+            .minOrNull() ?: rest.length
+        val authority = rest.substring(0, authorityEnd)
+
+        // Dernier « @ » de l'autorité : un mot de passe Trojan peut en contenir.
+        val at = authority.lastIndexOf('@')
+        if (at < 0) return ReconfigResult(false, link, null, "Format invalide (pas de @)")
+
+        val userInfo = authority.substring(0, at)
+        val hostPort = authority.substring(at + 1)
+
+        val query = if (queryIndex >= 0 && (hashIndex < 0 || queryIndex < hashIndex)) {
+            rest.substring(queryIndex, if (hashIndex >= 0) hashIndex else rest.length)
+        } else {
+            ""
+        }
+        val fragment = if (hashIndex >= 0) rest.substring(hashIndex) else ""
+
+        val host = hostPort.substringBefore(":")
+        if (host.isBlank()) return ReconfigResult(false, link, null, "Hôte absent")
+
+        var sni = ""
+        var hostParam = ""
+        if (query.isNotEmpty()) {
+            query.substring(1).split("&").forEach { param ->
+                val kv = param.split("=", limit = 2)
+                if (kv.size == 2) {
+                    if (kv[0] == "sni" || kv[0] == "peer") sni = URLDecoder.decode(kv[1], "UTF-8")
+                    if (kv[0] == "host") hostParam = URLDecoder.decode(kv[1], "UTF-8")
+                }
+            }
+        }
+
+        val newHost = calculateNewAddress(host, sni, hostParam, method, customTarget)
+        val newLink = "$protocol://$userInfo@$newHost:$FORCED_PORT$query$fragment"
+        return ReconfigResult(true, link, newLink)
+    }
+
+    private fun processVmess(link: String, method: String, customTarget: String): ReconfigResult {
+        val base64Data = link.substringAfter("vmess://")
+        val jsonString = String(Base64.decode(base64Data, Base64.DEFAULT), Charsets.UTF_8)
+        val json = JSONObject(jsonString)
+
+        val originalHost = json.optString("add")
+        if (originalHost.isBlank()) return ReconfigResult(false, link, null, "Hôte absent")
+        val sni = json.optString("sni")
+        val hostParam = json.optString("host")
+
+        val newHost = calculateNewAddress(originalHost, sni, hostParam, method, customTarget)
+
+        json.put("add", newHost)
+        json.put("port", FORCED_PORT)
+
+        val newBase64 = Base64.encodeToString(
+            json.toString().toByteArray(Charsets.UTF_8),
+            Base64.NO_WRAP,
+        )
+        return ReconfigResult(true, link, "vmess://$newBase64")
+    }
+
+    private fun calculateNewAddress(
+        originalHost: String,
+        sni: String,
+        hostParam: String,
+        method: String,
+        customTarget: String,
+    ): String {
+        val host = originalHost.trim()
+        val prefix = when (method) {
+            METHOD_MAXIT -> PREFIX_MAXIT
+            METHOD_API_CONNECT -> HOST_API_CONNECT
+            METHOD_API_GATEWAY -> HOST_API_GATEWAY
+            METHOD_CUSTOM -> customTarget.trim().removeSuffix(".")
+            else -> PREFIX_MAXIT
+        }.trim()
+
+        // Un préfixe vide produirait « .domaine » : on laisse l'hôte intact.
+        if (prefix.isEmpty()) return host
+
+        // Exceptions absolues : hôtes d'API, et préfixe déjà présent.
+        if (EXCEPTIONS.any { it.equals(host, ignoreCase = true) }) return host
+        if (host.equals(prefix, ignoreCase = true) ||
+            host.startsWith("$prefix.", ignoreCase = true)
+        ) {
+            return host
+        }
+
+        val isIp = host.matches(IPV4_REGEX)
+        if (isIp) {
+            val suffix = when {
+                sni.isNotEmpty() && !sni.matches(IPV4_REGEX) -> sni
+                hostParam.isNotEmpty() && !hostParam.matches(IPV4_REGEX) -> hostParam
+                else -> return host
+            }
+            if (method == METHOD_API_CONNECT || method == METHOD_API_GATEWAY) return prefix
+            return "$prefix.$suffix"
+        }
+
+        if (method == METHOD_API_CONNECT || method == METHOD_API_GATEWAY) return prefix
+        return "$prefix.$host"
+    }
+
+    /**
+     * Point d'entrée utilisé par l'application, où les profils sont déjà
+     * décodés (MMKV / Configs).
+     *
+     * Il applique exactement les mêmes règles que [processLink], mais sans
+     * re-sérialiser le lien : aucune configuration réelle n'est perdue à cause
+     * d'un parseur qui refuserait de réécrire une URI.
+     */
+    internal fun reconfigure(
         profile: ProfileItem,
         method: ReconfigMethod,
         targetInput: String,
@@ -67,63 +204,37 @@ internal class LocalReconfigurationEngine(
             return failure(ReconfigurationStatus.UNSUPPORTED_PROTOCOL, profile, method, targetInput)
         }
 
-        val targetValidation = ReconfigTargetValidator.validate(targetInput)
-        val target = targetValidation.target
-            ?: return failure(ReconfigurationStatus.INVALID_TARGET, profile, method, targetInput)
-
         val address = profile.server?.trim().orEmpty()
-        if (address.isEmpty() || address.any { it.isWhitespace() } || !ReconfigTargetValidator.isAddress(address)) {
-            return failure(ReconfigurationStatus.INVALID_ADDRESS, profile, method, target)
+        if (address.isEmpty() || address.any { it.isWhitespace() }) {
+            return failure(ReconfigurationStatus.INVALID_ADDRESS, profile, method, address)
         }
 
-        val port = profile.serverPort?.trim()?.toIntOrNull()
-        if (port == null || port !in 1..65535) {
-            return failure(ReconfigurationStatus.INVALID_PORT, profile, method, target)
+        val target = when (method) {
+            ReconfigMethod.MAXIT_MOBILE -> PREFIX_MAXIT
+            ReconfigMethod.API_CONNECT -> HOST_API_CONNECT
+            ReconfigMethod.API_GATEWAY -> HOST_API_GATEWAY
+            ReconfigMethod.CUSTOM -> ReconfigTargetValidator.validate(targetInput).target
+                ?: return failure(ReconfigurationStatus.INVALID_TARGET, profile, method, targetInput)
         }
 
-        val newAddress = when {
-            method.usesPrefix -> {
-                // Un préfixe n'a de sens qu'avec un nom de domaine.
-                if (!ReconfigTargetValidator.isDomain(address)) {
-                    return failure(ReconfigurationStatus.INVALID_ADDRESS, profile, method, target)
-                }
-                if (address.equals(target, ignoreCase = true) ||
-                    address.startsWith("$target.", ignoreCase = true)
-                ) {
-                    return failure(ReconfigurationStatus.ALREADY_TRANSFORMED, profile, method, target)
-                }
-                "$target.$address"
-            }
+        val newAddress = calculateNewAddress(
+            originalHost = address,
+            sni = profile.sni.orEmpty(),
+            hostParam = profile.host.orEmpty(),
+            method = method.engineKey,
+            customTarget = target,
+        )
 
-            else -> {
-                if (address.equals(target, ignoreCase = true)) {
-                    return failure(ReconfigurationStatus.ALREADY_TRANSFORMED, profile, method, target)
-                }
-                target
-            }
-        }
+        // `copy` conserve tous les autres champs : SNI, Host, chemin,
+        // transport, sécurité, identifiants et champs inconnus.
+        val transformed = profile.copy(server = newAddress, serverPort = FORCED_PORT)
 
-        if (!ReconfigTargetValidator.isAddress(newAddress)) {
-            return failure(ReconfigurationStatus.VALIDATION_FAILED, profile, method, target)
-        }
+        // La sérialisation n'est qu'une information d'export : son échec ne
+        // remet jamais en cause la transformation, qui reste valide.
+        val originalConfig = AppConfigurationCodec.encode(profile)
+        val transformedConfig = AppConfigurationCodec.encode(transformed)
 
-        // `copy` conserve tous les autres champs, y compris ceux que le module
-        // ne connaît pas : aucun paramètre n'est supprimé par construction.
-        val transformed = profile.copy(server = newAddress)
-
-        if (!preservesInvariants(profile, transformed)) {
-            return failure(ReconfigurationStatus.VALIDATION_FAILED, profile, method, target)
-        }
-
-        val originalConfig = codec?.encode(profile)
-        val transformedConfig = codec?.encode(transformed)
-        if (codec != null) {
-            val decoded = transformedConfig?.let(codec::decode)
-                ?: return failure(ReconfigurationStatus.SERIALIZATION_FAILED, profile, method, target)
-            if (!roundTripMatches(transformed, decoded)) {
-                return failure(ReconfigurationStatus.VALIDATION_FAILED, profile, method, target)
-            }
-        }
+        log("Resultat: true - ${method.storageKey}")
 
         return ReconfigurationOutcome(
             status = ReconfigurationStatus.SUCCESS,
@@ -136,56 +247,36 @@ internal class LocalReconfigurationEngine(
         )
     }
 
+    private val ReconfigMethod.engineKey: String
+        get() = when (this) {
+            ReconfigMethod.MAXIT_MOBILE -> METHOD_MAXIT
+            ReconfigMethod.API_CONNECT -> METHOD_API_CONNECT
+            ReconfigMethod.API_GATEWAY -> METHOD_API_GATEWAY
+            ReconfigMethod.CUSTOM -> METHOD_CUSTOM
+        }
+
     private fun failure(
         status: ReconfigurationStatus,
         profile: ProfileItem,
         method: ReconfigMethod,
         target: String,
-    ) = ReconfigurationOutcome(
-        status = status,
-        original = profile,
-        method = method,
-        target = target,
-    )
-
-    /**
-     * Vérifie qu'aucune donnée sensible ou indispensable n'a bougé.
-     */
-    private fun preservesInvariants(original: ProfileItem, transformed: ProfileItem): Boolean =
-        original.configType == transformed.configType &&
-            original.serverPort == transformed.serverPort &&
-            original.password == transformed.password &&
-            original.method == transformed.method &&
-            original.flow == transformed.flow &&
-            original.network == transformed.network &&
-            original.headerType == transformed.headerType &&
-            original.host == transformed.host &&
-            original.path == transformed.path &&
-            original.security == transformed.security &&
-            original.sni == transformed.sni &&
-            original.alpn == transformed.alpn &&
-            original.fingerPrint == transformed.fingerPrint &&
-            original.insecure == transformed.insecure &&
-            original.publicKey == transformed.publicKey &&
-            original.shortId == transformed.shortId &&
-            original.serviceName == transformed.serviceName &&
-            original.authority == transformed.authority &&
-            original.mode == transformed.mode &&
-            original.finalMask == transformed.finalMask &&
-            original.xhttpExtra == transformed.xhttpExtra
-
-    /**
-     * Vérifie que l'URI produite se relit avec les mêmes données critiques.
-     */
-    private fun roundTripMatches(expected: ProfileItem, decoded: ProfileItem): Boolean =
-        expected.configType == decoded.configType &&
-            expected.server.orEmpty().equals(decoded.server.orEmpty(), ignoreCase = true) &&
-            expected.serverPort.orEmpty() == decoded.serverPort.orEmpty() &&
-            expected.password.orEmpty() == decoded.password.orEmpty() &&
-            expected.network.orEmpty().equals(decoded.network.orEmpty(), ignoreCase = true) &&
-            expected.security.orEmpty().equals(decoded.security.orEmpty(), ignoreCase = true)
-
-    private companion object {
-        val SUPPORTED_TYPES = setOf(EConfigType.VLESS, EConfigType.VMESS, EConfigType.TROJAN)
+    ): ReconfigurationOutcome {
+        log("Resultat: false - $status")
+        return ReconfigurationOutcome(
+            status = status,
+            original = profile,
+            method = method,
+            target = target,
+        )
     }
+
+    /**
+     * `android.util.Log` est un stub vide dans les tests JVM : l'appel est
+     * protégé pour ne jamais faire échouer une transformation.
+     */
+    private fun log(message: String) {
+        runCatching { Log.d(TAG, message) }
+    }
+
+    private val SUPPORTED_TYPES = setOf(EConfigType.VLESS, EConfigType.VMESS, EConfigType.TROJAN)
 }

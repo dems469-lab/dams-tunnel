@@ -35,7 +35,6 @@ internal data class ReconfigurationBatchResult(
  */
 internal class ReconfigurationBatchRunner(
     private val store: ReconfigurationStore,
-    private val engine: LocalReconfigurationEngine = LocalReconfigurationEngine(),
     private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     suspend fun run(
@@ -58,7 +57,7 @@ internal class ReconfigurationBatchRunner(
             }
             try {
                 val outcome = withContext(computationDispatcher) {
-                    engine.reconfigure(input.second, method, target)
+                    LocalReconfigurationEngine.reconfigure(input.second, method, target)
                 }
                 if (outcome.isSuccess) {
                     val summary = store.savePrepared(
