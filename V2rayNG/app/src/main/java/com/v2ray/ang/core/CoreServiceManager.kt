@@ -15,6 +15,7 @@ import com.v2ray.ang.AppConfig
 import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.contracts.IDialerService
 import com.v2ray.ang.contracts.ServiceControl
+import com.v2ray.ang.dto.ConfigResult
 import com.v2ray.ang.dto.ConnectionTestResult
 import com.v2ray.ang.dto.OutboundTrafficStat
 import com.v2ray.ang.dto.SessionRttSample
@@ -183,11 +184,25 @@ object CoreServiceManager {
 
     @Throws(Exception::class)
     private fun launchCore(service: Service, vpnInterface: ParcelFileDescriptor?, isReload: Boolean = false) {
-        val guid = MmkvManager.getSelectServer() ?: error("No server selected")
+        // Le laboratoire est strictement optionnel : en mode normal cette
+        // lecture ne trouve aucune session autorisée et le comportement reste
+        // identique. Une session périmée (sans jeton de démarrage) est purgée.
+        val laboratory = if (SettingsManager.isVpnMode()) LaboratoryTunnelBridge.readForStart(service) else null
+
+        val guid = laboratory?.primaryGuid ?: MmkvManager.getSelectServer() ?: error("No server selected")
         val config = MmkvManager.decodeServerConfig(guid) ?: error("Failed to decode server config")
 
         LogUtil.i(AppConfig.TAG, "StartCore-Manager: Starting core loop for profile $guid")
-        val result = CoreConfigManager.getV2rayConfig(service, guid)
+        val result = if (laboratory != null) {
+            // Configuration complète préparée par le laboratoire. Aucune
+            // préférence de production n'est lue ni modifiée pour l'occasion.
+            if (!XrayJsonConfig.isConfigValid(laboratory.configJson)) {
+                error("Laboratory configuration is invalid")
+            }
+            ConfigResult(status = true, guid = guid, content = laboratory.configJson)
+        } else {
+            CoreConfigManager.getV2rayConfig(service, guid)
+        }
         LogUtil.d(AppConfig.TAG, "Generated Xray configuration for profile $guid")
         if (!result.status) {
             error(result.errorMessage.ifBlank { "Failed to get V2Ray config" })
@@ -195,7 +210,11 @@ object CoreServiceManager {
 
         currentOutboundTags = outboundTagsFromConfig(result.content)
 
-        currentConfig = config
+        currentConfig = if (laboratory != null) {
+            config.copy(remarks = LaboratoryTunnelBridge.laboratoryRemarks(config.remarks))
+        } else {
+            config
+        }
         var tunFd = vpnInterface?.fd ?: 0
         val dialerMode = BrowserDialerMode.from(config.browserDialerMode)
         val dialerAddr = if (dialerMode != null) {
@@ -533,6 +552,9 @@ object CoreServiceManager {
         if (isRunning()) error("Core loop still running after stopLoop returned")
         currentVpnInterface = null
         currentOutboundTags = emptySet()
+        // Un arrêt du tunnel termine toujours la session laboratoire : elle ne
+        // doit jamais être reprise par une connexion classique ultérieure.
+        LaboratoryTunnelBridge.clear(service)
         onCoreStopped()
 
         // Close existing browser dialer
@@ -827,6 +849,25 @@ object CoreServiceManager {
                 AppConfig.MSG_MEASURE_DELAY -> {
                     if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
                     measureV2rayDelay(intent.getStringExtra("content").orEmpty())
+                }
+
+                AppConfig.MSG_LAB_RELOAD -> {
+                    // Rechargement demandé par le laboratoire après un changement
+                    // de sélection de chemins. Ignoré si le labo n'est pas actif.
+                    val currentService = serviceControl.getService()
+                    if (LaboratoryTunnelBridge.read(currentService) != null) {
+                        if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
+                        val pendingResult = goAsync()
+                        connectionTestScope.launch {
+                            try {
+                                kotlinx.coroutines.withTimeoutOrNull(12_000L) {
+                                    reloadCore(cancelConnectionChecks = false)
+                                }
+                            } finally {
+                                pendingResult.finish()
+                            }
+                        }
+                    }
                 }
             }
 

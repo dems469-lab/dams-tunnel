@@ -36,6 +36,7 @@ import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.ipfinder.IpFinderActivity
 import com.v2ray.ang.ipfinder.IpFinderRecoveryStore
+import com.v2ray.ang.laboratory.ui.LaboratoryActivity
 import com.v2ray.ang.publicconfigs.PublicConfigsActivity
 import com.v2ray.ang.publicconfigs.FreeServersActivity
 import com.v2ray.ang.reconfig.ui.ReconfigurationActivity
@@ -304,6 +305,7 @@ class MainActivity : HelperBaseComponentActivity() {
             MainDestination.Subscriptions -> Intent(this, SubSettingActivity::class.java)
             MainDestination.FreeServers -> Intent(this, FreeServersActivity::class.java)
             MainDestination.Reconfiguration -> Intent(this, ReconfigurationActivity::class.java)
+            MainDestination.Laboratory -> Intent(this, LaboratoryActivity::class.java)
             MainDestination.PremiumSubscription -> Intent(this, PremiumSubscriptionActivity::class.java)
             MainDestination.PerAppProxy -> Intent(this, PerAppProxyActivity::class.java)
             MainDestination.Routing -> Intent(this, RoutingSettingActivity::class.java)

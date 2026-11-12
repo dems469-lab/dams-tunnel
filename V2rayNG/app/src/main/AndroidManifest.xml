@@ -217,6 +217,9 @@
             android:name=".reconfig.ui.ReconfigurationActivity"
             android:exported="false" />
         <activity
+            android:name=".laboratory.ui.LaboratoryActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.userasset.UserAssetActivity"
             android:exported="false" />
         <activity

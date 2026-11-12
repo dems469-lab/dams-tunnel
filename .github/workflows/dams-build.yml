@@ -81,7 +81,8 @@ jobs:
             --tests "com.v2ray.ang.core.ShadowsocksConfigValidatorTest" \
             --tests "com.v2ray.ang.core.XrayJsonConfigTest" \
             --tests "com.v2ray.ang.ui.main.DamsHomeStateTest" \
-            --tests "com.v2ray.ang.reconfig.*"
+            --tests "com.v2ray.ang.reconfig.*" \
+            --tests "com.v2ray.ang.laboratory.*"
 
       - name: Build signed release APKs
         env:
