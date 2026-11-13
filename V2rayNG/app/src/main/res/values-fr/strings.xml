@@ -1077,7 +1077,7 @@
     <string name="reconfig_progress_cancel">Annuler</string>
     <string name="reconfig_delete_done">%1$d serveur(s) supprimé(s)</string>
     <string name="reconfig_test_summary">%1$d fonctionnel(s), %2$d non fonctionnel(s), %3$d invalide(s)</string>
-    <string name="reconfig_transfer_done">%1$d ajouté(s), %2$d déjà présent(s), %3$d invalide(s), %4$d échec(s)</string>
+    <string name="reconfig_transfer_done">%1$d ajouté(s) aux Configs, %2$d déjà présent(s) et conservé(s), %3$d invalide(s), %4$d échec(s)</string>
     <string name="reconfig_op_cancelled">Opération annulée</string>
     <string name="reconfig_nothing_selected">Sélectionnez au moins un serveur</string>
     <string name="reconfig_sheet_title">Reconfigurer</string>

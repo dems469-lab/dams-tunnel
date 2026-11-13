@@ -101,7 +101,17 @@ object CoreServiceManager {
     private var delayMeasurementJob: kotlinx.coroutines.Job? = null
     private var healthCheckJob: kotlinx.coroutines.Job? = null
     private var reconnectJob: kotlinx.coroutines.Job? = null
+    private var failoverJob: kotlinx.coroutines.Job? = null
     private var reconnectAttempt = 0
+
+    /** GUID du profil réellement lancé (null hors exécution). */
+    @Volatile
+    private var currentGuid: String? = null
+
+    /** Un seul basculement à la fois : deux rechargements concurrents casseraient le cœur. */
+    private val failoverMutex = kotlinx.coroutines.sync.Mutex()
+    private var lastHealthRecordAt = 0L
+    private var lastSwitchEvaluationAt = 0L
 
     @Volatile
     private var isReloading = false
@@ -276,6 +286,7 @@ object CoreServiceManager {
         } else {
             config
         }
+        currentGuid = guid
         var tunFd = vpnInterface?.fd ?: 0
         val dialerMode = BrowserDialerMode.from(config.browserDialerMode)
         val dialerAddr = if (dialerMode != null) {
@@ -360,6 +371,8 @@ object CoreServiceManager {
             if (delayMillis >= 0 && isRunning()) {
                 connectionVerified = true
                 reconnectAttempt = 0
+                failoverAttempted = false
+                recordActiveHealth(delayMillis)
                 // Première latence réelle disponible immédiatement pour l'accueil.
                 MessageHelper.sendMsg2UI(
                     service,
@@ -373,7 +386,20 @@ object CoreServiceManager {
                 MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
             } else if (isRunning()) {
                 connectionVerified = false
-                if (!failoverAttempted && tryFailover(service)) {
+                recordActiveHealth(-1L)
+                if (!failoverAttempted) {
+                    // Hors de cette coroutine : le rechargement annule la
+                    // vérification courante, la bascule doit lui survivre.
+                    failoverJob = connectionTestScope.launch {
+                        try {
+                            if (!tryFailover(service)) scheduleReconnect(service)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (e: Exception) {
+                            LogUtil.e(AppConfig.TAG, "Failover: boucle interrompue", e)
+                            scheduleReconnect(service)
+                        }
+                    }
                     return@launch
                 }
                 val message = service.getString(com.v2ray.ang.R.string.connection_verification_failed)
@@ -393,6 +419,8 @@ object CoreServiceManager {
 
     private fun startHealthCheck(service: Service) {
         healthCheckJob?.cancel()
+        lastHealthRecordAt = 0L
+        lastSwitchEvaluationAt = System.currentTimeMillis()
         healthCheckJob = connectionTestScope.launch {
             while (isActive && !userStopped && isRunning()) {
                 // Vérification courte : une coupure doit déclencher la reconnexion
@@ -408,15 +436,23 @@ object CoreServiceManager {
                     -1L
                 }
                 val reachable = probe >= 0L
+                val now = System.currentTimeMillis()
+                // Fenêtre de qualité : une écriture toutes les 5 s suffit, la
+                // sonde elle-même reste à 1 s.
+                if (now - lastHealthRecordAt >= HEALTH_RECORD_INTERVAL_MILLIS) {
+                    lastHealthRecordAt = now
+                    recordActiveHealth(probe)
+                }
                 // La sonde de santé traverse déjà le tunnel : on publie son
                 // résultat tel quel, sans requête supplémentaire.
                 MessageHelper.sendMsg2UI(
                     service,
                     AppConfig.MSG_SESSION_RTT,
-                    SessionRttSample(probe, System.currentTimeMillis(), reachable),
+                    SessionRttSample(probe, now, reachable),
                 )
                 if (!reachable) {
                     connectionVerified = false
+                    recordActiveHealth(-1L)
                     MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
                     NotificationManager.updateState(
                         service.getString(com.v2ray.ang.R.string.connection_reconnecting),
@@ -424,6 +460,11 @@ object CoreServiceManager {
                     )
                     scheduleReconnect(service)
                     break
+                }
+                // Comparaison périodique avec les autres serveurs mesurés.
+                if (now - lastSwitchEvaluationAt >= SWITCH_EVALUATION_INTERVAL_MILLIS) {
+                    lastSwitchEvaluationAt = now
+                    evaluateAutomaticSwitch(service)
                 }
             }
         }
@@ -500,36 +541,141 @@ object CoreServiceManager {
         }
     }
 
-    /** Essaie une autre configuration du groupe avant d'abandonner la connexion. */
+    /**
+     * Bascule automatique : classement par qualité mesurée, changement de route
+     * réel, retour au serveur précédent si le nouveau ne répond pas.
+     *
+     * Seuls les serveurs de Configs (groupe du profil actif, hors bibliothèque
+     * publique) sont candidats : aucun serveur public n'est choisi ici.
+     */
     private suspend fun tryFailover(service: Service): Boolean {
         val failed = currentConfig ?: return false
-        val automaticFailoverEnabled = MmkvManager.decodeSettingsBool(
-            AppConfig.PREF_AUTO_SWITCH_DEFAULT_SERVER,
-            false,
-        )
-        if (!shouldTryDefaultServerFailover(
-                automaticFailoverEnabled,
-                failed.subscriptionId,
-                AppConfig.DEFAULT_SUBSCRIPTION_ID,
-            )
-        ) return false
-        val candidates = MmkvManager.decodeServerList(failed.subscriptionId)
-            .asSequence()
-            .filter { it != MmkvManager.getSelectServer() }
-            .mapNotNull { guid -> MmkvManager.decodeServerConfig(guid)?.let { guid to it } }
-            .filter { (_, profile) -> !profile.configType.isGroupType() }
-            .toList()
-        val next = candidates.firstOrNull() ?: return false
+        val failedGuid = currentGuid ?: return false
+        if (!isAutoFailoverEnabled()) return false
+        if (LaboratoryTunnelBridge.read(service) != null) return false
+        val groupId = failed.subscriptionId.ifBlank { AppConfig.DEFAULT_SUBSCRIPTION_ID }
+        if (groupId.startsWith(PUBLIC_GROUP_PREFIX)) return false
 
-        failoverAttempted = true
-        MmkvManager.setSelectServer(next.first)
-        LogUtil.w(AppConfig.TAG, "StartCore-Manager: switching to backup profile")
-        MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
-        NotificationManager.updateState(
-            service.getString(com.v2ray.ang.R.string.connection_reconnecting),
-            android.graphics.Color.rgb(245, 196, 81),
+        val candidates = MmkvManager.decodeServerList(groupId)
+            .asSequence()
+            .filter { it != failedGuid && it.isNotBlank() }
+            .filter { guid ->
+                MmkvManager.decodeServerConfig(guid)?.configType?.isGroupType() == false
+            }
+            .map { guid -> ServerHealthStore.snapshot(guid) }
+            .filter { it.samples > 0 }
+            .toList()
+        if (candidates.isEmpty()) {
+            LogUtil.i(AppConfig.TAG, "Failover: aucun candidat mesuré dans le groupe")
+            return false
+        }
+
+        val decision = AutoFailoverPolicy.decide(
+            active = ServerHealthStore.snapshot(failedGuid),
+            candidates = candidates,
+            nowMillis = System.currentTimeMillis(),
+            lastSwitchAtMillis = MmkvManager.getLastFailoverAt(),
         )
-        return reloadCore(cancelConnectionChecks = false)
+        val candidate = decision.candidate
+        if (candidate == null) {
+            LogUtil.i(AppConfig.TAG, "Failover: pas de changement (${decision.reason})")
+            return false
+        }
+        return applyFailover(service, failedGuid, candidate, decision.reason)
+    }
+
+    /** Applique la bascule, la vérifie pour de vrai, sinon revient en arrière. */
+    private suspend fun applyFailover(
+        service: Service,
+        fromGuid: String,
+        candidate: ServerHealthSnapshot,
+        reason: String,
+    ): Boolean {
+        if (!failoverMutex.tryLock()) return false
+        val fromName = currentConfig?.remarks.orEmpty()
+        val target = MmkvManager.decodeServerConfig(candidate.guid)
+        if (target == null) {
+            failoverMutex.unlock()
+            return false
+        }
+        LogUtil.w(
+            AppConfig.TAG,
+            "Failover: ${candidate.guid} (${reason}) score=${candidate.score} " +
+                "latence=${candidate.latencyMillis}ms pertes=${candidate.lossPercent}%",
+        )
+        try {
+            failoverAttempted = true
+            MmkvManager.setSelectServer(candidate.guid)
+            MmkvManager.setLastFailoverAt(System.currentTimeMillis())
+            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
+            NotificationManager.updateState(
+                service.getString(com.v2ray.ang.R.string.connection_reconnecting),
+                android.graphics.Color.rgb(245, 196, 81),
+            )
+            if (switchAndVerify(candidate.guid)) {
+                ServerHealthStore.recordEvent(fromName, target.remarks, reason, "success")
+                LogUtil.i(AppConfig.TAG, "Failover: trafic confirmé sur ${target.remarks}")
+                return true
+            }
+            // Le candidat n'a pas donné de trafic réel : retour explicite.
+            MmkvManager.setSelectServer(fromGuid)
+            switchAndVerify(fromGuid)
+            ServerHealthStore.recordEvent(fromName, target.remarks, reason, "rollback")
+            LogUtil.w(AppConfig.TAG, "Failover: candidat rejeté, retour au serveur précédent")
+            return false
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "Failover: échec de la bascule", e)
+            runCatching { MmkvManager.setSelectServer(fromGuid) }
+            return false
+        } finally {
+            failoverMutex.unlock()
+        }
+    }
+
+    /**
+     * Recharge le cœur avec [expectedGuid] et attend la vérification réelle du
+     * trafic : un simple redémarrage du cœur ne prouve rien.
+     */
+    private suspend fun switchAndVerify(expectedGuid: String): Boolean {
+        if (!isRunning()) return false
+        val reloaded = withTimeoutOrNull(FAILOVER_RELOAD_TIMEOUT_MILLIS) {
+            reloadCore(cancelConnectionChecks = false)
+        } == true
+        if (!reloaded) return false
+        var waited = 0L
+        while (waited < FAILOVER_VERIFY_WAIT_MILLIS) {
+            if (connectionVerified && isRunning() && currentGuid == expectedGuid) return true
+            if (!isRunning()) return false
+            delay(250L)
+            waited += 250L
+        }
+        return false
+    }
+
+    /** Enregistre une mesure réelle du serveur actif (sonde de santé). */
+    private fun recordActiveHealth(probe: Long) {
+        val guid = currentGuid ?: return
+        val protocol = currentConfig?.configType?.name.orEmpty()
+        if (probe >= 0L) {
+            ServerHealthStore.recordSuccess(guid, protocol, probe)
+        } else {
+            ServerHealthStore.recordFailure(guid, protocol)
+        }
+    }
+
+    private fun isAutoFailoverEnabled(): Boolean =
+        MmkvManager.decodeSettingsBool(AppConfig.PREF_AUTO_SWITCH_DEFAULT_SERVER, true)
+
+    /** Compare le serveur actif aux autres : aucune requête réseau en plus. */
+    private fun evaluateAutomaticSwitch(service: Service) {
+        if (failoverJob?.isActive == true) return
+        if (!isAutoFailoverEnabled()) return
+        if (LaboratoryTunnelBridge.read(service) != null) return
+        failoverJob = connectionTestScope.launch {
+            runCatching { tryFailover(service) }
+        }
     }
 
     private fun startTrafficStats(service: Service) {
@@ -1020,3 +1166,20 @@ object CoreServiceManager {
         }
     }
 }
+
+// ── Bascule automatique du VPN classique ─────────────────────────────────────
+
+/** Les serveurs de la bibliothèque publique restent hors du choix automatique. */
+private const val PUBLIC_GROUP_PREFIX = "dams-public-"
+
+/** Écriture de la fenêtre de qualité (la sonde, elle, reste à 1 s). */
+private const val HEALTH_RECORD_INTERVAL_MILLIS = 5_000L
+
+/** Comparaison périodique du serveur actif avec les autres Configs. */
+private const val SWITCH_EVALUATION_INTERVAL_MILLIS = 60_000L
+
+/** Rechargement borné avant de conclure que le candidat ne démarre pas. */
+private const val FAILOVER_RELOAD_TIMEOUT_MILLIS = 20_000L
+
+/** Attente de la vérification réelle du trafic après bascule. */
+private const val FAILOVER_VERIFY_WAIT_MILLIS = 12_000L

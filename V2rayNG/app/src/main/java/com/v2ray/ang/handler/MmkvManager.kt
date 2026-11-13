@@ -56,6 +56,9 @@ object MmkvManager {
     private const val KEY_SUB_SERVER_PREFIX = "SUB_SERVERS_"
     private const val KEY_SUB_IDS = "SUB_IDS"
     private const val KEY_WEBDAV_CONFIG = "WEBDAV_CONFIG"
+    private const val KEY_SERVER_HEALTH_PREFIX = "SERVER_HEALTH_"
+    private const val KEY_FAILOVER_HISTORY = "FAILOVER_HISTORY"
+    private const val KEY_LAST_FAILOVER_AT = "LAST_FAILOVER_AT"
 
     private val recoveryHandler = object : MMKVHandler {
         override fun onMMKVCRCCheckFail(mmapID: String) =
@@ -191,6 +194,32 @@ object MmkvManager {
         withProfileIndexLock {
             mainStorage.encode(KEY_SELECTED_SERVER, guid)
         }
+    }
+
+    // ── Santé mesurée des serveurs et bascule automatique ─────────────────────
+
+    /** État de santé agrégé d'un serveur, stocké en JSON (null si jamais mesuré). */
+    fun decodeServerHealth(guid: String): String? {
+        if (guid.isBlank()) return null
+        return mainStorage.decodeString(KEY_SERVER_HEALTH_PREFIX + guid)
+    }
+
+    fun encodeServerHealth(guid: String, json: String) {
+        if (guid.isBlank()) return
+        mainStorage.encode(KEY_SERVER_HEALTH_PREFIX + guid, json)
+    }
+
+    /** Historique des bascules (JSON, plus récent en tête). */
+    fun decodeFailoverHistory(): String? = mainStorage.decodeString(KEY_FAILOVER_HISTORY)
+
+    fun encodeFailoverHistory(json: String) {
+        mainStorage.encode(KEY_FAILOVER_HISTORY, json)
+    }
+
+    fun getLastFailoverAt(): Long = mainStorage.decodeLong(KEY_LAST_FAILOVER_AT, 0L)
+
+    fun setLastFailoverAt(atMillis: Long) {
+        mainStorage.encode(KEY_LAST_FAILOVER_AT, atMillis)
     }
 
     /**

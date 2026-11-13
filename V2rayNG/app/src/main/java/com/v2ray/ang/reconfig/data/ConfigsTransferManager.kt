@@ -23,10 +23,15 @@ internal data class ConfigTransferSummary(
     val alreadyPresent: Int = 0,
     val invalid: Int = 0,
     val failed: Int = 0,
-    /** Lignes à retirer de la reconfiguration : enregistrement confirmé. */
+    /** Lignes à retirer de la reconfiguration : ajout réellement enregistré. */
     val removableIds: List<Long> = emptyList(),
+    /**
+     * Doublons laissés dans la reconfiguration : la configuration existe déjà
+     * dans Configs, mais elle n'a pas été transférée par cette action.
+     */
+    val duplicateIds: List<Long> = emptyList(),
 ) {
-    val transferred: Int get() = added + alreadyPresent
+    val transferred: Int get() = added
 }
 
 /**
@@ -51,13 +56,23 @@ internal class ConfigsTransferManager(
             var invalid = 0
             var failed = 0
             val removable = mutableListOf<Long>()
+            val duplicates = mutableListOf<Long>()
 
             servers.forEach { server ->
-                val profile = decodeProfile(server)
-                if (profile == null || !isTransferable(profile)) {
+                val decoded = decodeProfile(server)
+                if (decoded == null || !isTransferable(decoded)) {
                     invalid++
                     return@forEach
                 }
+
+                // La destination est l'onglet Configs (groupe local). Un profil
+                // reconfiguré depuis un abonnement ou depuis la bibliothèque
+                // publique ne doit pas retourner dans son groupe d'origine :
+                // il deviendrait invisible pour l'utilisateur.
+                val profile = decoded.copy(
+                    subscriptionId = "",
+                    policyGroupSubscriptionId = null,
+                )
 
                 // Le champ de configuration doit contenir un JSON Xray
                 // exploitable. Les lignes créées avant cette version
@@ -72,8 +87,10 @@ internal class ConfigsTransferManager(
 
                 val fingerprint = fingerprintOf(profile)
                 if (fingerprint in existing) {
+                    // Déjà dans Configs : la ligne n'est pas transférée, elle
+                    // reste donc dans Reconfiguration.
                     alreadyPresent++
-                    removable += server.id
+                    duplicates += server.id
                     return@forEach
                 }
 
@@ -82,7 +99,10 @@ internal class ConfigsTransferManager(
                 }.getOrNull()
 
                 val stored = newGuid?.let { MmkvManager.decodeServerConfig(it) }
-                if (newGuid.isNullOrBlank() || stored == null) {
+                // Relecture du profil enregistré : l'empreinte doit être
+                // identique, sinon un paramètre a été perdu ou altéré.
+                val storedIntact = stored != null && fingerprintOf(stored) == fingerprint
+                if (newGuid.isNullOrBlank() || !storedIntact) {
                     failed++
                 } else {
                     added++
@@ -101,6 +121,7 @@ internal class ConfigsTransferManager(
                 invalid = invalid,
                 failed = failed,
                 removableIds = removable,
+                duplicateIds = duplicates,
             )
         }
 
@@ -130,21 +151,8 @@ internal class ConfigsTransferManager(
 
     /**
      * Identité d'un profil : deux configurations qui ne diffèrent que par leur
-     * libellé ou leur date ne sont pas considérées comme deux serveurs.
+     * libellé, leur date ou leur groupe ne sont pas deux serveurs.
      */
     private fun fingerprintOf(profile: ProfileItem): String =
-        ReconfigurationFingerprint.of(
-            listOf(
-                profile.configType.name,
-                profile.server.orEmpty().lowercase(),
-                profile.serverPort.orEmpty(),
-                profile.password.orEmpty(),
-                profile.network.orEmpty().lowercase(),
-                profile.security.orEmpty().lowercase(),
-                profile.sni.orEmpty().lowercase(),
-                profile.host.orEmpty().lowercase(),
-                profile.path.orEmpty(),
-                profile.serviceName.orEmpty(),
-            ).joinToString("|"),
-        )
+        ConfigFingerprint.of(profile) ?: ConfigFingerprint.ofFallback(profile)
 }

@@ -17,6 +17,7 @@ import com.v2ray.ang.extension.serializable
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.core.ServerHealthStore
 import com.v2ray.ang.helper.MessageHelper
 import com.v2ray.ang.helper.NotificationHelper
 import com.v2ray.ang.util.LogUtil
@@ -153,6 +154,17 @@ class CoreTestService : Service() {
             }
 
             is RealPingEvent.Result -> {
+                // Chaque test réel alimente la fenêtre de qualité du serveur.
+                // Un test TCP seul ne prouve pas le tunnel : il n'est pas compté.
+                if (!message.onlyTcp) {
+                    val profile = MmkvManager.decodeServerConfig(event.guid)
+                    val protocol = profile?.configType?.name.orEmpty()
+                    if (event.delayMillis >= 0L) {
+                        ServerHealthStore.recordSuccess(event.guid, protocol, event.delayMillis)
+                    } else {
+                        ServerHealthStore.recordFailure(event.guid, protocol)
+                    }
+                }
                 MmkvManager.encodeServerTestDelayMillis(event.guid, event.delayMillis)
                 MessageHelper.sendMsg2UI(
                     this,

@@ -27,6 +27,7 @@ import com.v2ray.ang.core.LauncherManager
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.enums.PermissionType
+import com.v2ray.ang.extension.isGroupType
 import com.v2ray.ang.extension.toast
 import com.v2ray.ang.extension.toastError
 import com.v2ray.ang.extension.toastSuccess
@@ -371,22 +372,31 @@ class MainActivity : HelperBaseComponentActivity() {
     }
 
     private fun selectFasterDefaultServerIfRequested() {
-        if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_AUTO_SWITCH_DEFAULT_SERVER, false)) return
+        if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_AUTO_SWITCH_DEFAULT_SERVER, true)) return
         val selectedGuid = mainViewModel.uiState.value.selectedGuid ?: return
         val selected = MmkvManager.decodeServerConfig(selectedGuid) ?: return
-        if (selected.subscriptionId != AppConfig.DEFAULT_SUBSCRIPTION_ID) return
-        val selectedDelay = MmkvManager.decodeServerAffiliationInfo(selectedGuid)?.testDelayMillis ?: -1L
-        val selectedCandidate = ServerPerformanceCandidate(
-            selectedGuid,
-            selected.configType.protocolScheme,
-            selectedDelay,
+        val groupId = selected.subscriptionId.ifBlank { AppConfig.DEFAULT_SUBSCRIPTION_ID }
+        // La bibliothèque publique n'alimente jamais la sélection automatique.
+        if (groupId.startsWith("dams-public-")) return
+
+        val candidates = MmkvManager.decodeServerList(groupId)
+            .asSequence()
+            .filter { it != selectedGuid && it.isNotBlank() }
+            .filter { guid ->
+                MmkvManager.decodeServerConfig(guid)?.configType?.isGroupType() == false
+            }
+            .map { guid -> com.v2ray.ang.core.ServerHealthStore.snapshot(guid) }
+            .filter { it.samples > 0 }
+            .toList()
+        if (candidates.isEmpty()) return
+
+        val decision = com.v2ray.ang.core.AutoFailoverPolicy.decide(
+            active = com.v2ray.ang.core.ServerHealthStore.snapshot(selectedGuid),
+            candidates = candidates,
+            nowMillis = System.currentTimeMillis(),
+            lastSwitchAtMillis = MmkvManager.getLastFailoverAt(),
         )
-        val candidates = MmkvManager.decodeServerList(AppConfig.DEFAULT_SUBSCRIPTION_ID).mapNotNull { guid ->
-            val profile = MmkvManager.decodeServerConfig(guid) ?: return@mapNotNull null
-            val delay = MmkvManager.decodeServerAffiliationInfo(guid)?.testDelayMillis ?: -1L
-            ServerPerformanceCandidate(guid, profile.configType.protocolScheme, delay)
-        }
-        val replacement = chooseFasterDefaultServer(true, true, selectedCandidate, candidates) ?: return
+        val replacement = decision.candidate ?: return
         MmkvManager.setSelectServer(replacement.guid)
         toastSuccess(R.string.default_server_switched)
     }

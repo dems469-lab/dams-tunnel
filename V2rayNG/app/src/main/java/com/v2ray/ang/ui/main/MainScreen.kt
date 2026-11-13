@@ -131,7 +131,7 @@ fun MainScreen(
     val traffic = uiState.traffic
     var autoSwitchDefaultServer by MmkvManager.rememberMmkvBool(
         AppConfig.PREF_AUTO_SWITCH_DEFAULT_SERVER,
-        false,
+        true,
     )
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
