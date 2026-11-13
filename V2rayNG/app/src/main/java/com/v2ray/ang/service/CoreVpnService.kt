@@ -22,6 +22,7 @@ import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.handler.SettingsManager
+import com.v2ray.ang.helper.MessageHelper
 import com.v2ray.ang.root.RootLanSharing
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
@@ -31,7 +32,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import java.lang.ref.SoftReference
 import java.util.concurrent.atomic.AtomicBoolean
 
 @SuppressLint("VpnServicePolicy")
@@ -50,7 +50,10 @@ class CoreVpnService : VpnService(), ServiceControl {
         LogUtil.i(AppConfig.TAG, "StartCore-VPN: Service created")
         val policy = StrictMode.ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
-        CoreServiceManager.serviceControl = SoftReference(this)
+        // Référence forte : le contrôle doit rester utilisable pendant toute la
+        // vie du service, notamment pour garantir startForeground() à chaque
+        // démarrage et traiter les demandes d'arrêt.
+        CoreServiceManager.serviceControl = this
         // Branché ici et non au démarrage du cœur : un arrêt ou une demande
         // d'état reçoit toujours une réponse, même si Xray n'a pas démarré.
         CoreServiceManager.attachServiceReceiver(this)
@@ -78,12 +81,20 @@ class CoreVpnService : VpnService(), ServiceControl {
                 releaseVpnWakeLock()
                 NotificationManager.cancelNotification()
             }
+            // Libération forte de la référence : seulement après la séquence
+            // d'arrêt, qui publie ses états finaux via ce contrôle. Si un
+            // nouveau service s'est déjà rattaché, la libération est ignorée.
+            CoreServiceManager.clearServiceControl(this@CoreVpnService)
             serviceScope.cancel()
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        NotificationManager.ensureForeground()
+        // Contrat du service au premier plan rempli d'abord, sur le thread
+        // principal, avant tout verrou ou travail : valable pour un premier
+        // démarrage, une reprise Always-on (intent null ou SERVICE_INTERFACE)
+        // et l'action « redémarrer » de la notification.
+        NotificationManager.ensureForeground(this)
         // Always-on VPN restarts from OS deliver intent.action == SERVICE_INTERFACE or null intent.
         // Reset any stuck start lock left by a killed process to allow setupVpnService() to run.
         val isSystemVpnStart = intent == null || intent.action == SERVICE_INTERFACE
@@ -96,15 +107,10 @@ class CoreVpnService : VpnService(), ServiceControl {
         }
         acquireVpnWakeLock()
         LogUtil.i(AppConfig.TAG, "StartCore-VPN: Service command received, systemVpnStart=$isSystemVpnStart")
-        val setupFailure = setupVpnService()
-        if (setupFailure != null) {
-            unlockStart()
-            releaseVpnWakeLock()
-            publishStartFailure(setupFailure, "Établissement du VPN impossible")
-            // Stop service if setup fails to avoid infinite restart loops (START_STICKY)
-            stopSelf()
-            return START_NOT_STICKY
-        }
+        // Établissement du VPN et démarrage du cœur : déplacés hors du thread
+        // principal (prepare(), establish() et le démarrage natif du relais TUN
+        // ne doivent plus bloquer le service). startForeground() reste, lui,
+        // synchronisé ci-dessus sur le thread principal, comme l'exige Android.
         startService()
         return START_STICKY
     }
@@ -114,12 +120,53 @@ class CoreVpnService : VpnService(), ServiceControl {
     }
 
     override fun startService() {
-        if (!::mInterface.isInitialized) {
-            LogUtil.e(AppConfig.TAG, "StartCore-VPN: Interface not initialized")
+        if (CoreServiceManager.isRunning()) {
+            // Le cœur tourne déjà (second appui, intent Always-on, redémarrage
+            // depuis la notification) : conserver la connexion existante et ne
+            // jamais l'arrêter. Publier l'état réel au lieu d'un échec fictif.
+            val verified = CoreServiceManager.isConnectionVerified()
+            LogUtil.w(
+                AppConfig.TAG,
+                "StartCore-VPN: Core already running, keeping the existing connection (verified=$verified)",
+            )
+            MessageHelper.sendMsg2UI(
+                this,
+                if (verified) AppConfig.MSG_STATE_START_SUCCESS else AppConfig.MSG_STATE_CONNECTING,
+                "",
+            )
+            unlockStart()
+            return
+        }
+        if (startJob?.isActive == true) {
+            // Un démarrage est déjà en cours (verrou posé par onStartCommand) :
+            // ignorer le doublon au lieu d'exécuter deux établissements TUN en
+            // concurrence. Le verrou est rendu par le finally du démarrage en
+            // cours ; unlockStart() ici reste sans effet néfaste.
+            LogUtil.w(AppConfig.TAG, "StartCore-VPN: Duplicate start while a start is already in progress")
+            unlockStart()
             return
         }
         startJob = serviceScope.launch {
             try {
+                // Opérations lourdes hors du thread principal : préparation de
+                // la permission, établissement de l'interface TUN et démarrage
+                // du relais natif.
+                val setupFailure = setupVpnService()
+                if (setupFailure != null) {
+                    LogUtil.e(AppConfig.TAG, "StartCore-VPN: Setup failed: $setupFailure")
+                    releaseVpnWakeLock()
+                    publishStartFailure(setupFailure, "Établissement du VPN impossible")
+                    // Stop service if setup fails to avoid infinite restart loops (START_STICKY)
+                    stopSelf()
+                    return@launch
+                }
+                if (!::mInterface.isInitialized) {
+                    LogUtil.e(AppConfig.TAG, "StartCore-VPN: Interface not initialized")
+                    releaseVpnWakeLock()
+                    publishStartFailure("vpn_configure_failed", "Établissement du VPN impossible")
+                    stopSelf()
+                    return@launch
+                }
                 if (!CoreServiceManager.startCoreLoop(mInterface)) {
                     LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to start core loop")
                     publishStartFailure("core_start_failed", "Le moteur Xray n'a pas démarré")

@@ -16,7 +16,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import java.lang.ref.SoftReference
 
 class CoreProxyOnlyService : Service(), ServiceControl {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -28,7 +27,7 @@ class CoreProxyOnlyService : Service(), ServiceControl {
     override fun onCreate() {
         super.onCreate()
         LogUtil.i(AppConfig.TAG, "StartCore-Proxy: Service created")
-        CoreServiceManager.serviceControl = SoftReference(this)
+        CoreServiceManager.serviceControl = this
     }
 
     /**
@@ -39,7 +38,7 @@ class CoreProxyOnlyService : Service(), ServiceControl {
      * @return The start mode.
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        NotificationManager.ensureForeground()
+        NotificationManager.ensureForeground(this)
         LogUtil.i(AppConfig.TAG, "StartCore-Proxy: Service command received")
 
         if (setupJob?.isActive == true || CoreServiceManager.isRunning()) {

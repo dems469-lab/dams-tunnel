@@ -54,7 +54,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.isActive
 import libv2ray.CoreCallbackHandler
 import libv2ray.CoreController
-import java.lang.ref.SoftReference
 
 object CoreServiceManager {
 
@@ -144,18 +143,45 @@ object CoreServiceManager {
     /** Tun descriptor the core was started with, null in the proxy only and root run modes. */
     private var currentVpnInterface: ParcelFileDescriptor? = null
 
-    var serviceControl: SoftReference<ServiceControl>? = null
+    /**
+     * Référence FORTE sur le contrôle du service vivant.
+     *
+     * L'ancienne SoftReference était collectée sous pression mémoire pendant que
+     * le service tournait : `ensureForeground()` ne trouvait alors plus le
+     * service et n'appelait jamais `startForeground()`, d'où le crash
+     * `ForegroundServiceDidNotStartInTimeException` du processus daemon, et des
+     * demandes d'arrêt silencieusement ignorées. Android maintient lui-même le
+     * service tant qu'il est démarré : une référence forte ne prolonge rien.
+     *
+     * La libération est explicite ([clearServiceControl]), après l'arrêt, car
+     * la séquence d'arrêt publie ses états finaux via ce contrôle.
+     */
+    private val serviceControlRef = java.util.concurrent.atomic.AtomicReference<ServiceControl?>(null)
+    var serviceControl: ServiceControl?
+        get() = serviceControlRef.get()
         set(value) {
-            field = value
-            val service = value?.get()?.getService()
+            serviceControlRef.set(value)
+            val service = value?.getService()
             CoreNativeManager.initCoreEnv(service)
         }
+
+    /**
+     * Libère la référence si et seulement si elle désigne encore [control] :
+     * un nouveau service déjà rattaché n'est jamais libéré par la destruction
+     * de l'ancienne instance.
+     */
+    fun clearServiceControl(control: ServiceControl) {
+        serviceControlRef.compareAndSet(control, null)
+    }
 
     /**
      * Checks if the V2Ray service is running.
      * @return True if the service is running, false otherwise.
      */
     fun isRunning() = coreController.isRunning
+
+    /** Le cœur tourne ET transporte réellement du trafic vérifié. */
+    fun isConnectionVerified() = connectionVerified
 
     /**
      * Gets the name of the currently running server.
@@ -857,7 +883,7 @@ object CoreServiceManager {
         val connectivity = service.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
         networkMonitor = NetworkMonitor(
             connectivity = connectivity,
-            onUnderlyingNetworksChanged = { networks -> serviceControl?.get()?.setUnderlyingNetworks(networks) },
+            onUnderlyingNetworksChanged = { networks -> serviceControl?.setUnderlyingNetworks(networks) },
             onHandover = { reloadCore() },
         ).also { it.register() }
     }
@@ -1025,7 +1051,7 @@ object CoreServiceManager {
      * @return The current service instance, or null if not available.
      */
     private fun getService(): Service? {
-        return serviceControl?.get()?.getService()
+        return serviceControl?.getService()
     }
 
     /**
@@ -1075,7 +1101,7 @@ object CoreServiceManager {
          * @param intent The intent being received.
          */
         override fun onReceive(ctx: Context?, intent: Intent?) {
-            val serviceControl = serviceControl?.get() ?: return
+            val control = serviceControl ?: return
             when (intent?.getIntExtra("key", 0)) {
                 AppConfig.MSG_REGISTER_CLIENT -> {
                     // Accusé de réception : permet à l'interface de distinguer
@@ -1083,12 +1109,12 @@ object CoreServiceManager {
                     if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
                     if (isRunning()) {
                         MessageHelper.sendMsg2UI(
-                            serviceControl.getService(),
+                            control.getService(),
                             if (connectionVerified) AppConfig.MSG_STATE_START_SUCCESS else AppConfig.MSG_STATE_CONNECTING,
                             "",
                         )
                     } else {
-                        MessageHelper.sendMsg2UI(serviceControl.getService(), AppConfig.MSG_STATE_NOT_RUNNING, "")
+                        MessageHelper.sendMsg2UI(control.getService(), AppConfig.MSG_STATE_NOT_RUNNING, "")
                     }
                 }
 
@@ -1106,7 +1132,7 @@ object CoreServiceManager {
                     // démon a bien reçu la demande et qu'il doit attendre un
                     // état final (STOP_SUCCESS ou STOP_FAILURE).
                     if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
-                    serviceControl.stopService()
+                    control.stopService()
                 }
 
                 AppConfig.MSG_STATE_RESTART -> {
@@ -1118,9 +1144,9 @@ object CoreServiceManager {
                     val pendingResult = goAsync()
                     connectionTestScope.launch {
                         try {
-                            serviceControl.stopService()
+                            control.stopService()
                             delay(500L)
-                            LauncherManager.startService(serviceControl.getService())
+                            LauncherManager.startService(control.getService())
                         } finally {
                             pendingResult.finish()
                         }
@@ -1135,7 +1161,7 @@ object CoreServiceManager {
                 AppConfig.MSG_LAB_RELOAD -> {
                     // Rechargement demandé par le laboratoire après un changement
                     // de sélection de chemins. Ignoré si le labo n'est pas actif.
-                    val currentService = serviceControl.getService()
+                    val currentService = control.getService()
                     if (LaboratoryTunnelBridge.read(currentService) != null) {
                         if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
                         val pendingResult = goAsync()

@@ -18,6 +18,7 @@ import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.extension.toSpeedString
 import com.v2ray.ang.helper.NotificationHelper
 import com.v2ray.ang.ui.main.MainActivity
+import com.v2ray.ang.util.LogUtil
 
 object NotificationManager {
     private const val NOTIFICATION_ID = 1
@@ -64,7 +65,10 @@ object NotificationManager {
      */
     fun showNotification(currentConfig: ProfileItem?) {
         val service = getService() ?: return
+        showNotification(service, currentConfig)
+    }
 
+    private fun showNotification(service: Service, currentConfig: ProfileItem?) {
         val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
 
         val startMainIntent = Intent(service, MainActivity::class.java)
@@ -82,7 +86,7 @@ object NotificationManager {
 
         val channelId =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                createNotificationChannel()
+                createNotificationChannel(service)
             } else {
                 // If earlier version channel ID is not used
                 // https://developer.android.com/reference/android/support/v4/app/NotificationCompat.Builder.html#NotificationCompat.Builder(android.content.Context)
@@ -122,11 +126,23 @@ object NotificationManager {
      * Fulfills or refreshes the foreground-service contract before a start command can
      * return early. A duplicate startForegroundService call still requires the service
      * to enter foreground state promptly, even when the core is already running.
+     *
+     * Le service est passé explicitement : la promotion en premier plan ne doit
+     * jamais dépendre d'une référence du manager qui peut être momentanément
+     * absente (démarrage, reprise Always-on, action de notification). Une
+     * exception est journalisée intégralement, jamais tue.
      */
-    fun ensureForeground() {
-        val service = getService() ?: return
-        val notification = mBuilder?.build()
-        if (notification == null) showNotification(null) else service.startForeground(NOTIFICATION_ID, notification)
+    fun ensureForeground(service: Service) {
+        try {
+            val notification = mBuilder?.build()
+            if (notification == null) {
+                showNotification(service, null)
+            } else {
+                service.startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "Failed to promote the VPN service to foreground state", e)
+        }
     }
 
     /**
@@ -155,9 +171,8 @@ object NotificationManager {
      * @return The channel ID.
      */
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun createNotificationChannel(): String {
+    private fun createNotificationChannel(service: Service): String {
         val channelId = AppConfig.RAY_NG_CHANNEL_ID
-        val service = getService() ?: return channelId
         NotificationHelper.ensureNotificationChannel(
             context = service,
             channelId = channelId,
@@ -217,6 +232,6 @@ object NotificationManager {
      * @return The service instance.
      */
     private fun getService(): Service? {
-        return CoreServiceManager.serviceControl?.get()?.getService()
+        return CoreServiceManager.serviceControl?.getService()
     }
 }
