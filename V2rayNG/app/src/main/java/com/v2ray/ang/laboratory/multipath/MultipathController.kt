@@ -259,12 +259,39 @@ class MultipathController(
             false
         }
         if (!stopped) {
-            state = EngineState.FAILED
+            val reason = gateway.lastFailureReason()
+            if (!gateway.isTunnelRunning()) {
+                // Aucun tunnel en marche : l'absence d'accusé ne doit pas
+                // laisser la session ouverte ni bloquer le retour au mode normal.
+                withContext(Dispatchers.IO) {
+                    LaboratoryTunnelBridge.clear(context)
+                    repository.finishSession(sessionId, outcome)
+                }
+                sessionId = 0L
+                prepared = null
+                lastHealth = emptyList()
+                lastDecision = null
+                lastStates = emptyMap()
+                monitor.reset()
+                failover.reset()
+                scheduler.reset()
+                statistics.reset()
+                state = EngineState.IDLE
+                logger.warn(
+                    MultipathEventLogger.CATEGORY_SERVICE,
+                    "Arrêt confirmé par l'état du moteur, sans accusé du service",
+                )
+                return OperationResult(true, "stopped_without_ack")
+            }
+            // Le moteur tourne encore : état cohérent avec la réalité, la
+            // surveillance continue et une nouvelle tentative reste possible.
+            state = EngineState.ACTIVE
             logger.warn(
                 MultipathEventLogger.CATEGORY_SERVICE,
-                "Arrêt du moteur non confirmé : session conservée pour permettre une nouvelle tentative",
+                "Arrêt du moteur non confirmé (${reason ?: "sans motif"}) : " +
+                    "session conservée pour permettre une nouvelle tentative",
             )
-            return OperationResult(false, "stop_unconfirmed")
+            return OperationResult(false, "stop_unconfirmed", reason)
         }
 
         withContext(Dispatchers.IO) {

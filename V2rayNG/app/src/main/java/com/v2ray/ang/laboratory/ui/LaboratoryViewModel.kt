@@ -358,6 +358,7 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
             )
             setBusy(false, null)
             val running = labGateway.isTunnelRunning()
+            val verified = labGateway.isVerifiedRunning()
             _uiState.update {
                 it.copy(
                     engineState = controller.state,
@@ -365,7 +366,7 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
                     sessionStats = controller.statisticsSnapshot(),
                 )
             }
-            if (result.success && running) {
+            if (result.success && verified) {
                 _uiState.update {
                     it.copy(notice = app.getString(R.string.laboratory_notice_activation_success))
                 }
@@ -377,8 +378,8 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
                 _uiState.update {
                     it.copy(
                         engineState = EngineState.FAILED,
-                        serviceRunning = false,
-                        error = app.getString(R.string.laboratory_error_lab_start_failed),
+                        serviceRunning = labGateway.isTunnelRunning(),
+                        error = activationError("verification_failed"),
                     )
                 }
             } else {
@@ -394,7 +395,9 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
         viewModelScope.launch {
             setBusy(true, R.string.laboratory_busy_stopping)
             val result = controller.deactivate(labGateway, "user")
-            stopMonitoring()
+            // Un arrêt non confirmé laisse le moteur en marche : la surveillance
+            // doit continuer pour ne pas afficher des mesures figées.
+            if (!controller.isActive()) stopMonitoring()
             setBusy(false, null)
             _uiState.update {
                 it.copy(
@@ -427,7 +430,7 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
             } else {
                 controller.deactivate(labGateway, "back-to-classic")
             }
-            stopMonitoring()
+            if (!controller.isActive()) stopMonitoring()
             setBusy(false, null)
             if (!result.success) {
                 _uiState.update {

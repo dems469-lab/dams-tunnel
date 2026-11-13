@@ -112,6 +112,13 @@ class LaboratoryTunnelGateway(
 
     override fun isTunnelRunning(): Boolean = lastState.value in RUNNING_STATES
 
+    /**
+     * True seulement si le démon a publié `MSG_STATE_START_SUCCESS`, c'est-à-dire
+     * après une requête réelle passée dans le tunnel. Un état intermédiaire
+     * (CONNECTING/RECONNECTING) ne vaut jamais « connecté ».
+     */
+    fun isVerifiedRunning(): Boolean = lastState.value == AppConfig.MSG_STATE_START_SUCCESS
+
     fun isStateKnown(): Boolean = stateKnown.value
 
     /**
@@ -144,8 +151,12 @@ class LaboratoryTunnelGateway(
             lastReason.value = "service_start_rejected"
             return false
         }
+        // Seul START_SUCCESS prouve un tunnel réellement opérationnel.
+        // CONNECTING / RECONNECTING sont des états intermédiaires : s'y arrêter
+        // annulait l'activation alors que le moteur était encore en train de
+        // vérifier le trafic (cause exacte de l'échec constaté).
         val state = awaitState(
-            RUNNING_STATES + FAILURE_STATES,
+            setOf(AppConfig.MSG_STATE_START_SUCCESS) + FAILURE_STATES,
             startTimeoutMillis,
         )
         if (state == null) {
