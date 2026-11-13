@@ -1089,7 +1089,7 @@
     <string name="tester_run_tcp">Ping réseau</string>
     <string name="tester_cancel">Annuler</string>
     <string name="tester_parallel">Tests en parallèle : %1$d</string>
-    <string name="tester_note">Le ping réseau ne vérifie que la joignabilité TCP. Seul le test de tunnel prouve que le serveur fonctionne. Le débit n'est pas mesuré ici : il reste affiché &#8212;.</string>
+    <string name="tester_note">Le ping réseau ne vérifie que la joignabilité TCP. Seul le test de tunnel prouve que le serveur fonctionne. Le débit n\'est pas mesuré ici : il reste affiché &#8212;.</string>
     <string name="tester_empty">Aucun serveur dans cette liste.</string>
     <string name="tester_error">Impossible de charger les serveurs.</string>
     <string name="tester_never">non mesuré</string>
