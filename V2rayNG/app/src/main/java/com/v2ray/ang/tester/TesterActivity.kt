@@ -343,8 +343,11 @@ private fun MeasurementBadge(row: TesterRow, kind: TesterKind) {
 private fun detailLine(row: TesterRow): String {
     val tunnel = measurementLabel(row, TesterKind.TUNNEL)
     val tcp = measurementLabel(row, TesterKind.TCP)
-    val loss = row.lossPercent?.let { stringResource(R.string.tester_loss, it) }
-        ?: stringResource(R.string.tester_loss_none)
+    val loss = if (row.lossPercent != null) {
+        stringResource(R.string.tester_loss, row.lossPercent)
+    } else {
+        stringResource(R.string.tester_loss_none)
+    }
     val throughput = stringResource(R.string.tester_throughput)
     return listOf(tunnel, tcp, loss, throughput).joinToString(" · ")
 }

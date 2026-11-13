@@ -903,7 +903,7 @@
     <string name="consumption_today">Données mobiles aujourd’hui</string>
     <string name="consumption_test_button">Tester le serveur actuel</string>
     <string name="default_server_switch_title">Basculer automatiquement vers un serveur plus rapide si nécessaire</string>
-    <string name="default_server_switch_summary">Seul le groupe par défaut est concerné, selon les tests récents et le même protocole.</string>
+    <string name="default_server_switch_summary">Seuls vos serveurs Configs sont concernés, selon des mesures réelles ; chaque bascule est vérifiée et annulée en cas d\'échec.</string>
     <string name="default_server_switched">Un serveur compatible plus rapide a été sélectionné.</string>
     <string name="config_status_complete">Complète</string>
     <string name="config_status_partial">Partielle</string>
@@ -1099,6 +1099,28 @@
     <string name="tester_loss">pertes %1$d%%</string>
     <string name="tester_loss_none">pertes &#8212;</string>
     <string name="tester_throughput">débit &#8212;</string>
+    <!-- Reglages de la bascule automatique classique. -->
+    <string name="failover_menu">Bascule automatique</string>
+    <string name="failover_settings_title">Bascule automatique</string>
+    <string name="failover_switch_title">Bascule automatique</string>
+    <string name="failover_switch_summary">Ne bascule qu\'entre vos serveurs Configs, jamais vers un serveur gratuit. Chaque bascule est vérifiée avant d\'être conservée.</string>
+    <string name="failover_active_server">Serveur actif</string>
+    <string name="failover_best_server">Meilleur serveur mesuré</string>
+    <string name="failover_none">aucun</string>
+    <string name="failover_no_measure">Aucune mesure réelle pour l\'instant.</string>
+    <string name="failover_score">score %1$d/100</string>
+    <string name="failover_latency">%1$d ms</string>
+    <string name="failover_loss">pertes %1$d%%</string>
+    <string name="failover_last_verification">Dernière mesure réelle : %1$s</string>
+    <string name="failover_last_switch">Dernière bascule : %1$s</string>
+    <string name="failover_never">jamais</string>
+    <string name="failover_history">Historique des bascules</string>
+    <string name="failover_history_empty">Aucune bascule enregistrée.</string>
+    <string name="failover_reason_degraded">serveur dégradé</string>
+    <string name="failover_reason_better">meilleur score</string>
+    <string name="failover_result_success">confirmée</string>
+    <string name="failover_result_rollback">annulée (retour)</string>
+    <string name="failover_note">Une bascule n\'est conservée que si le nouveau serveur transporte du trafic réel ; sinon le serveur précédent est restauré et la tentative est enregistrée.</string>
     <string name="reconfig_transfer_done">%1$d ajouté(s) aux Configs, %2$d déjà présent(s) et conservé(s), %3$d invalide(s), %4$d échec(s)</string>
     <string name="reconfig_op_cancelled">Opération annulée</string>
     <string name="reconfig_nothing_selected">Sélectionnez au moins un serveur</string>

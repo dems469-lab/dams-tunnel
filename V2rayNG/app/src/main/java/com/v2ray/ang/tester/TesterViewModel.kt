@@ -80,7 +80,7 @@ internal class TesterViewModel(application: Application) : BaseViewModel(applica
 
     init {
         ContextCompat.registerReceiver(
-            getApplication(),
+            getApplication<Application>(),
             receiver,
             IntentFilter(AppConfig.BROADCAST_ACTION_ACTIVITY),
             Utils.receiverFlags(),
@@ -125,6 +125,8 @@ internal class TesterViewModel(application: Application) : BaseViewModel(applica
                 freeRows = rows.filter { it.scope == TesterScope.FREE }
                 _uiState.value = _uiState.value.copy(loading = false)
                 publish()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(loading = false, error = true)
             }
@@ -158,7 +160,7 @@ internal class TesterViewModel(application: Application) : BaseViewModel(applica
                 // Une nouvelle mesure remplace l'ancienne valeur : on efface
                 // uniquement la nature testée, pas l'autre.
                 MessageHelper.sendMsg2TestService(
-                    getApplication(),
+                    getApplication<Application>(),
                     TestServiceMessage(
                         key = AppConfig.MSG_MEASURE_CONFIG_START,
                         serverGuids = targets.map { it.guid },
@@ -174,7 +176,7 @@ internal class TesterViewModel(application: Application) : BaseViewModel(applica
     fun cancelTest() {
         val id = requestId ?: return
         MessageHelper.sendMsg2TestService(
-            getApplication(),
+            getApplication<Application>(),
             TestServiceMessage(key = AppConfig.MSG_MEASURE_CONFIG_CANCEL),
             id,
         )

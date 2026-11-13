@@ -904,7 +904,7 @@
     <string name="consumption_today">Mobile data today</string>
     <string name="consumption_test_button">Test the current server</string>
     <string name="default_server_switch_title">Switch to a faster server when necessary</string>
-    <string name="default_server_switch_summary">Only the default group is considered, using recent tests and the same protocol.</string>
+    <string name="default_server_switch_summary">Only your Configs servers are considered, from real measurements; each switch is verified and rolled back if it fails.</string>
     <string name="default_server_switched">A faster compatible server was selected.</string>
     <string name="config_status_complete">Complete</string>
     <string name="config_status_partial">Partial</string>
@@ -1100,6 +1100,28 @@
     <string name="tester_loss">loss %1$d%%</string>
     <string name="tester_loss_none">loss &#8212;</string>
     <string name="tester_throughput">throughput &#8212;</string>
+    <!-- Reglages de la bascule automatique classique. -->
+    <string name="failover_menu">Automatic switch</string>
+    <string name="failover_settings_title">Automatic switch</string>
+    <string name="failover_switch_title">Automatic switch</string>
+    <string name="failover_switch_summary">Switches only between your Configs servers, never free ones. Each switch is verified before being kept.</string>
+    <string name="failover_active_server">Active server</string>
+    <string name="failover_best_server">Best measured server</string>
+    <string name="failover_none">none</string>
+    <string name="failover_no_measure">No real measurement yet.</string>
+    <string name="failover_score">score %1$d/100</string>
+    <string name="failover_latency">%1$d ms</string>
+    <string name="failover_loss">loss %1$d%%</string>
+    <string name="failover_last_verification">Last real measurement: %1$s</string>
+    <string name="failover_last_switch">Last switch: %1$s</string>
+    <string name="failover_never">never</string>
+    <string name="failover_history">Switch history</string>
+    <string name="failover_history_empty">No switch recorded yet.</string>
+    <string name="failover_reason_degraded">degraded server</string>
+    <string name="failover_reason_better">better score</string>
+    <string name="failover_result_success">confirmed</string>
+    <string name="failover_result_rollback">rolled back</string>
+    <string name="failover_note">A switch is kept only when the new server carries real traffic; otherwise the previous server is restored and the attempt is recorded.</string>
     <string name="reconfig_transfer_done">%1$d added to Configs, %2$d already present (kept here), %3$d invalid, %4$d failed</string>
     <string name="reconfig_op_cancelled">Operation cancelled</string>
     <string name="reconfig_nothing_selected">Select at least one server</string>

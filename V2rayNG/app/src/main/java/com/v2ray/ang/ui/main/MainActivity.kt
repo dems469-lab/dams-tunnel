@@ -307,6 +307,7 @@ class MainActivity : HelperBaseComponentActivity() {
             MainDestination.FreeServers -> Intent(this, FreeServersActivity::class.java)
             MainDestination.Reconfiguration -> Intent(this, ReconfigurationActivity::class.java)
             MainDestination.Tester -> Intent(this, com.v2ray.ang.tester.TesterActivity::class.java)
+            MainDestination.Failover -> Intent(this, com.v2ray.ang.failover.FailoverSettingsActivity::class.java)
             MainDestination.Laboratory -> Intent(this, LaboratoryActivity::class.java)
             MainDestination.PremiumSubscription -> Intent(this, PremiumSubscriptionActivity::class.java)
             MainDestination.PerAppProxy -> Intent(this, PerAppProxyActivity::class.java)

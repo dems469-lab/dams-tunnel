@@ -35,6 +35,7 @@ enum class MainDestination(@DrawableRes val iconRes: Int, @StringRes val labelRe
     FreeServers(R.drawable.ic_cloud_download_24dp, R.string.free_servers_menu),
     Reconfiguration(R.drawable.ic_reconfig_24dp, R.string.reconfig_menu),
     Tester(R.drawable.ic_flash_on_24dp, R.string.tester_menu),
+    Failover(R.drawable.ic_routing_24dp, R.string.failover_menu),
     Laboratory(R.drawable.ic_laboratory_24dp, R.string.laboratory_menu),
     PremiumSubscription(R.drawable.ic_subscriptions_24dp, R.string.premium_menu_my_subscription),
     PerAppProxy(R.drawable.ic_per_apps_24dp, R.string.per_app_proxy_settings),
@@ -56,6 +57,7 @@ internal fun primaryDrawerItems(showPremium: Boolean): List<MainDestination> = b
     add(MainDestination.FreeServers)
     add(MainDestination.Reconfiguration)
     add(MainDestination.Tester)
+    add(MainDestination.Failover)
     add(MainDestination.Laboratory)
     addAll(
         listOf(
