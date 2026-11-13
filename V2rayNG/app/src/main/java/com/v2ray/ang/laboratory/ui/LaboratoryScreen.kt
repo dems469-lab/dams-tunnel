@@ -574,7 +574,7 @@ private fun MetricTile(label: String, value: String, modifier: Modifier = Modifi
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Text(label.uppercase(Locale.getDefault()), color = theme.texteDoux, fontSize = 9.sp, letterSpacing = 0.8.sp)
+        Text(label.uppercase(Locale.ROOT), color = theme.texteDoux, fontSize = 9.sp, letterSpacing = 0.8.sp)
         Text(value, color = theme.texteFort, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
     }
 }
@@ -710,7 +710,7 @@ private fun PathCard(
 private fun PathMetric(label: String, value: String, modifier: Modifier = Modifier) {
     val theme = DamsTheme
     Column(modifier = modifier) {
-        Text(label.uppercase(Locale.getDefault()), color = theme.texteDoux, fontSize = 9.sp, letterSpacing = 0.7.sp)
+        Text(label.uppercase(Locale.ROOT), color = theme.texteDoux, fontSize = 9.sp, letterSpacing = 0.7.sp)
         Text(value, color = theme.texteFort, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
@@ -1072,7 +1072,7 @@ private fun LaboratoryBanner(text: String, color: Color, onDismiss: () -> Unit) 
 @Composable
 private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
     Text(
-        text.uppercase(Locale.getDefault()),
+        text.uppercase(Locale.ROOT),
         modifier = modifier,
         color = DamsTheme.accent,
         fontSize = 11.sp,
