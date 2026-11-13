@@ -104,7 +104,8 @@ class CoreVpnService : VpnService(), ServiceControl {
             // Stop service if setup fails to avoid infinite restart loops (START_STICKY)
             stopSelf()
             return START_NOT_STICKY
-        }        startService()
+        }
+        startService()
         return START_STICKY
     }
 
