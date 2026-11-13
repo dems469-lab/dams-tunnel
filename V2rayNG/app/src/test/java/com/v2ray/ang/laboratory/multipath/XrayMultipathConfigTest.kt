@@ -134,7 +134,7 @@ class XrayMultipathConfigTest {
 
     @Test
     fun `inject honours a restricted selector`() {
-        val result = assertNotNull(inject(listOf("path-a")))
+        val result = injected(listOf("path-a"))
         val root = JsonParser.parseString(result.configJson).asJsonObject
         val balancer = root.getAsJsonObject("routing")
             .getAsJsonArray("balancers")

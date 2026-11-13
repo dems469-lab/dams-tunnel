@@ -156,7 +156,8 @@ internal object XrayMultipathConfig {
     }
 
     /** Vérifie la présence des trois chemins, du balancer et de l'observatoire. */
-    fun isMultipathConfigValid(json: String): Boolean {        val root = parseObject(json) ?: return false
+    fun isMultipathConfigValid(json: String): Boolean {
+        val root = parseObject(json) ?: return false
         val outbounds = root.getAsJsonArray("outbounds") ?: return false
         val tags = outbounds.objects().mapNotNull { it.tagOrNull() }.toSet()
         if (!tags.containsAll(allTags)) return false
