@@ -24,6 +24,8 @@ data class LaboratoryPathUi(
     val throughputIndex: Int = 0,
     val sampleCount: Int = 0,
     val lastUpdateMillis: Long = 0L,
+    /** Motif court du dernier échec réel, null si le chemin répond. */
+    val failureReason: String? = null,
 ) {
     val selected: Boolean get() = !guid.isNullOrBlank()
 }
@@ -38,7 +40,7 @@ data class LaboratoryUiState(
     val paths: List<LaboratoryPathUi> = emptyList(),
     val hybridEnabled: Boolean = true,
     val autoFailoverEnabled: Boolean = true,
-    val probeIntervalSeconds: Int = 45,
+    val probeIntervalSeconds: Int = 3,
     val preferredRole: PathRole? = null,
     val selector: List<String> = emptyList(),
     val busy: Boolean = false,

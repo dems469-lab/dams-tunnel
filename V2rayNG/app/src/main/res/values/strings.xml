@@ -1221,4 +1221,22 @@
     <string name="laboratory_error_lab_start_failed">The experimental engine did not confirm a real start.</string>
     <string name="laboratory_error_stop_unconfirmed">The stop was not confirmed. Try again.</string>
     <string name="laboratory_error_prepare_failed">The laboratory could not be prepared.</string>
+    <string name="laboratory_error_no_path">No path answered a real request; the engine was stopped.</string>
+    <string name="laboratory_error_verification">The paths could not be verified; the engine was stopped.</string>
+    <!-- Motif technique affiché après le message principal : base (motif · code). -->
+    <string name="laboratory_error_detail_format">%1$s Cause: %2$s (%3$s).</string>
+    <string name="laboratory_reason_permission">VPN permission required</string>
+    <string name="laboratory_reason_vpn_setup">VPN interface configuration refused</string>
+    <string name="laboratory_reason_tun">TUN relay did not start</string>
+    <string name="laboratory_reason_core_start">Xray engine start failure</string>
+    <string name="laboratory_reason_core_stop_error">Xray engine stop error</string>
+    <string name="laboratory_reason_core_stop_timeout">Xray engine did not stop in time</string>
+    <string name="laboratory_reason_core_still_running">Xray engine still active after stop</string>
+    <string name="laboratory_reason_stop_timeout">No final state received in time</string>
+    <string name="laboratory_reason_daemon">Background service unreachable</string>
+    <string name="laboratory_reason_start_timeout">Tunnel start not confirmed in time</string>
+    <string name="laboratory_reason_start_rejected">System refused to start the service</string>
+    <string name="laboratory_reason_unknown">Unknown cause</string>
+    <string name="laboratory_reason_probe_failed">no response from the test request</string>
+    <string name="laboratory_path_error">Error: %1$s</string>
 </resources>

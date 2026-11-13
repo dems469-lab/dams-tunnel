@@ -17,6 +17,7 @@ import java.io.Serializable
 
 object MessageHelper {
     const val EXTRA_REQUEST_ID = "requestId"
+    const val EXTRA_REASON = "reason"
 
     /**
      * Sends a message to the service.
@@ -69,6 +70,30 @@ object MessageHelper {
      */
     fun sendMsg2UI(ctx: Context, what: Int, content: Serializable, requestId: String? = null) {
         sendMsg(ctx, AppConfig.BROADCAST_ACTION_ACTIVITY, what, content, requestId)
+    }
+
+    /**
+     * Variante avec motif technique : `content` reste affichable par l'interface
+     * classique, `reason` est un code court (jamais de donnée sensible) que le
+     * laboratoire peut présenter précisément.
+     */
+    fun sendMsg2UI(
+        ctx: Context,
+        what: Int,
+        content: Serializable,
+        requestId: String?,
+        reason: String?,
+    ) {
+        try {
+            ctx.sendBroadcast(
+                messageIntent(AppConfig.BROADCAST_ACTION_ACTIVITY, what, content).apply {
+                    requestId?.let { putExtra(EXTRA_REQUEST_ID, it) }
+                    reason?.takeIf { it.isNotBlank() }?.let { putExtra(EXTRA_REASON, it.take(160)) }
+                },
+            )
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "Failed to send message with action: ${AppConfig.BROADCAST_ACTION_ACTIVITY}", e)
+        }
     }
 
     /**

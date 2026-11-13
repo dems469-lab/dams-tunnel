@@ -76,6 +76,8 @@ data class PathHealth(
     val consecutiveFailures: Int = 0,
     val consecutiveSuccesses: Int = 0,
     val lastUpdateMillis: Long = 0L,
+    /** Motif court du dernier échec réel de sonde, null si le chemin répond. */
+    val failureReason: String? = null,
 ) {
     val isCarrying: Boolean get() = state == PathLinkState.CARRYING
 }

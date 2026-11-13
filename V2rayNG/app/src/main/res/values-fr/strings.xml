@@ -1220,4 +1220,22 @@
     <string name="laboratory_error_lab_start_failed">Le moteur expérimental n\'a pas confirmé un démarrage réel.</string>
     <string name="laboratory_error_stop_unconfirmed">L\'arrêt n\'a pas été confirmé. Réessayez.</string>
     <string name="laboratory_error_prepare_failed">Le laboratoire n\'a pas pu être préparé.</string>
+    <string name="laboratory_error_no_path">Aucun chemin n\'a répondu à une requête réelle ; le moteur a été arrêté.</string>
+    <string name="laboratory_error_verification">Les chemins n\'ont pas pu être vérifiés ; le moteur a été arrêté.</string>
+    <!-- Motif technique affiché après le message principal : base (motif · code). -->
+    <string name="laboratory_error_detail_format">%1$s Cause : %2$s (%3$s).</string>
+    <string name="laboratory_reason_permission">permission VPN requise</string>
+    <string name="laboratory_reason_vpn_setup">configuration de l\'interface VPN refusée</string>
+    <string name="laboratory_reason_tun">le relais TUN n\'a pas démarré</string>
+    <string name="laboratory_reason_core_start">échec du démarrage du moteur Xray</string>
+    <string name="laboratory_reason_core_stop_error">erreur d\'arrêt du moteur Xray</string>
+    <string name="laboratory_reason_core_stop_timeout">le moteur Xray ne s\'est pas arrêté à temps</string>
+    <string name="laboratory_reason_core_still_running">le moteur Xray tourne encore après l\'arrêt</string>
+    <string name="laboratory_reason_stop_timeout">aucun état final reçu à temps</string>
+    <string name="laboratory_reason_daemon">service d\'arrière-plan injoignable</string>
+    <string name="laboratory_reason_start_timeout">démarrage du tunnel non confirmé à temps</string>
+    <string name="laboratory_reason_start_rejected">le système a refusé de démarrer le service</string>
+    <string name="laboratory_reason_unknown">cause inconnue</string>
+    <string name="laboratory_reason_probe_failed">aucune réponse à la requête de test</string>
+    <string name="laboratory_path_error">Erreur : %1$s</string>
 </resources>

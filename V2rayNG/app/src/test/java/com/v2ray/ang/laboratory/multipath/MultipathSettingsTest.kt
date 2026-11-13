@@ -59,4 +59,18 @@ class MultipathSettingsTest {
             MultipathSettings().observatoryIntervalSeconds(),
         )
     }
+
+    @Test
+    fun `monitoring cadence is fast enough for an anticipatory failover`() {
+        assertEquals(3, MultipathSettings.DEFAULT_PROBE_INTERVAL)
+        assertEquals(1, MultipathSettings.MIN_PROBE_INTERVAL)
+        assertEquals(1, MultipathSettings.DEGRADED_PROBE_INTERVAL_SECONDS)
+        // L'observatoire du démon reste actif écran éteint, mais à 5 s : Xray
+        // ne garantit pas une sonde par seconde.
+        assertEquals(5, MultipathSettings.OBSERVATORY_INTERVAL_SECONDS)
+        assertEquals(
+            3,
+            MultipathSettings(probeIntervalSeconds = 3).normalized().probeIntervalSeconds,
+        )
+    }
 }

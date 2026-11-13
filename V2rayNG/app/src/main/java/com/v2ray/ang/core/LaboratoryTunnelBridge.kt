@@ -32,6 +32,7 @@ object LaboratoryTunnelBridge {
     private const val SESSION_FILE_NAME = "active_session.json"
     private const val TEMP_FILE_NAME = "active_session.tmp"
     private const val PERMIT_FILE_NAME = "active_start.permit"
+    private const val STATUS_FILE_NAME = "tunnel_state.json"
     private const val SESSION_VERSION = 1
     private const val MAX_SESSION_BYTES = 1_048_576L
 
@@ -189,6 +190,98 @@ object LaboratoryTunnelBridge {
     /** Nom affiché par la notification et la console Xray pendant le laboratoire. */
     fun laboratoryRemarks(remarks: String): String =
         if (remarks.startsWith(LAB_PREFIX)) remarks else "$LAB_PREFIX$remarks"
+
+    // ── État autoritaire du tunnel ───────────────────────────────────────────
+
+    /**
+     * État publié par le processus `:daemon` après chaque transition réelle.
+     *
+     * Il sert de seconde source de vérité (indépendante des broadcasts) pour que
+     * l'interface puisse distinguer « service absent », « arrêt confirmé » et
+     * « arrêt échoué », sans jamais deviner.
+     */
+    data class ServiceStatus(
+        val state: String,
+        val mode: String,
+        val reason: String?,
+        val atMillis: Long,
+        val pid: Int,
+    )
+
+    const val STATE_RUNNING = "RUNNING"
+    const val STATE_STOPPING = "STOPPING"
+    const val STATE_STOPPED = "STOPPED"
+    const val STATE_STOP_FAILED = "STOP_FAILED"
+    const val STATE_START_FAILED = "START_FAILED"
+
+    const val MODE_CLASSIC = "CLASSIC"
+    const val MODE_LABORATORY = "LABORATORY"
+
+    /**
+     * Publie l'état réel du tunnel. Écriture atomique, jamais bloquante pour
+     * l'appelant (le service ne doit pas attendre le disque pour arrêter Xray).
+     */
+    @Synchronized
+    fun writeStatus(
+        context: Context,
+        state: String,
+        mode: String,
+        reason: String? = null,
+    ) {
+        runCatching {
+            val directory = sessionDirectory(context)
+            if (!directory.isDirectory && !directory.mkdirs()) return
+            val root = JsonObject().apply {
+                addProperty("state", state)
+                addProperty("mode", mode)
+                reason?.takeIf { it.isNotBlank() }?.let { addProperty("reason", it.take(160)) }
+                addProperty("atMillis", System.currentTimeMillis())
+                addProperty("pid", android.os.Process.myPid())
+            }
+            val temp = File(directory, "$STATUS_FILE_NAME.tmp")
+            temp.writeText(JsonUtil.toJson(root))
+            val target = statusFile(context)
+            if (target.exists() && !target.delete()) {
+                LogUtil.w(TAG, "Impossible de remplacer l'état du tunnel")
+            }
+            if (!temp.renameTo(target)) {
+                temp.delete()
+                LogUtil.w(TAG, "Impossible de publier l'état du tunnel")
+            }
+        }.onFailure {
+            LogUtil.w(TAG, "Échec d'écriture de l'état du tunnel (${it.javaClass.simpleName})")
+        }
+    }
+
+    /** Dernier état publié par le démon, ou null si aucun démon ne l'a écrit. */
+    fun readStatus(context: Context): ServiceStatus? {
+        val file = statusFile(context)
+        if (!file.isFile) return null
+        return runCatching {
+            val root = JsonUtil.parseString(file.readText())
+                ?.takeIf { it.isJsonObject }
+                ?.asJsonObject
+                ?: return null
+            ServiceStatus(
+                state = root.get("state")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty(),
+                mode = root.get("mode")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty(),
+                reason = root.get("reason")?.takeIf { it.isJsonPrimitive }?.asString,
+                atMillis = root.get("atMillis")?.takeIf { it.isJsonPrimitive }?.asLong ?: 0L,
+                pid = root.get("pid")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0,
+            )
+        }.getOrNull()
+    }
+
+    @Synchronized
+    fun clearStatus(context: Context) {
+        runCatching {
+            statusFile(context).delete()
+            File(sessionDirectory(context), "$STATUS_FILE_NAME.tmp").delete()
+        }
+    }
+
+    private fun statusFile(context: Context): File =
+        File(sessionDirectory(context), STATUS_FILE_NAME)
 
     private const val LAB_PREFIX = "LAB · "
 }

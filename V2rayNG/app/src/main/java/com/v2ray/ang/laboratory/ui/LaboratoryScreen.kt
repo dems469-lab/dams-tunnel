@@ -668,6 +668,17 @@ private fun PathCard(
                 )
             }
 
+            if (path.state == PathLinkState.UNAVAILABLE && path.failureReason != null) {
+                Text(
+                    stringResource(
+                        R.string.laboratory_path_error,
+                        stringResource(R.string.laboratory_reason_probe_failed),
+                    ),
+                    color = theme.erreur,
+                    fontSize = 10.sp,
+                )
+            }
+
             LinearProgressIndicator(
                 progress = { (path.qualityScore.coerceIn(0, 100)) / 100f },
                 modifier = Modifier
@@ -786,8 +797,8 @@ private fun LaboratorySettingsCard(
                 Slider(
                     value = state.probeIntervalSeconds.toFloat(),
                     onValueChange = { onProbeIntervalChanged(it.toInt()) },
-                    valueRange = 20f..180f,
-                    steps = 7,
+                    valueRange = 1f..30f,
+                    steps = 28,
                     enabled = !state.busy,
                 )
             }

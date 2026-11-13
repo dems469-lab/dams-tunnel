@@ -209,6 +209,8 @@ object AppConfig {
     const val MSG_STATE_RECONNECTING = 35
     const val MSG_STATE_STOP = 4
     const val MSG_STATE_STOP_SUCCESS = 41
+    /** Arrêt impossible : le moteur ou le TUN n'a pas pu être libéré (motif en extra "content"). */
+    const val MSG_STATE_STOP_FAILURE = 42
     const val MSG_STATE_RESTART = 5
     const val MSG_MEASURE_DELAY = 6
     /** Recharge la configuration laboratoire (sélection des chemins Multipath). */

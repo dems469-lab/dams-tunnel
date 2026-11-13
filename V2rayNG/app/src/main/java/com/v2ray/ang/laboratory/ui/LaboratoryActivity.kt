@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.v2ray.ang.R
+import com.v2ray.ang.laboratory.data.LaboratoryPreferences
 import com.v2ray.ang.laboratory.service.LaboratoryTunnelGateway
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.compose.DamsTheme
@@ -46,7 +47,12 @@ class LaboratoryActivity : BaseComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        viewModel.attachGateway(LaboratoryTunnelGateway(this))
+        viewModel.attachGateway(
+            LaboratoryTunnelGateway(
+                this,
+                stopTimeoutMillis = LaboratoryPreferences(this).stopTimeoutSeconds() * 1_000L,
+            ),
+        )
     }
 
     override fun onResume() {

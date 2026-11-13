@@ -82,6 +82,7 @@ class PathHealthMonitor(
                     consecutiveFailures = failureCount,
                     consecutiveSuccesses = successCount,
                     lastUpdateMillis = now,
+                    failureReason = if (success) null else PROBE_FAILED,
                 )
             )
 
@@ -99,6 +100,9 @@ class PathHealthMonitor(
     }
 
     companion object {
+        /** Motif exposé à l'interface quand la sonde réelle ne reçoit rien. */
+        const val PROBE_FAILED = "probe_failed"
+
         private const val PROBE_GAP_MILLIS = 350L
     }
 }

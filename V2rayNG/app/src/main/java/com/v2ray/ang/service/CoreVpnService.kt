@@ -51,6 +51,9 @@ class CoreVpnService : VpnService(), ServiceControl {
         val policy = StrictMode.ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
         CoreServiceManager.serviceControl = SoftReference(this)
+        // Branché ici et non au démarrage du cœur : un arrêt ou une demande
+        // d'état reçoit toujours une réponse, même si Xray n'a pas démarré.
+        CoreServiceManager.attachServiceReceiver(this)
     }
 
     override fun onRevoke() {
@@ -67,6 +70,7 @@ class CoreVpnService : VpnService(), ServiceControl {
         LogUtil.i(AppConfig.TAG, "StartCore-VPN: Service destroyed")
         super.onDestroy()
         unlockStart()
+        CoreServiceManager.detachServiceReceiver(this)
         serviceScope.launch {
             stopJob?.join()
             if (CoreServiceManager.isRunning()) performStop(closeInterface = true, stopService = false)
@@ -92,14 +96,15 @@ class CoreVpnService : VpnService(), ServiceControl {
         }
         acquireVpnWakeLock()
         LogUtil.i(AppConfig.TAG, "StartCore-VPN: Service command received, systemVpnStart=$isSystemVpnStart")
-        if (!setupVpnService()) {
+        val setupFailure = setupVpnService()
+        if (setupFailure != null) {
             unlockStart()
             releaseVpnWakeLock()
+            publishStartFailure(setupFailure, "Établissement du VPN impossible")
             // Stop service if setup fails to avoid infinite restart loops (START_STICKY)
             stopSelf()
             return START_NOT_STICKY
-        }
-        startService()
+        }        startService()
         return START_STICKY
     }
 
@@ -116,6 +121,7 @@ class CoreVpnService : VpnService(), ServiceControl {
             try {
                 if (!CoreServiceManager.startCoreLoop(mInterface)) {
                     LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to start core loop")
+                    publishStartFailure("core_start_failed", "Le moteur Xray n'a pas démarré")
                     stopAllService()
                     return@launch
                 }
@@ -149,25 +155,54 @@ class CoreVpnService : VpnService(), ServiceControl {
     /**
      * Sets up the VPN service.
      * Prepares the VPN and configures it if preparation is successful.
+     *
+     * @return null en cas de succès, sinon un code court de motif qui est
+     * publié vers l'interface : un échec de préparation ne doit jamais laisser
+     * l'appelant dans un état « inconnu » à attendre un message qui ne viendra pas.
      */
-    private fun setupVpnService(): Boolean {
+    private fun setupVpnService(): String? {
         val prepare = prepare(this)
         if (prepare != null) {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Permission not granted")
-            return false
+            return "vpn_permission_required"
         }
 
         if (configureVpnService() != true) {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Configuration failed")
-            return false
+            return "vpn_configure_failed"
         }
 
         if (!runTun2socks()) {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Le relais TUN n'a pas démarré")
             stopAllService()
-            return false
+            return "tun_start_failed"
         }
-        return true
+        return null
+    }
+
+    /**
+     * Publie un échec de démarrage avec un motif. `content` reste lisible par
+     * l'interface classique, `reason` est le code exploité par le laboratoire.
+     */
+    private fun publishStartFailure(reason: String, message: String) {
+        val mode = if (com.v2ray.ang.core.LaboratoryTunnelBridge.isActive(this)) {
+            com.v2ray.ang.core.LaboratoryTunnelBridge.MODE_LABORATORY
+        } else {
+            com.v2ray.ang.core.LaboratoryTunnelBridge.MODE_CLASSIC
+        }
+        com.v2ray.ang.core.LaboratoryTunnelBridge.writeStatus(
+            this,
+            com.v2ray.ang.core.LaboratoryTunnelBridge.STATE_START_FAILED,
+            mode,
+            reason,
+        )
+        com.v2ray.ang.helper.MessageHelper.sendMsg2UI(
+            this,
+            AppConfig.MSG_STATE_START_FAILURE,
+            message,
+            null,
+            reason,
+        )
     }
 
     /**

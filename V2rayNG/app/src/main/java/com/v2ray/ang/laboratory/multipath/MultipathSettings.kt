@@ -29,16 +29,27 @@ data class MultipathSettings(
     companion object {
         const val DEFAULT_PROBE_URL = "https://www.gstatic.com/generate_204"
 
-        const val MIN_PROBE_INTERVAL = 20
-        const val MAX_PROBE_INTERVAL = 300
-        const val DEFAULT_PROBE_INTERVAL = 45
+        /**
+         * Surveillance active : 3 s. Un relais anticipé n'a aucune valeur si la
+         * détection met 45 s ; l'observatoire Xray reste, lui, à 5 s.
+         */
+        const val MIN_PROBE_INTERVAL = 1
+        const val MAX_PROBE_INTERVAL = 60
+        const val DEFAULT_PROBE_INTERVAL = 3
 
-        const val MIN_COOLDOWN = 20
+        /** Cadence resserrée dès qu'un chemin est suspect (échec ou dégradation). */
+        const val DEGRADED_PROBE_INTERVAL_SECONDS = 1
+
+        const val MIN_COOLDOWN = 10
         const val MAX_COOLDOWN = 180
-        const val DEFAULT_COOLDOWN = 45
+        const val DEFAULT_COOLDOWN = 30
 
-        /** Xray sonde les trois chemins toutes les 10 s lorsqu'il est actif. */
-        const val OBSERVATORY_INTERVAL_SECONDS = 10
+        /**
+         * Intervalle de l'observatoire Xray (dans le démon, donc actif même
+         * écran éteint). 5 s est la cadence la plus rapide raisonnable pour
+         * trois chemins ; Xray ne teste pas à la seconde.
+         */
+        const val OBSERVATORY_INTERVAL_SECONDS = 5
 
         /** Fenêtre glissante utilisée par [ServerQualityAnalyzer]. */
         const val SAMPLE_WINDOW = 10

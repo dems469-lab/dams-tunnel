@@ -76,11 +76,18 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
     fun attachGateway(labGateway: LaboratoryTunnelGateway) {
         if (gateway === labGateway) return
         gatewayStateJob?.cancel()
-        gateway?.unregister()
+        gateway?.release()
         gateway = labGateway
         labGateway.register()
         gatewayStateJob = viewModelScope.launch {
-            labGateway.serviceState.collect { state -> onServiceState(state) }
+            launch { labGateway.serviceState.collect { state -> onServiceState(state) } }
+            // État réel du service dès l'ouverture : « inconnu » n'est affiché
+            // que le temps de l'interrogation, jamais indéfiniment.
+            launch {
+                labGateway.serviceStateKnown.collect { known ->
+                    if (known) _uiState.update { it.copy(serviceStateKnown = true) }
+                }
+            }
         }
     }
 
@@ -96,7 +103,7 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
     override fun onCleared() {
         stopMonitoring()
         gatewayStateJob?.cancel()
-        gateway?.unregister()
+        gateway?.release()
         gateway = null
         controller.close()
         super.onCleared()
@@ -205,6 +212,7 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
             throughputIndex = pathHealth?.metrics?.throughputIndex ?: 0,
             sampleCount = pathHealth?.metrics?.sampleCount ?: 0,
             lastUpdateMillis = pathHealth?.lastUpdateMillis ?: 0L,
+            failureReason = pathHealth?.failureReason,
         )
     }
 
@@ -374,7 +382,7 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
                     )
                 }
             } else {
-                _uiState.update { it.copy(error = activationError(result.code)) }
+                _uiState.update { it.copy(error = activationError(result.code, result.detail)) }
             }
             refreshHistory()
         }
@@ -393,7 +401,10 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
                     engineState = controller.state,
                     serviceRunning = labGateway.isTunnelRunning(),
                     error = if (result.success) null else {
-                        app.getString(R.string.laboratory_error_stop_unconfirmed)
+                        transitionError(
+                            app.getString(R.string.laboratory_error_stop_unconfirmed),
+                            result.detail,
+                        )
                     },
                     notice = if (result.success) {
                         app.getString(R.string.laboratory_notice_stopped)
@@ -422,7 +433,10 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
                 _uiState.update {
                     it.copy(
                         engineState = controller.state,
-                        error = app.getString(R.string.laboratory_error_stop_unconfirmed),
+                        error = transitionError(
+                            app.getString(R.string.laboratory_error_stop_unconfirmed),
+                            result.detail,
+                        ),
                     )
                 }
                 return@launch
@@ -521,7 +535,16 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
                     publishHealth(round.health, round.decision)
                     if (round.reloadApplied) refreshHistory()
                 }
-                delay(settings.probeIntervalSeconds.coerceAtLeast(20) * 1_000L)
+                // Cadence adaptative : 1 s dès qu'un chemin est suspect,
+                // sinon l'intervalle choisi (3 s par défaut).
+                val suspect = round == null ||
+                    round.health.any { !it.metrics.isUsable }
+                val interval = if (suspect) {
+                    MultipathSettings.DEGRADED_PROBE_INTERVAL_SECONDS
+                } else {
+                    settings.probeIntervalSeconds
+                }
+                delay(interval.coerceAtLeast(1) * 1_000L)
             }
         }
     }
@@ -545,6 +568,7 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
                 throughputIndex = measured.metrics.throughputIndex,
                 sampleCount = measured.metrics.sampleCount,
                 lastUpdateMillis = measured.lastUpdateMillis,
+                failureReason = measured.failureReason,
             )
         }
         _uiState.update {
@@ -584,7 +608,30 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
             }
 
             com.v2ray.ang.AppConfig.MSG_STATE_START_FAILURE -> {
-                _uiState.update { it.copy(serviceRunning = false, serviceStateKnown = true) }
+                val reason = gateway?.failureReason?.value
+                _uiState.update {
+                    it.copy(
+                        serviceRunning = false,
+                        serviceStateKnown = true,
+                        error = activationError("lab_start_failed", reason),
+                    )
+                }
+            }
+
+            com.v2ray.ang.AppConfig.MSG_STATE_STOP_FAILURE -> {
+                // Le tunnel peut encore tourner : aucun état « arrêté » n'est
+                // affiché, et le motif réel est présenté.
+                val reason = gateway?.failureReason?.value
+                _uiState.update {
+                    it.copy(
+                        serviceStateKnown = true,
+                        error = transitionError(
+                            app.getString(R.string.laboratory_error_stop_unconfirmed),
+                            reason,
+                        ),
+                    )
+                }
+                refreshHistory()
             }
         }
     }
@@ -640,7 +687,7 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
         }
     }
 
-    private fun activationError(code: String): String {
+    private fun activationError(code: String, detail: String? = null): String {
         val resource = when (code) {
             "primary_missing" -> R.string.laboratory_error_primary_missing
             "primary_unsupported" -> R.string.laboratory_error_primary_unsupported
@@ -655,8 +702,36 @@ class LaboratoryViewModel(application: Application) : BaseViewModel(application)
             "classic_stop_failed" -> R.string.laboratory_error_classic_stop_failed
             "lab_start_failed" -> R.string.laboratory_error_lab_start_failed
             "stop_unconfirmed" -> R.string.laboratory_error_stop_unconfirmed
+            "no_path_available" -> R.string.laboratory_error_no_path
+            "verification_failed" -> R.string.laboratory_error_verification
             else -> R.string.laboratory_error_prepare_failed
         }
-        return app.getString(resource)
+        return transitionError(app.getString(resource), detail)
+    }
+
+    /**
+     * Ajoute le motif technique (court, non sensible) au message : l'utilisateur
+     * voit la cause exacte au lieu d'un échec générique.
+     */
+    private fun transitionError(base: String, reason: String?): String {
+        if (reason.isNullOrBlank()) return base
+        val label = app.getString(reasonLabel(reason))
+        return app.getString(R.string.laboratory_error_detail_format, base, label, reason)
+    }
+
+    private fun reasonLabel(reason: String): Int = when (reason) {
+        "vpn_permission_required" -> R.string.laboratory_reason_permission
+        "vpn_configure_failed" -> R.string.laboratory_reason_vpn_setup
+        "tun_start_failed" -> R.string.laboratory_reason_tun
+        "core_start_failed" -> R.string.laboratory_reason_core_start
+        "core_stop_error", "native_stop_error" -> R.string.laboratory_reason_core_stop_error
+        "native_stop_timeout" -> R.string.laboratory_reason_core_stop_timeout
+        "core_still_running" -> R.string.laboratory_reason_core_still_running
+        "stop_timeout" -> R.string.laboratory_reason_stop_timeout
+        "daemon_unreachable" -> R.string.laboratory_reason_daemon
+        "start_timeout" -> R.string.laboratory_reason_start_timeout
+        "service_start_rejected" -> R.string.laboratory_reason_start_rejected
+        "probe_failed" -> R.string.laboratory_reason_probe_failed
+        else -> R.string.laboratory_reason_unknown
     }
 }

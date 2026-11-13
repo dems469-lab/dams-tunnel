@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.isActive
 import libv2ray.CoreCallbackHandler
 import libv2ray.CoreController
@@ -57,7 +58,25 @@ import java.lang.ref.SoftReference
 
 object CoreServiceManager {
 
-    private val lifecycleGate = CoreLoopLifecycleGate()
+    /**
+     * Borne haute de l'arrêt : le `stopLoop` natif est bloquant et ne peut pas
+     * être interrompu. Au-delà, l'arrêt est déclaré en échec avec un motif, au
+     * lieu d'être abandonné silencieusement (ancien comportement : la porte
+     * annulait le bloc à 5 s et plus rien n'était publié).
+     */
+    private const val STOP_TIMEOUT_MILLIS = 25_000L
+
+    /**
+     * Laisse au moteur le temps de publier son état interne après stopLoop() ;
+     * `isRunning` peut rester vrai quelques instants sans que le tunnel soit
+     * réellement opérationnel.
+     */
+    private const val CORE_DOWN_GRACE_MILLIS = 2_000L
+
+    /** Borne du seul appel natif bloquant : au-delà, échec explicite. */
+    private const val NATIVE_STOP_TIMEOUT_MILLIS = 20_000L
+
+    private val lifecycleGate = CoreLoopLifecycleGate(stopTimeoutMillis = STOP_TIMEOUT_MILLIS)
 
     private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
     private val mMsgReceive = ReceiveMessageHandler()
@@ -163,7 +182,13 @@ object CoreServiceManager {
         } catch (e: Exception) {
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: $message", e)
-            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
+            MessageHelper.sendMsg2UI(
+                service,
+                AppConfig.MSG_STATE_START_FAILURE,
+                message,
+                null,
+                "core_start_failed",
+            )
             NotificationManager.cancelNotification()
             false
         }
@@ -171,15 +196,51 @@ object CoreServiceManager {
 
     @Throws(Exception::class)
     private fun doStartCoreLoop(service: Service, vpnInterface: ParcelFileDescriptor?) {
-        val mFilter = IntentFilter(AppConfig.BROADCAST_ACTION_SERVICE)
-        mFilter.addAction(Intent.ACTION_SCREEN_ON)
-        mFilter.addAction(Intent.ACTION_SCREEN_OFF)
-        mFilter.addAction(Intent.ACTION_USER_PRESENT)
-        ContextCompat.registerReceiver(service, mMsgReceive, mFilter, Utils.receiverFlags())
+        // Le récepteur est déjà branché à la création du service : un arrêt ou
+        // une interrogation d'état est donc toujours traité, même si la boucle
+        // du cœur n'a pas démarré (ancien trou : aucune réponse, état « inconnu »).
+        attachServiceReceiver(service)
 
         currentVpnInterface = vpnInterface
         launchCore(service, vpnInterface)
         startNetworkMonitor(service)
+    }
+
+    /** Service auquel le récepteur de messages est actuellement rattaché. */
+    @Volatile
+    private var receiverService: Service? = null
+
+    /**
+     * Branche le récepteur de messages du démon. Appelé depuis
+     * [com.v2ray.ang.service.CoreVpnService.onCreate], donc indépendamment de
+     * l'état du cœur Xray.
+     */
+    @Synchronized
+    fun attachServiceReceiver(service: Service) {
+        if (receiverService != null) return
+        val filter = IntentFilter(AppConfig.BROADCAST_ACTION_SERVICE).apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+        try {
+            ContextCompat.registerReceiver(service, mMsgReceive, filter, Utils.receiverFlags())
+            receiverService = service
+            LogUtil.i(AppConfig.TAG, "StartCore-Manager: Message receiver attached")
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to register receiver", e)
+        }
+    }
+
+    @Synchronized
+    fun detachServiceReceiver(service: Service) {
+        if (receiverService !== service) return
+        receiverService = null
+        try {
+            service.unregisterReceiver(mMsgReceive)
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to unregister receiver", e)
+        }
     }
 
     @Throws(Exception::class)
@@ -235,6 +296,16 @@ object CoreServiceManager {
         if (!isRunning()) {
             error("Core failed to start")
         }
+
+        LaboratoryTunnelBridge.writeStatus(
+            service,
+            LaboratoryTunnelBridge.STATE_RUNNING,
+            if (laboratory != null) {
+                LaboratoryTunnelBridge.MODE_LABORATORY
+            } else {
+                LaboratoryTunnelBridge.MODE_CLASSIC
+            },
+        )
 
         if (browserDialer != null) {
             browserDialer!!.stop()
@@ -534,27 +605,61 @@ object CoreServiceManager {
         trafficStatsJob?.cancel()
         trafficStatsJob = null
         _trafficSnapshot.value = TrafficSnapshot()
-        val service = getService() ?: return@stop false
+        val service = getService()
+        if (service == null) {
+            LogUtil.e(AppConfig.TAG, "StartCore-Manager: stop requested without a service instance")
+            return@stop false
+        }
+        val laboratory = LaboratoryTunnelBridge.isActive(service)
+        val mode = if (laboratory) {
+            LaboratoryTunnelBridge.MODE_LABORATORY
+        } else {
+            LaboratoryTunnelBridge.MODE_CLASSIC
+        }
+        LaboratoryTunnelBridge.writeStatus(service, LaboratoryTunnelBridge.STATE_STOPPING, mode)
 
         networkMonitor?.unregister()
         networkMonitor = null
         if (isRunning()) {
-            try {
+            val stopped = try {
                 // Native stopLoop is blocking; isolate it from Android's service thread.
                 // The lifecycle gate holds start/restart until this call actually returns.
-                withContext(Dispatchers.IO) { coreController.stopLoop() }
+                withTimeoutOrNull(NATIVE_STOP_TIMEOUT_MILLIS) {
+                    withContext(Dispatchers.IO) { coreController.stopLoop() }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to stop V2Ray loop", e)
-                throw e
+                publishStopFailure(service, mode, "native_stop_error")
+                return@stop false
+            }
+            if (stopped == null) {
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: native stopLoop timed out")
+                publishStopFailure(service, mode, "native_stop_timeout")
+                return@stop false
             }
         }
 
-        if (isRunning()) error("Core loop still running after stopLoop returned")
+        // Le drapeau natif peut se mettre à jour de façon asynchrone : on lui
+        // laisse une courte grâce avant de conclure, plutôt que de lever une
+        // exception qui laissait le service à moitié arrêté et sans message.
+        var waitMillis = 0L
+        while (isRunning() && waitMillis < CORE_DOWN_GRACE_MILLIS) {
+            delay(50L)
+            waitMillis += 50L
+        }
+        if (isRunning()) {
+            LogUtil.e(AppConfig.TAG, "StartCore-Manager: Core loop still running after stopLoop returned")
+            publishStopFailure(service, mode, "core_still_running")
+            return@stop false
+        }
         currentVpnInterface = null
         currentOutboundTags = emptySet()
         // Un arrêt du tunnel termine toujours la session laboratoire : elle ne
         // doit jamais être reprise par une connexion classique ultérieure.
         LaboratoryTunnelBridge.clear(service)
+        LaboratoryTunnelBridge.writeStatus(service, LaboratoryTunnelBridge.STATE_STOPPED, mode)
         onCoreStopped()
 
         // Close existing browser dialer
@@ -568,13 +673,30 @@ object CoreServiceManager {
         XrayConsole.event("Core", "Tunnel stopped")
         ConnectionFeedback.onDisconnected(service)
         NotificationManager.cancelNotification()
-
-        try {
-            service.unregisterReceiver(mMsgReceive)
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to unregister receiver", e)
-        }
+        LogUtil.i(AppConfig.TAG, "StartCore-Manager: Tunnel stopped and resources released")
         true
+    }
+
+    /**
+     * Publie un échec d'arrêt avec un motif exploitable.
+     *
+     * Aucun état « arrêté » n'est annoncé : le TUN et le moteur peuvent encore
+     * être actifs. L'interface doit proposer une nouvelle tentative.
+     */
+    private fun publishStopFailure(service: Service, mode: String, reason: String) {
+        LaboratoryTunnelBridge.writeStatus(
+            service,
+            LaboratoryTunnelBridge.STATE_STOP_FAILED,
+            mode,
+            reason,
+        )
+        MessageHelper.sendMsg2UI(
+            service,
+            AppConfig.MSG_STATE_STOP_FAILURE,
+            reason,
+            null,
+            reason,
+        )
     }
 
     /**
@@ -642,7 +764,13 @@ object CoreServiceManager {
             val message = e.message?.takeUnless { it.isBlank() } ?: "Configuration invalide"
             fatalConfigError = message
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: invalid configuration: $message")
-            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
+            MessageHelper.sendMsg2UI(
+                service,
+                AppConfig.MSG_STATE_START_FAILURE,
+                message,
+                null,
+                "config_invalid",
+            )
             NotificationManager.cancelNotification()
             false
         } catch (e: Exception) {
@@ -804,6 +932,9 @@ object CoreServiceManager {
             val serviceControl = serviceControl?.get() ?: return
             when (intent?.getIntExtra("key", 0)) {
                 AppConfig.MSG_REGISTER_CLIENT -> {
+                    // Accusé de réception : permet à l'interface de distinguer
+                    // « démon absent » de « démon présent, sans état publié ».
+                    if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
                     if (isRunning()) {
                         MessageHelper.sendMsg2UI(
                             serviceControl.getService(),
@@ -825,6 +956,10 @@ object CoreServiceManager {
 
                 AppConfig.MSG_STATE_STOP -> {
                     LogUtil.i(AppConfig.TAG, "StartCore-Manager: Stop service")
+                    // Accusé de réception immédiat : l'appelant sait que le
+                    // démon a bien reçu la demande et qu'il doit attendre un
+                    // état final (STOP_SUCCESS ou STOP_FAILURE).
+                    if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
                     serviceControl.stopService()
                 }
 

@@ -43,6 +43,22 @@ class LaboratoryPreferences(context: Context) {
             .apply()
     }
 
+    /**
+     * Délai maximal d'attente de la confirmation d'arrêt du tunnel.
+     *
+     * Réglable sans toucher aux préférences classiques ; la valeur est bornée
+     * pour rester compatible avec le délai interne du moteur (25 s).
+     */
+    fun stopTimeoutSeconds(): Int =
+        prefs.getInt(KEY_STOP_TIMEOUT, DEFAULT_STOP_TIMEOUT)
+            .coerceIn(MIN_STOP_TIMEOUT, MAX_STOP_TIMEOUT)
+
+    fun saveStopTimeoutSeconds(seconds: Int) {
+        prefs.edit()
+            .putInt(KEY_STOP_TIMEOUT, seconds.coerceIn(MIN_STOP_TIMEOUT, MAX_STOP_TIMEOUT))
+            .apply()
+    }
+
     fun selectedGuid(role: PathRole): String? =
         prefs.getString(keyFor(role), null)?.takeIf { it.isNotBlank() }
 
@@ -84,5 +100,10 @@ class LaboratoryPreferences(context: Context) {
         private const val KEY_PROBE_INTERVAL = "probe_interval_seconds"
         private const val KEY_COOLDOWN = "failover_cooldown_seconds"
         private const val KEY_PROBE_URL = "probe_url"
+        private const val KEY_STOP_TIMEOUT = "stop_timeout_seconds"
+
+        const val DEFAULT_STOP_TIMEOUT = 20
+        const val MIN_STOP_TIMEOUT = 5
+        const val MAX_STOP_TIMEOUT = 60
     }
 }

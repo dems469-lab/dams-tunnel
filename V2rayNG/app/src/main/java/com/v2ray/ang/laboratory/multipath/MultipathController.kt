@@ -147,13 +147,14 @@ class MultipathController(
             false
         }
         if (!stopped) {
+            val reason = gateway.lastFailureReason()
             prepared = null
             state = EngineState.FAILED
             logger.error(
                 MultipathEventLogger.CATEGORY_SERVICE,
-                "Arrêt du VPN classique non confirmé : activation annulée",
+                "Arrêt du VPN classique non confirmé (${reason ?: "sans motif"}) : activation annulée",
             )
-            return OperationResult(false, "classic_stop_failed")
+            return OperationResult(false, "classic_stop_failed", reason)
         }
 
         state = EngineState.STARTING
@@ -182,15 +183,16 @@ class MultipathController(
             false
         }
         if (!started) {
+            val reason = gateway.lastFailureReason()
             withContext(Dispatchers.IO) { LaboratoryTunnelBridge.clear(context) }
             runCatching { gateway.stopTunnel() }
             prepared = null
             state = EngineState.FAILED
             logger.error(
                 MultipathEventLogger.CATEGORY_SERVICE,
-                "Le moteur expérimental n'a pas confirmé son démarrage",
+                "Le moteur expérimental n'a pas confirmé son démarrage (${reason ?: "sans motif"})",
             )
-            return OperationResult(false, "lab_start_failed")
+            return OperationResult(false, "lab_start_failed", reason)
         }
 
         sessionId = withContext(Dispatchers.IO) {
@@ -208,10 +210,37 @@ class MultipathController(
         failover.reset()
         scheduler.markApplied(ready.selector)
         state = EngineState.ACTIVE
+
+        // Un moteur démarré ne prouve rien : chaque chemin doit avoir répondu
+        // à une vraie requête avant que le laboratoire ne soit déclaré actif.
+        val verification = runCatching { runHealthRound(normalized) }.getOrNull()
+        val usable = verification?.health?.count { it.metrics.isUsable } ?: 0
+        if (usable == 0) {
+            val detail = if (verification == null) "verification_failed" else "no_path_available"
+            logger.error(
+                MultipathEventLogger.CATEGORY_PATH,
+                "Vérification réelle des chemins échouée ($detail) : moteur arrêté",
+            )
+            runCatching { gateway.stopTunnel() }
+            withContext(Dispatchers.IO) {
+                LaboratoryTunnelBridge.clear(context)
+                repository.finishSession(sessionId, detail)
+            }
+            sessionId = 0L
+            prepared = null
+            statistics.reset()
+            monitor.reset()
+            lastHealth = emptyList()
+            lastDecision = null
+            state = EngineState.FAILED
+            return OperationResult(false, detail)
+        }
+
         logger.info(
             MultipathEventLogger.CATEGORY_ENGINE,
             "Laboratoire actif · principal ${ready.primaryName} · " +
-                "sélecteur ${ready.selector.joinToString()}",
+                "sélecteur ${ready.selector.joinToString()} · " +
+                "$usable/3 chemins vérifiés",
         )
         return OperationResult(true, "ok")
     }

@@ -24,4 +24,10 @@ interface TunnelGateway {
 
     /** Dernier état connu du tunnel. */
     fun isTunnelRunning(): Boolean
+
+    /**
+     * Motif technique du dernier échec de transition (démarrage ou arrêt), ou
+     * null. Sert uniquement à expliquer l'échec à l'utilisateur.
+     */
+    fun lastFailureReason(): String? = null
 }
