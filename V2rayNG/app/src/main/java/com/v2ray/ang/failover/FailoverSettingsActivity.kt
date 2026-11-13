@@ -296,9 +296,8 @@ private fun HistoryRow(event: FailoverEvent) {
 @Composable
 private fun formatTime(atMillis: Long): String {
     if (atMillis <= 0L) return stringResource(R.string.failover_never)
-    return DateFormat.getDateTimeFormat(
-        DateFormat.MEDIUM,
-        DateFormat.SHORT,
-        LocalContext.current,
-    ).format(Date(atMillis))
+    val context = LocalContext.current
+    val date = DateFormat.getDateFormat(context).format(Date(atMillis))
+    val time = DateFormat.getTimeFormat(context).format(Date(atMillis))
+    return "$date $time"
 }

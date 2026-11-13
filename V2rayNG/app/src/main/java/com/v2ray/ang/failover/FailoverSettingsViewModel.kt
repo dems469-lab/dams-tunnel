@@ -1,6 +1,7 @@
 package com.v2ray.ang.failover
 
 import android.app.Application
+import androidx.lifecycle.viewModelScope
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.core.AutoFailoverPolicy
 import com.v2ray.ang.core.FailoverEvent
