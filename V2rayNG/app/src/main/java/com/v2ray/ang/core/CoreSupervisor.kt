@@ -748,6 +748,7 @@ internal suspend fun performManualRestart(
     supervisor.stopped(origin)
     // Une action explicite ouvre un nouvel épisode : le plafond automatique ne
     // doit pas empêcher l'utilisateur de se reconnecter.
+    supervisor.resetEpisode()
     supervisor.startRequested(origin, coreRunning = false)
     return try {
         requestStart()

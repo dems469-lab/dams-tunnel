@@ -146,7 +146,7 @@ object CoreServiceManager {
         userStopped = true
         // Arrêt volontaire : aucune sortie du cœur ne doit être requalifiée en
         // incident, et le quota de relances repart d'un épisode neuf.
-        supervisor.markUserStopped()
+        supervisor.markUserStop()
         reconnectJob?.cancel()
         reconnectJob = null
         healthCheckJob?.cancel()
