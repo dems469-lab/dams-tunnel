@@ -413,7 +413,32 @@ class MultipathController(
 
         prepared = ready.copy(configJson = updated, selector = decision.selector)
         lastReloadAtMillis = System.currentTimeMillis()
+        val sentAt = lastReloadAtMillis
         MessageHelper.sendMsg2Service(context, AppConfig.MSG_LAB_RELOAD, "")
+
+        // Un relais n'est compté qu'après application réelle : le démon
+        // republie son état RUNNING (horodaté) quand le moteur a bien redémarré
+        // avec la nouvelle sélection.
+        val applied = withContext(Dispatchers.IO) {
+            repeat(RELOAD_CONFIRM_ATTEMPTS) {
+                val status = LaboratoryTunnelBridge.readStatus(context)
+                if (status != null &&
+                    status.state == LaboratoryTunnelBridge.STATE_RUNNING &&
+                    status.atMillis >= sentAt
+                ) {
+                    return@withContext true
+                }
+                kotlinx.coroutines.delay(RELOAD_CONFIRM_STEP_MILLIS)
+            }
+            false
+        }
+        if (!applied) {
+            logger.warn(
+                MultipathEventLogger.CATEGORY_ENGINE,
+                "Bascule préparée mais non appliquée par le moteur : relais non compté",
+            )
+            return false
+        }
 
         val toRole = decision.preferred
         val fromRole = previousPreferred?.takeIf { it != toRole }
@@ -497,5 +522,11 @@ class MultipathController(
             }
         }
         lastStates = current
+    }
+
+    private companion object {
+        /** Le démon redémarre le moteur (~1 s) puis republie son état. */
+        const val RELOAD_CONFIRM_ATTEMPTS = 15
+        const val RELOAD_CONFIRM_STEP_MILLIS = 250L
     }
 }

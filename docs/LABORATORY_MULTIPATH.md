@@ -42,9 +42,12 @@ Séquence imposée par `MultipathController.activate` :
 1. `PREPARING` — construit la configuration complète du serveur principal avec
    `CoreConfigManager`, extrait les outbounds secondaires, injecte les trois
    chemins, valide la configuration. **Aucun tunnel n'est touché.**
-2. `STOPPING_CLASSIC` — si un VPN classique tourne, envoie `MSG_STATE_STOP` et
-   attend `MSG_STATE_STOP_SUCCESS` (12 s), puis laisse 700 ms au service pour
-   libérer le TUN et ses sockets.
+2. `STOPPING_CLASSIC` — envoie `MSG_STATE_STOP` en **broadcast ordonné** et
+   attend l'accusé de réception du démon, puis `MSG_STATE_STOP_SUCCESS`
+   (délai par défaut 20 s, réglable de 5 à 60 s via
+   `LaboratoryPreferences.stopTimeoutSeconds`). Un second envoi a lieu après
+   1,2 s si le premier n'a pas été acquitté (processus recréé, service en
+   cours de création) ; les arrêts ne se chevauchent jamais.
 3. `STARTING` — publie la session expérimentale dans
    `files/laboratory/active_session.json` **avec un jeton de démarrage**, puis
    démarre `CoreVpnService` par `startForegroundService` (jamais via
@@ -52,11 +55,57 @@ Séquence imposée par `MultipathController.activate` :
 4. Le moteur lit la session uniquement si `SettingsManager.isVpnMode()` est vrai
    et si le jeton est présent ; le jeton est consommé immédiatement.
 5. `ACTIVE` n'est annoncé qu'après `MSG_STATE_START_SUCCESS`, émis par le moteur
-   après vérification réelle du trafic.
+   après vérification réelle du trafic. `CONNECTING` et `RECONNECTING` sont des
+   états intermédiaires : ils n'autorisent ni la réussite ni l'abandon.
+6. Une passe de sondes réelles vérifie ensuite les trois chemins avant de
+   confirmer l'activation ; si aucun ne répond, le moteur est arrêté et
+   l'échec est remonté (`no_path_available`, `verification_failed`).
+
+### Accusés de réception et motifs d'échec
+
+| Message | Émis quand | Effet côté laboratoire |
+| --- | --- | --- |
+| `MSG_REGISTER_CLIENT` | interrogé à l'ouverture | `RESULT_OK` si un démon répond ; sinon l'état est « arrêté », jamais « inconnu » |
+| `MSG_STATE_STOP` | ordre d'arrêt | `RESULT_OK` dès réception ; l'état final arrive ensuite |
+| `MSG_STATE_STOP_SUCCESS` | moteur arrêté **et** TUN libéré | arrêt confirmé |
+| `MSG_STATE_STOP_FAILURE` | arrêt impossible | motif : `native_stop_error`, `native_stop_timeout`, `core_still_running` — le tunnel peut encore tourner, l'état « arrêté » n'est pas affiché |
+| `MSG_STATE_START_FAILURE` | démarrage impossible | motif : `vpn_permission_required`, `vpn_configure_failed`, `tun_start_failed`, `core_start_failed`, `config_invalid` |
+
+Le démon publie aussi son état autoritaire dans
+`files/laboratory/tunnel_state.json` (`RUNNING`, `STOPPING`, `STOPPED`,
+`STOP_FAILED`, `START_FAILED`, mode, motif, horodatage, PID). C'est une seconde
+source de vérité, indépendante des broadcasts.
 
 En cas d'échec à n'importe quelle étape : la session et le jeton sont effacés,
 le service est arrêté si nécessaire, l'état passe à `FAILED` et aucun écran
-n'affiche « connecté ».
+n'affiche « connecté ». Un arrêt non confirmé conserve au contraire l'état
+`ACTIVE` et la surveillance : le moteur tourne encore réellement.
+
+### Causes exactes de l'échec corrigées en 1.9.3
+
+1. `CoreLoopLifecycleGate.stop` bornait tout l'arrêt à **5 s** alors que
+   `coreController.stopLoop()` est un appel natif **bloquant** : au-delà de 5 s
+   le bloc était annulé avant `onCoreStopped()`, la fermeture du TUN,
+   `MSG_STATE_STOP_SUCCESS`, `LaboratoryTunnelBridge.clear` et `stopSelf()`.
+   Le service restait donc à moitié arrêté et muet.
+2. `error("Core loop still running after stopLoop returned")` levait une
+   exception lorsque le drapeau natif se mettait à jour avec un léger retard :
+   aucun message n'était publié (`runCatching` dans `performStop`).
+3. `getService() == null` retournait `false` sans aucun broadcast.
+4. Le récepteur du démon n'était branché qu'au démarrage du cœur
+   (`doStartCoreLoop`) : un arrêt ou une interrogation d'état sans cœur actif
+   ne recevait **aucune réponse** → « état inconnu ».
+5. Le laboratoire considérait le premier état intermédiaire (`CONNECTING`,
+   envoyé systématiquement au démarrage du cœur) comme un échec : l'activation
+   était annulée alors que le moteur vérifiait encore le trafic.
+6. Les échecs de `setupVpnService()` (permission, configuration, TUN)
+   n'étaient jamais publiés : l'interface attendait puis affichait un échec
+   générique.
+7. La surveillance par défaut était fixée à 45 s (minimum 20 s), incompatible
+   avec un relais anticipé.
+
+Unités de temps du démon : porte de cycle de vie 25 s, appel natif borné à
+20 s, grâce de 2 s sur `isRunning`, arrêt du laboratoire 20 s par défaut.
 
 Quitter le laboratoire (`Arrêter`, `Retour au VPN classique`, retour système)
 arrête le moteur, libère le TUN, nettoie la session, puis permet de relancer le
@@ -91,28 +140,52 @@ prennent le relais afin qu'une seconde panne ne coupe pas le trafic.
 ## 5. Surveillance, bascule et statistiques
 
 - `PathHealthMonitor` mesure réellement chaque chemin via
-  `CoreNativeManager.measureOutboundDelay` sur un outbound autonome temporaire,
-  séquentiellement (350 ms d'écart) et jamais en parallèle du cycle précédent.
+  `CoreNativeManager.measureOutboundDelay` sur un outbound autonome temporaire
+  (aucun autre outbound dans la configuration de sonde : une sonde `path-a` ne
+  peut pas passer par `path-b` ou `path-c`), séquentiellement (350 ms d'écart)
+  et jamais en parallèle du cycle précédent. La requête de test est une vraie
+  requête HTTP ; un ping ICMP n'est jamais utilisé comme preuve.
+- Cadence : **3 s** en surveillance active (réglable 1–30 s), **1 s** dès qu'un
+  chemin échoue ou se dégrade, et `observatory.probeInterval = 5s` côté démon.
+  La surveillance de l'interface s'arrête quand l'écran disparaît ; la bascule
+  continue alors dans le démon grâce à l'observatoire Xray (elle ne dépend donc
+  pas de la visibilité de l'écran). Xray ne teste pas à la seconde : la valeur
+  de 5 s est la cadence réellement configurée, pas une promesse.
 - `ServerQualityAnalyzer` calcule disponibilité, pertes, latence moyenne,
   stabilité (gigue) et score de qualité sur une fenêtre glissante de 10 mesures.
   L'« indice de débit » est une estimation dérivée de la qualité, jamais un
-  débit mesuré en octets/seconde.
+  débit mesuré en octets/seconde. Zéro mesure et zéro perte sont distingués :
+  sans échantillon, la perte est affichée « — ».
 - `InstantFailoverManager` décide du sélecteur : bascule immédiate si le chemin
-  préféré meurt, conservation du routage pendant 45 s (cooldown) si le chemin
+  préféré meurt, conservation du routage pendant le cooldown (30 s) si le chemin
   préféré reste sain, réintégration automatique.
 - `SmartTrafficScheduler` évite les rechargements inutiles : Xray gère déjà
-  l'exclusion des chemins morts en hybride.
+  l'exclusion des chemins morts en hybride. Un relais n'est enregistré
+  **qu'après** republication de l'état `RUNNING` par le démon (le moteur a
+  réellement redémarré avec la nouvelle sélection) : aucun relais affiché sans
+  changement effectif de routage.
 - `MultipathStatistics` agrège des échantillons réels ; l'historique des relais
   et les journaux sont stockés dans la base du laboratoire. Les messages sont
   expurgés (UUID, secrets, troncature à 240 caractères) avant écriture.
+  Le nombre de « connexions » par chemin n'est pas exposé par l'API Xray
+  épinglée : il n'est donc pas inventé ; les compteurs affichés sont les
+  sessions, les échantillons et les relais réellement mesurés.
 
 ## 6. Batterie, réseau et limites assumées
 
 - La surveillance Kotlin ne tourne que si l'écran est visible ; en arrière-plan,
-  la bascule repose sur l'observatoire Xray (intervalle 10 s).
+  la bascule repose sur l'observatoire Xray (intervalle **5 s**), qui vit dans le
+  démon et continue écran éteint.
 - Les sondes Kotlin démarrent un core temporaire par mesure : c'est le mécanisme
-  déjà utilisé par Reconfiguration, mais il coûte de l'énergie. L'intervalle est
-  réglable de 20 à 300 s (45 s par défaut).
+  déjà utilisé par Reconfiguration, mais il coûte de l'énergie. Cadence 3 s en
+  régime normal, 1 s en cas de suspicion, réglable de 1 à 30 s. Une mesure qui
+  échoue peut durer plusieurs secondes (délai TCP) : la boucle enchaîne alors
+  sans chevaucher les cycles.
+- Les sondes tournent dans le processus de l'interface. L'application est
+  exclue du VPN par défaut (`addDisallowedApplication`), donc leurs sockets ne
+  traversent pas le tunnel : la mesure est bien celle du chemin seul. **Limite
+  documentée** : si l'utilisateur active le proxy par application en mode
+  « proxy » et y inclut Dams Tunnel, les sondes passent par le tunnel.
 - Aucun verrou d'écran n'est pris par le laboratoire ; Android peut suspendre le
   processus, ce qui n'arrête pas le tunnel mais suspend la surveillance fine.
 - Le laboratoire n'est pas intégré au « VPN toujours actif » du système : si le
@@ -120,6 +193,10 @@ prennent le relais afin qu'une seconde panne ne coupe pas le trafic.
   main (comportement sûr, documenté).
 - Une panne de session TCP en cours n'est pas migrée ; seules les nouvelles
   connexions bénéficient de la bascule.
+- Si le `stopLoop` natif se bloque au-delà de 20 s, l'arrêt est déclaré en échec
+  (`native_stop_timeout`) : le tunnel peut encore tourner, l'application le dit
+  et propose une nouvelle tentative ; un redémarrage du processus du démon est
+  le remède de dernier recours.
 
 ## 7. Fichiers
 
@@ -154,8 +231,10 @@ prennent le relais afin qu'une seconde panne ne coupe pas le trafic.
 
 | Fichier | Justification |
 | --- | --- |
-| `AppConfig.kt` | constante `MSG_LAB_RELOAD = 9` (valeur libre, sans collision). |
-| `core/CoreServiceManager.kt` | lecture de la session **autorisée** dans `launchCore`, remarks `LAB ·`, nettoyage dans `stopCoreLoop`, handler de rechargement. Le mode normal garde exactement le même chemin. |
+| `AppConfig.kt` | constantes `MSG_LAB_RELOAD = 9` et `MSG_STATE_STOP_FAILURE = 42` (valeurs libres, sans collision ; ignorées par l'interface classique). |
+| `core/CoreServiceManager.kt` | lecture de la session **autorisée** dans `launchCore`, remarks `LAB ·`, arrêt fiabilisé (motifs `native_stop_error`, `native_stop_timeout`, `core_still_running`), accusés de réception, récepteur branché dès `onCreate`, état publié, handler de rechargement. Le mode normal garde exactement le même chemin. |
+| `service/CoreVpnService.kt` | récepteur attaché dans `onCreate` / détaché dans `onDestroy`, échecs de préparation publiés avec motif (`vpn_permission_required`, `vpn_configure_failed`, `tun_start_failed`). |
+| `helper/MessageHelper.kt` | extra `reason` (code court, non sensible) sur les messages d'échec. |
 | `ui/main/MainDrawer.kt` + `MainActivity.kt` | entrée de navigation « Laboratoire ». |
 | `AndroidManifest.xml` | déclaration de `LaboratoryActivity` (`exported=false`). |
 | `values/strings.xml`, `values-fr/strings.xml` | 112 chaînes FR/EN. |
@@ -173,7 +252,8 @@ Tests JVM purs (sans Android) :
 - `SmartTrafficSchedulerTest` : anti-rechargement.
 - `MultipathStatisticsTest` : moyennes pondérées, relais, remise à zéro.
 - `MultipathLogSanitizerTest` : masquage UUID/secrets, troncature.
-- `MultipathSettingsTest` : bornage intervalle/cooldown, URL de sonde.
+- `MultipathSettingsTest` : bornage intervalle/cooldown, URL de sonde, cadence
+  adaptative (3 s / 1 s / observatoire 5 s).
 
 La CI exécute ces tests avec le reste de la suite (`Dams CI`) et construit les
 APK debug/release (`Dams APK`).
@@ -182,12 +262,22 @@ APK debug/release (`Dams APK`).
 
 À vérifier manuellement après installation :
 
-1. Ouvrir Laboratoire : rien ne démarre, l'écran affiche « Prêt ».
-2. Activer avec un VPN classique en cours : confirmation, arrêt vérifié,
-   démarrage, l'état n'affiche « Actif » qu'après vérification réelle.
-3. Couper le Wi-Fi / passer en mobile : les chemins se dégradent, la bascule
-   apparaît dans l'historique, le trafic continue sur les chemins sains.
-4. Arrêter puis revenir au VPN classique : le TUN est libéré et le profil de
+1. Ouvrir Laboratoire : rien ne démarre ; l'état du service est interrogé
+   (accusé de réception) et affiché « arrêté », jamais « inconnu ».
+2. Activer avec un VPN classique connecté : dialogue, arrêt **confirmé**,
+   démarrage du moteur, puis état « Actif » seulement après vérification réelle.
+3. Activer alors que le VPN classique est déjà arrêté : transition immédiate,
+   sans attente inutile ni double arrêt.
+4. Un seul des trois serveurs valide : activation possible sur ce chemin, les
+   deux autres affichent « indisponible » avec leur motif ; jamais 3/3.
+5. Les trois serveurs en échec : le moteur est arrêté, l'erreur
+   `no_path_available` est affichée, aucune statistique n'est inventée.
+6. Hybride : les trois chemins vérifiés portent le trafic ; couper PATH A
+   déclenche le relais vers PATH B, la modification de routage est confirmée
+   par le démon avant d'être comptée.
+7. Interruption Wi-Fi ↔ mobile : les chemins se dégradent puis se rétablissent,
+   la surveillance passe à 1 s pendant la dégradation.
+8. Arrêter puis revenir au VPN classique : le TUN est libéré et le profil de
    production se reconnecte.
-5. Réinitialiser le laboratoire : les serveurs, abonnements, réglages et
+9. Réinitialiser le laboratoire : les serveurs, abonnements, réglages et
    données IP Finder restent intacts.
