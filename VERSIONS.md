@@ -5,6 +5,7 @@ Chaque nouveau build validé incrémente `versionName` et `versionCode`.
 
 | Version | versionCode | Commit | Base | Contenu |
 |---------|-------------|--------|------|---------|
+| 1.9.3-lab | 760 | _(branche `feature/laboratory-multipath`)_ | 1.9.2 | Build expérimental : ajoute le **laboratoire DAMS MULTIPATH ENGINE** (3 outbounds `path-a/b/c`, balancer `leastPing` + observatory Xray, surveillance réelle, bascule, stockage séparé `dams_laboratory.db`). Aucun changement du moteur, des écrans Configs/Reconfiguration/IP Finder ni des données normales. Hors publication. |
 | 1.9.2 | 759 | _(branche `feature/design-1.8.0`)_ | 1.9.1 | Parseur Xray universel : `settings.vnext` pour VLESS/VMess, `settings.servers` pour Trojan, SNI (`sni` → `host` → domaine) et Host (`host` → SNI) dynamiques, transports ws/grpc/tcp/httpupgrade, TLS/reality. Le champ `transformedConfig` stocke désormais le JSON Xray complet et non le lien brut ; le transfert vers Configs valide cette structure avant l'insertion. Test réel : JSON généré, requête `https://cp.cloudflare.com/generate_204` via le cœur, seuil 5 s, réponse 200/204 → Fonctionnel. |
 | 1.7.0 | 752 | `e816a24` | BUILD #170 (`7925714`) | Restauration exacte du BUILD #170 sous le nom DAMS TUNNEL, package `com.v2ray.ang`. |
 | 1.7.1 | 753 | `2ed6a1b` | 1.7.0 | Robustesse du cycle de vie du moteur : plus de crash du daemon depuis la boucle de reconnexion, plus de `closed pipe` au rechargement, notification null-safe. Aucun changement de protocole, de moteur, d'UI ni de DNS. |
