@@ -439,25 +439,34 @@ class CoreVpnService : VpnService(), ServiceControl {
     private suspend fun performStop(closeInterface: Boolean, stopService: Boolean) {
         RootLanSharing.stopClientSharing(this)
         val stopped = runCatching {
-            CoreServiceManager.stopCoreLoop(onCoreStopped = {
-                // Keep the VPN descriptor alive until native stopLoop has returned.
-                tun2SocksService?.stopTun2Socks()
-                tun2SocksService = null
-                isRunning = false
-                if (closeInterface) {
-                    try {
-                        if (::mInterface.isInitialized) mInterface.close()
-                        LogUtil.i(AppConfig.TAG, "StartCore-VPN: VPN interface closed after core stop")
-                    } catch (e: Exception) {
-                        LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to close interface", e)
+            // Origine neutre : un arrêt interne (échec de préparation, arrêt de
+            // la tâche) ne doit pas être enregistré comme un arrêt volontaire de
+            // l'utilisateur, qui interdirait toute reprise automatique.
+            CoreServiceManager.stopCoreLoop(
+                origin = com.v2ray.ang.core.CoreOrigin.UNKNOWN,
+                onCoreStopped = {
+                    // Keep the VPN descriptor alive until native stopLoop has returned.
+                    tun2SocksService?.stopTun2Socks()
+                    tun2SocksService = null
+                    isRunning = false
+                    if (closeInterface) {
+                        try {
+                            if (::mInterface.isInitialized) mInterface.close()
+                            LogUtil.i(AppConfig.TAG, "StartCore-VPN: VPN interface closed after core stop")
+                        } catch (e: Exception) {
+                            LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to close interface", e)
+                        }
                     }
-                }
-            })
+                },
+            )
         }
             .onFailure { LogUtil.e(AppConfig.TAG, "StartCore-VPN: Core stop failed", it) }
             .getOrDefault(false)
         if (!stopped) {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Core stop did not complete; keeping VPN resources open")
+            // Le moteur peut encore tourner : la surveillance reprend, et aucune
+            // relance n'est autorisée tant que l'arrêt n'est pas confirmé.
+            CoreServiceManager.noteStopIncomplete("core_stop_incomplete")
             return
         }
 

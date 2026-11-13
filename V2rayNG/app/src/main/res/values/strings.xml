@@ -644,6 +644,7 @@
     <string name="diagnostic_server">Serveur</string>
     <string name="diagnostic_tunnel">Application routing (not verified)</string>
     <string name="diagnostic_network_unavailable">Internet du téléphone indisponible.</string>
+    <string name="connection_recovery_stopped">Connexion échouée : %1$d relances automatiques sans succès. Réessayez manuellement ou attendez %2$d min.</string>
     <string name="connection_verification_failed">Connexion échouée : aucun trafic vérifié après le démarrage.</string>
     <string name="connection_running_task_left">Tests running: %s</string>
 

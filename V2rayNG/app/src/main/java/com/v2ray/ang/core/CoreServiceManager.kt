@@ -101,7 +101,18 @@ object CoreServiceManager {
     private var healthCheckJob: kotlinx.coroutines.Job? = null
     private var reconnectJob: kotlinx.coroutines.Job? = null
     private var failoverJob: kotlinx.coroutines.Job? = null
-    private var reconnectAttempt = 0
+
+    /**
+     * Superviseur central : machine à états, journal structuré, plafond de
+     * relances et coordination des sources de récupération.
+     *
+     * `isRunning()` n'est jamais considéré comme une preuve de fonctionnement :
+     * seul un aller-retour réseau réel fait passer l'état à `CONNECTED`.
+     */
+    private val supervisor = CoreSupervisor(sink = CoreEventLogger::sink)
+
+    /** Surveille la durée de vie réelle de la boucle native, indépendamment de la sonde. */
+    private var coreWatchdogJob: kotlinx.coroutines.Job? = null
 
     /** GUID du profil réellement lancé (null hors exécution). */
     @Volatile
@@ -133,11 +144,15 @@ object CoreServiceManager {
     /** Appelé uniquement par une action explicite de l'utilisateur. */
     fun markUserStopped() {
         userStopped = true
+        // Arrêt volontaire : aucune sortie du cœur ne doit être requalifiée en
+        // incident, et le quota de relances repart d'un épisode neuf.
+        supervisor.markUserStopped()
         reconnectJob?.cancel()
         reconnectJob = null
         healthCheckJob?.cancel()
         healthCheckJob = null
-        reconnectAttempt = 0
+        coreWatchdogJob?.cancel()
+        coreWatchdogJob = null
     }
 
     /** Tun descriptor the core was started with, null in the proxy only and root run modes. */
@@ -184,6 +199,19 @@ object CoreServiceManager {
     fun isConnectionVerified() = connectionVerified
 
     /**
+     * Signale qu'une séquence d'arrêt ne s'est pas terminée.
+     *
+     * Le moteur peut encore tourner : la surveillance reprend pour que sa
+     * disparition éventuelle ne passe pas inaperçue, et aucune relance n'est
+     * autorisée avant un arrêt confirmé.
+     */
+    fun noteStopIncomplete(reason: String) {
+        supervisor.stopFailed(reason)
+        val service = getService()
+        if (service != null && isRunning()) startCoreWatchdog(service)
+    }
+
+    /**
      * Gets the name of the currently running server.
      * @return The name of the running server.
      */
@@ -194,15 +222,35 @@ object CoreServiceManager {
      * `registerReceiver(Context, BroadcastReceiver, IntentFilter, int)`.
      * Starts the V2Ray core service.
      */
-    suspend fun startCoreLoop(vpnInterface: ParcelFileDescriptor?): Boolean = lifecycleGate.start {
-        if (isRunning()) {
-            LogUtil.w(AppConfig.TAG, "StartCore-Manager: Core already running")
-            return@start false
+    suspend fun startCoreLoop(
+        vpnInterface: ParcelFileDescriptor?,
+        origin: CoreOrigin = CoreOrigin.USER,
+    ): Boolean = lifecycleGate.start {
+        // Un second démarrage ne doit jamais détruire une connexion saine : la
+        // décision est centralisée et le démarrage est idempotent.
+        when (val decision = supervisor.startRequested(origin, coreRunning = isRunning())) {
+            StartDecision.AlreadyRunning -> {
+                LogUtil.w(
+                    AppConfig.TAG,
+                    "StartCore-Manager: Core already running, keeping the existing tunnel",
+                )
+                return@start true
+            }
+
+            StartDecision.StartInProgress -> {
+                // Un démarrage est déjà en cours : ne rien lancer en double et ne
+                // pas signaler un échec, qui ferait arrêter le VPN en préparation.
+                LogUtil.w(AppConfig.TAG, "StartCore-Manager: Core start already in progress")
+                return@start true
+            }
+
+            StartDecision.Accepted -> Unit
         }
 
         val service = getService()
         if (service == null) {
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: Service is null")
+            supervisor.coreStartFailed("service_unavailable", null, origin)
             return@start false
         }
 
@@ -211,19 +259,21 @@ object CoreServiceManager {
             failoverAttempted = false
             connectionVerified = false
             fatalConfigError = null
-            doStartCoreLoop(service, vpnInterface)
+            doStartCoreLoop(service, vpnInterface, origin)
             true
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (e: Exception) {
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
+            val reason = if (e is ConfigValidationException) "config_invalid" else "core_start_failed"
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: $message", e)
+            supervisor.coreStartFailed(reason, e, origin)
             MessageHelper.sendMsg2UI(
                 service,
                 AppConfig.MSG_STATE_START_FAILURE,
                 message,
                 null,
-                "core_start_failed",
+                reason,
             )
             NotificationManager.cancelNotification()
             false
@@ -231,14 +281,18 @@ object CoreServiceManager {
     }
 
     @Throws(Exception::class)
-    private fun doStartCoreLoop(service: Service, vpnInterface: ParcelFileDescriptor?) {
+    private fun doStartCoreLoop(
+        service: Service,
+        vpnInterface: ParcelFileDescriptor?,
+        origin: CoreOrigin,
+    ) {
         // Le récepteur est déjà branché à la création du service : un arrêt ou
         // une interrogation d'état est donc toujours traité, même si la boucle
         // du cœur n'a pas démarré (ancien trou : aucune réponse, état « inconnu »).
         attachServiceReceiver(service)
 
         currentVpnInterface = vpnInterface
-        launchCore(service, vpnInterface)
+        launchCore(service, vpnInterface, origin = origin)
         startNetworkMonitor(service)
     }
 
@@ -280,7 +334,12 @@ object CoreServiceManager {
     }
 
     @Throws(Exception::class)
-    private fun launchCore(service: Service, vpnInterface: ParcelFileDescriptor?, isReload: Boolean = false) {
+    private fun launchCore(
+        service: Service,
+        vpnInterface: ParcelFileDescriptor?,
+        isReload: Boolean = false,
+        origin: CoreOrigin = CoreOrigin.UNKNOWN,
+    ) {
         // Le laboratoire est strictement optionnel : en mode normal cette
         // lecture ne trouve aucune session autorisée et le comportement reste
         // identique. Une session périmée (sans jeton de démarrage) est purgée.
@@ -328,11 +387,15 @@ object CoreServiceManager {
         if (dialerAddr.isNotNullEmpty()) {
             CoreNativeManager.reconcileBrowserDialer(dialerAddr)
         }
+        // Le passage au natif est le seul endroit où la boucle démarre : c'est
+        // ici que l'événement de démarrage est daté.
+        supervisor.coreStarting(origin)
         coreController.startLoop(result.content, tunFd)
 
         if (!isRunning()) {
             error("Core failed to start")
         }
+        supervisor.coreStarted()
 
         LaboratoryTunnelBridge.writeStatus(
             service,
@@ -370,7 +433,62 @@ object CoreServiceManager {
         }
         verifyConnection(service)
         startTrafficStats(service)
+        startCoreWatchdog(service)
         LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core started successfully")
+    }
+
+    /**
+     * Surveille la durée de vie réelle du cœur.
+     *
+     * L'API native de l'AAR ne prévient pas d'une disparition de la boucle :
+     * `isRunning` reste faux sans notification et `shutdown()` du callback
+     * n'est jamais invoqué. Une scrutation à 1 Hz de ce drapeau, tant qu'un
+     * fonctionnement est attendu, est le seul signal disponible ; la preuve de
+     * fonctionnement reste la sonde réseau de [startHealthCheck].
+     */
+    private fun startCoreWatchdog(service: Service) {
+        if (coreWatchdogJob?.isActive == true) return
+        coreWatchdogJob = connectionTestScope.launch {
+            while (isActive) {
+                delay(WATCHDOG_INTERVAL_MILLIS)
+                if (!isActive) break
+                // Un arrêt demandé n'est pas un incident.
+                if (userStopped || supervisor.isStopRequested()) continue
+                if (!supervisor.isExpectingRunning()) continue
+                if (!isRunning()) {
+                    // Un arrêt en cours (rechargement, arrêt demandé) n'est pas un
+                    // incident : la surveillance continue au lieu de s'arrêter.
+                    if (onUnexpectedCoreExit(service, "native_loop_stopped", null)) return@launch
+                }
+            }
+        }
+    }
+
+    /**
+     * Traite une sortie que personne n'a demandée : un seul événement par
+     * épisode, puis une demande de récupération centralisée.
+     */
+    private fun onUnexpectedCoreExit(
+        service: Service,
+        reason: String,
+        cause: Throwable?,
+        origin: CoreOrigin = CoreOrigin.WATCHDOG,
+    ): Boolean {
+        if (!supervisor.unexpectedExit(reason, cause, origin)) return false
+        // Aucune exception inventée : le moteur peut sortir sans lever d'erreur.
+        if (cause != null) {
+            LogUtil.e(AppConfig.TAG, "StartCore-Manager: unexpected core exit ($reason)", cause)
+        } else {
+            LogUtil.e(AppConfig.TAG, "StartCore-Manager: unexpected core exit ($reason), no exception")
+        }
+        MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
+        NotificationManager.updateState(
+            service.getString(com.v2ray.ang.R.string.connection_reconnecting),
+            android.graphics.Color.rgb(245, 196, 81),
+        )
+        XrayConsole.event("Core", "Unexpected core exit: $reason")
+        scheduleReconnect(service, origin, reason)
+        return true
     }
 
     /**
@@ -396,7 +514,9 @@ object CoreServiceManager {
             }
             if (delayMillis >= 0 && isRunning()) {
                 connectionVerified = true
-                reconnectAttempt = 0
+                // Connecté uniquement après une requête réelle : `startLoop()`
+                // qui rend la main ne prouve rien.
+                supervisor.tunnelVerified()
                 failoverAttempted = false
                 recordActiveHealth(delayMillis)
                 // Première latence réelle disponible immédiatement pour l'accueil.
@@ -412,6 +532,7 @@ object CoreServiceManager {
                 MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
             } else if (isRunning()) {
                 connectionVerified = false
+                supervisor.tunnelUnverified("initial_probe_failed")
                 recordActiveHealth(-1L)
                 if (!failoverAttempted) {
                     // Hors de cette coroutine : le rechargement annule la
@@ -448,12 +569,18 @@ object CoreServiceManager {
         lastHealthRecordAt = 0L
         lastSwitchEvaluationAt = System.currentTimeMillis()
         healthCheckJob = connectionTestScope.launch {
-            while (isActive && !userStopped && isRunning()) {
+            while (isActive && !userStopped) {
                 // Vérification courte : une coupure doit déclencher la reconnexion
                 // avant que l'utilisateur ne perçoive un tunnel abandonné.
                 // Détecter une coupure rapidement sans attendre deux secondes complètes.
-                delay(1_000L)
-                if (!isRunning() || userStopped) break
+                delay(HEALTH_PROBE_INTERVAL_MILLIS)
+                if (!isActive || userStopped) break
+                if (!isRunning()) {
+                    // Ancien comportement : la boucle s'arrêtait ici, sans un mot.
+                    // La mort du cœur est maintenant un événement explicite.
+                    onUnexpectedCoreExit(service, "health_check_loop_exit", null, CoreOrigin.PROBE)
+                    return@launch
+                }
                 val probe = try {
                     measureDelayWithFallback()
                 } catch (e: CancellationException) {
@@ -478,6 +605,7 @@ object CoreServiceManager {
                 )
                 if (!reachable) {
                     connectionVerified = false
+                    supervisor.tunnelUnverified("probe_unreachable")
                     recordActiveHealth(-1L)
                     MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
                     NotificationManager.updateState(
@@ -507,61 +635,178 @@ object CoreServiceManager {
         return coreController.measureDelay(SettingsManager.getDelayTestUrl(true))
     }
 
-    private fun scheduleReconnect(service: Service) {
+    /**
+     * Point d'entrée unique de toutes les sources de récupération : sonde de
+     * santé, `NetworkMonitor`, mort du cœur, redémarrage manuel.
+     *
+     * Le superviseur fusionne les demandes concurrentes, refuse une relance sur
+     * un tunnel sain et applique le plafond anti-boucle. Aucune seconde opération
+     * ne peut donc démarrer en parallèle.
+     */
+    private fun scheduleReconnect(
+        service: Service,
+        origin: CoreOrigin = CoreOrigin.PROBE,
+        reason: String = "probe_failed",
+    ) {
         if (fatalConfigError != null) return
-        if (userStopped || reconnectJob?.isActive == true) return
-        reconnectJob = connectionTestScope.launch {
-            // Une exception qui s'échappe d'une coroutine détachée atteint le
-            // handler global du thread et tue le processus daemon (FATAL
-            // EXCEPTION). On la journalise et on arrête proprement la boucle.
-            try {
-                runReconnectLoop()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "StartCore-Manager: reconnect loop aborted", e)
+        if (userStopped) return
+        if (reconnectJob?.isActive == true) {
+            // Une boucle tourne déjà : la demande est fusionnée, pas dupliquée.
+            supervisor.noteRequestMerged(origin, "$reason:loop_active")
+            return
+        }
+        when (val decision = supervisor.requestRecovery(origin, reason, coreRunning = isRunning())) {
+            is RecoveryDecision.Start -> {
+                reconnectJob = connectionTestScope.launch {
+                    // Une exception qui s'échappe d'une coroutine détachée atteint
+                    // le handler global du thread et tue le processus daemon
+                    // (FATAL EXCEPTION). On la journalise et on ferme proprement.
+                    try {
+                        runReconnectLoop(decision)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (e: Exception) {
+                        LogUtil.e(AppConfig.TAG, "StartCore-Manager: reconnect loop aborted", e)
+                        supervisor.recoveryFinished(false, "reconnect_loop_aborted", e)
+                    }
+                }
             }
+
+            RecoveryDecision.Merged,
+            RecoveryDecision.Healthy,
+            RecoveryDecision.NotExpected,
+            -> Unit
+
+            is RecoveryDecision.LimitReached -> publishRecoveryLimitReached(service, decision)
         }
     }
 
-    private suspend fun CoroutineScope.runReconnectLoop() {
-        // Première tentative rapide ; le backoff augmente seulement si le réseau
-        // reste réellement indisponible.
-        val backoff = longArrayOf(1_000L, 3_000L, 8_000L, 20_000L)
-        while (isActive && !userStopped && !connectionVerified && fatalConfigError == null) {
-            val wait = backoff[reconnectAttempt.coerceAtMost(backoff.lastIndex)]
-            reconnectAttempt++
-            delay(wait)
-            if (userStopped) return
-            val currentService = getService() ?: return
-            MessageHelper.sendMsg2UI(currentService, AppConfig.MSG_STATE_RECONNECTING, "")
-            NotificationManager.updateState(
-                currentService.getString(com.v2ray.ang.R.string.connection_reconnecting),
-                android.graphics.Color.rgb(245, 196, 81),
-            )
-            val previousVerification = connectionVerificationJob
-            try {
-                if (isRunning()) {
-                    // Borne chaque rechargement : un appel natif bloqué ne doit
-                    // pas empêcher les tentatives suivantes.
-                    kotlinx.coroutines.withTimeoutOrNull(12_000L) {
-                        reloadCore(cancelConnectionChecks = false)
-                    }
-                } else {
-                    LauncherManager.startService(currentService)
+    /**
+     * Publie l'arrêt des relances automatiques.
+     *
+     * L'état est une erreur explicite : aucune tentative supplémentaire ne part
+     * en boucle, et une connexion manuelle reste possible (elle ouvre un
+     * nouvel épisode).
+     */
+    private fun publishRecoveryLimitReached(service: Service, decision: RecoveryDecision.LimitReached) {
+        val windowMinutes = (decision.windowMillis / 60_000L).coerceAtLeast(1L)
+        val message = service.getString(
+            com.v2ray.ang.R.string.connection_recovery_stopped,
+            decision.attempts,
+            windowMinutes,
+        )
+        LogUtil.e(
+            AppConfig.TAG,
+            "StartCore-Manager: automatic recovery stopped after ${decision.attempts} attempts " +
+                "in ${decision.windowMillis} ms",
+        )
+        MessageHelper.sendMsg2UI(
+            service,
+            AppConfig.MSG_STATE_START_FAILURE,
+            message,
+            null,
+            "recovery_limit_reached",
+        )
+        NotificationManager.updateState(
+            service.getString(com.v2ray.ang.R.string.connection_not_connected),
+            android.graphics.Color.rgb(239, 68, 68),
+        )
+        XrayConsole.event("Core", "Automatic recovery stopped: attempt limit reached")
+    }
+
+    /**
+     * Exécute les tentatives autorisées par le superviseur, une seule à la fois.
+     *
+     * Chaque tour de boucle consomme une tentative : le backoff vient de la
+     * politique centralisée et le plafond s'applique aussi entre deux tentatives.
+     */
+    private suspend fun runReconnectLoop(initial: RecoveryDecision.Start) {
+        var attempt = initial.attempt
+        var backoffMillis = initial.backoffMillis
+        var lastFailure: String? = null
+        try {
+            while (!userStopped && !connectionVerified && fatalConfigError == null) {
+                val currentService = getService()
+                if (currentService == null) {
+                    lastFailure = "service_gone"
+                    return
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                // Keep retrying after a transient launcher or core error.
+                supervisor.recoveryAttemptStarted(attempt)
+                MessageHelper.sendMsg2UI(currentService, AppConfig.MSG_STATE_RECONNECTING, "")
+                NotificationManager.updateState(
+                    currentService.getString(com.v2ray.ang.R.string.connection_reconnecting),
+                    android.graphics.Color.rgb(245, 196, 81),
+                )
+                // Première tentative rapide ; le backoff augmente seulement si le
+                // réseau reste réellement indisponible.
+                if (backoffMillis > 0L) delay(backoffMillis)
+                if (userStopped) return
+                val previousVerification = connectionVerificationJob
+                try {
+                    if (isRunning()) {
+                        // Borne chaque rechargement : un appel natif bloqué ne doit
+                        // pas empêcher les tentatives suivantes.
+                        kotlinx.coroutines.withTimeoutOrNull(RECONNECT_RELOAD_TIMEOUT_MILLIS) {
+                            reloadCore(cancelConnectionChecks = false)
+                        }
+                    } else {
+                        // Le cœur est mort : attendre la libération réelle avant de
+                        // relancer, sinon deux instances se chevauchent.
+                        val released = awaitCoreStopped(isCoreRunning = { isRunning() })
+                        if (released) {
+                            LauncherManager.startService(currentService)
+                        } else {
+                            lastFailure = "restart_stop_timeout"
+                            supervisor.stopNotConfirmed(
+                                CoreOrigin.RECONNECT,
+                                "restart_stop_timeout",
+                                DEFAULT_CORE_STOP_TIMEOUT_MILLIS,
+                            )
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Keep retrying after a transient launcher or core error.
+                    lastFailure = "reconnect_error"
+                    LogUtil.e(AppConfig.TAG, "StartCore-Manager: reconnect attempt failed", e)
+                }
+                // Wait only for the probe started by this attempt. The old loop
+                // polled connectionVerified for up to 60 s after a failed probe,
+                // preventing this still-active job from scheduling the next retry.
+                if (!connectionVerified && !userStopped) {
+                    awaitNextReconnectVerification(
+                        previousJob = previousVerification,
+                        currentJob = { connectionVerificationJob },
+                    )
+                }
+                if (connectionVerified || userStopped) break
+                supervisor.recoveryAttemptFailed(attempt, lastFailure ?: "verification_failed")
+                val next = supervisor.beginFollowUpAttempt(
+                    CoreOrigin.RECONNECT,
+                    lastFailure ?: "verification_failed",
+                    coreRunning = isRunning(),
+                )
+                if (next !is RecoveryDecision.Start) {
+                    if (next is RecoveryDecision.LimitReached) {
+                        lastFailure = "recovery_limit_reached"
+                        publishRecoveryLimitReached(
+                            getService() ?: currentService,
+                            next,
+                        )
+                    }
+                    break
+                }
+                attempt = next.attempt
+                backoffMillis = next.backoffMillis
             }
-            // Wait only for the probe started by this attempt. The old loop
-            // polled connectionVerified for up to 60 s after a failed probe,
-            // preventing this still-active job from scheduling the next retry.
-            if (!connectionVerified && !userStopped) {
-                awaitNextReconnectVerification(
-                    previousJob = previousVerification,
-                    currentJob = { connectionVerificationJob },
+        } finally {
+            if (userStopped) {
+                supervisor.recoveryFinished(false, "user_stopped")
+            } else {
+                supervisor.recoveryFinished(
+                    connectionVerified,
+                    if (connectionVerified) "tunnel_verified" else (lastFailure ?: "verification_failed"),
                 )
             }
         }
@@ -760,15 +1005,20 @@ object CoreServiceManager {
      */
     suspend fun stopCoreLoop(
         cancelConnectionChecks: Boolean = true,
+        origin: CoreOrigin = CoreOrigin.USER,
         onCoreStopped: suspend () -> Unit = {},
     ): Boolean = lifecycleGate.stop {
         connectionVerified = false
+        // Arrêt demandé : une sortie du moteur pendant cette fenêtre est
+        // attendue et ne doit pas être requalifiée en incident.
+        supervisor.stopRequested(origin)
+        coreWatchdogJob?.cancel()
+        coreWatchdogJob = null
         if (cancelConnectionChecks) connectionTestScope.coroutineContext.cancelChildren()
         healthCheckJob?.cancel()
         healthCheckJob = null
         reconnectJob?.cancel()
         reconnectJob = null
-        reconnectAttempt = 0
         fatalConfigError = null
         connectionVerificationJob?.cancel()
         connectionVerificationJob = null
@@ -845,8 +1095,63 @@ object CoreServiceManager {
         XrayConsole.event("Core", "Tunnel stopped")
         ConnectionFeedback.onDisconnected(service)
         NotificationManager.cancelNotification()
+        supervisor.stopped(origin)
         LogUtil.i(AppConfig.TAG, "StartCore-Manager: Tunnel stopped and resources released")
         true
+    }
+
+    /**
+     * Redémarrage manuel : arrêt réel confirmé, puis une seule relance.
+     *
+     * Le délai maximal et l'interdiction de lancer une seconde instance vivent
+     * dans `performManualRestart`, partagé avec les tests.
+     */
+    private suspend fun restartTunnel(service: Service) {
+        val mode = if (LaboratoryTunnelBridge.isActive(service)) {
+            LaboratoryTunnelBridge.MODE_LABORATORY
+        } else {
+            LaboratoryTunnelBridge.MODE_CLASSIC
+        }
+        LogUtil.i(AppConfig.TAG, "StartCore-Manager: restart requested, stopping the core first")
+        MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
+        NotificationManager.updateState(
+            service.getString(com.v2ray.ang.R.string.connection_reconnecting),
+            android.graphics.Color.rgb(245, 196, 81),
+        )
+
+        val outcome = performManualRestart(
+            supervisor = supervisor,
+            origin = CoreOrigin.NOTIFICATION,
+            isCoreRunning = { isRunning() },
+            requestStop = { serviceControl?.stopService() },
+            requestStart = { LauncherManager.startService(service) },
+        )
+
+        when (outcome) {
+            RestartOutcome.STARTED -> LogUtil.i(
+                AppConfig.TAG,
+                "StartCore-Manager: core stopped and a single new instance was requested",
+            )
+
+            RestartOutcome.STOP_NOT_CONFIRMED -> {
+                LogUtil.e(
+                    AppConfig.TAG,
+                    "StartCore-Manager: restart aborted, core stop not confirmed within " +
+                        "${DEFAULT_CORE_STOP_TIMEOUT_MILLIS} ms",
+                )
+                publishStopFailure(service, mode, "restart_stop_timeout")
+            }
+
+            RestartOutcome.STOP_REQUEST_FAILED -> {
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: restart aborted, stop request failed")
+                publishStopFailure(service, mode, "restart_request_failed")
+            }
+
+            RestartOutcome.START_REQUEST_FAILED -> {
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: restart aborted, start request failed")
+                publishStopFailure(service, mode, "restart_request_failed")
+            }
+        }
     }
 
     /**
@@ -856,6 +1161,10 @@ object CoreServiceManager {
      * être actifs. L'interface doit proposer une nouvelle tentative.
      */
     private fun publishStopFailure(service: Service, mode: String, reason: String) {
+        // L'arrêt a échoué : la surveillance doit reprendre si le moteur tourne
+        // encore, sinon une mort ultérieure passerait inaperçue.
+        supervisor.stopFailed(reason)
+        if (isRunning()) startCoreWatchdog(service)
         LaboratoryTunnelBridge.writeStatus(
             service,
             LaboratoryTunnelBridge.STATE_STOP_FAILED,
@@ -884,8 +1193,41 @@ object CoreServiceManager {
         networkMonitor = NetworkMonitor(
             connectivity = connectivity,
             onUnderlyingNetworksChanged = { networks -> serviceControl?.setUnderlyingNetworks(networks) },
-            onHandover = { reloadCore() },
+            onHandover = { onNetworkHandover() },
         ).also { it.register() }
+    }
+
+    /**
+     * Changement de réseau : vérifier la connectivité réelle avant de décider.
+     *
+     * Un tunnel encore vérifié après le handover ne doit pas être redémarré : le
+     * rechargement ne part que si la sonde échoue ou si le cœur est déjà mort.
+     * Toutes les demandes passent par le superviseur, qui les fusionne.
+     */
+    private suspend fun onNetworkHandover() {
+        if (userStopped) return
+        // Une récupération est déjà en cours : elle couvre ce changement.
+        if (supervisor.isRecoveryInFlight()) return
+        val service = getService() ?: return
+
+        if (!isRunning()) {
+            scheduleReconnect(service, CoreOrigin.NETWORK, "core_down_after_handover")
+            return
+        }
+
+        // Sonde courte : au-delà, la socket est considérée morte et le tunnel
+        // est rechargé plutôt que de laisser l'utilisateur sans trafic.
+        val stillVerified = withTimeoutOrNull(HANDOVER_VERIFY_TIMEOUT_MILLIS) {
+            runCatching { measureDelayWithFallback() }.getOrDefault(-1L) >= 0L
+        } ?: false
+        if (stillVerified) {
+            supervisor.tunnelVerified()
+            XrayConsole.event("Network", "Upstream changed, tunnel still verified: core left untouched")
+            LogUtil.i(AppConfig.TAG, "NetworkMonitor: tunnel still verified after handover")
+            return
+        }
+        XrayConsole.event("Network", "Upstream changed, tunnel unverified: recovery requested")
+        scheduleReconnect(service, CoreOrigin.NETWORK, "handover_unverified")
     }
 
     /**
@@ -923,8 +1265,11 @@ object CoreServiceManager {
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
             NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_reconnecting), android.graphics.Color.rgb(245, 196, 81))
 
+            // Rechargement volontaire : la sortie de l'ancienne boucle est
+            // attendue, elle ne doit pas déclencher une récupération en boucle.
+            supervisor.stopRequested(CoreOrigin.RECONNECT)
             withContext(Dispatchers.IO) { coreController.stopLoop() }
-            launchCore(service, tunFd, isReload = true)
+            launchCore(service, tunFd, isReload = true, origin = CoreOrigin.RECONNECT)
 
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload finished")
             true
@@ -935,6 +1280,9 @@ object CoreServiceManager {
             // On arrête proprement et on remonte le motif au lieu de boucler.
             val message = e.message?.takeUnless { it.isBlank() } ?: "Configuration invalide"
             fatalConfigError = message
+            // L'état ne doit pas rester « arrêt demandé » : le moteur tourne
+            // peut-être encore et sa surveillance doit rester active.
+            supervisor.stopFailed("config_invalid")
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: invalid configuration: $message")
             MessageHelper.sendMsg2UI(
                 service,
@@ -948,8 +1296,9 @@ object CoreServiceManager {
         } catch (e: Exception) {
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to reload core: $message", e)
+            supervisor.stopFailed("reload_failed")
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
-            if (!userStopped) scheduleReconnect(service)
+            if (!userStopped) scheduleReconnect(service, CoreOrigin.RECONNECT, "reload_failed")
             false
         } finally {
             isReloading = false
@@ -1070,22 +1419,48 @@ object CoreServiceManager {
 
         /**
          * Called when V2Ray core shuts down.
-         * @return 0 for success, any other value for failure.
+         *
+         * L'AAR épinglée n'appelle jamais ce rappel : la sortie de la boucle est
+         * détectée par la scrutation du drapeau natif et par la sonde réelle.
+         * Le corps est néanmoins protégé, un rappel qui lève traverserait la
+         * frontière native et tuerait le processus.
          */
         override fun shutdown(): Long {
-            LogUtil.i(AppConfig.TAG, "StartCore-Manager: CoreCallback shutdown")
-            return 0
+            return try {
+                LogUtil.i(AppConfig.TAG, "StartCore-Manager: CoreCallback shutdown")
+                0L
+            } catch (e: Exception) {
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: CoreCallback shutdown failed", e)
+                0L
+            }
         }
 
         /**
          * Called when V2Ray core emits status information.
+         *
+         * Le moteur émet « Core stopped » depuis `StopLoop()` et
+         * « Started successfully, running » depuis un démarrage réussi. Un
+         * « Core stopped » qui n'a pas été demandé est une sortie spontanée.
+         *
          * @param l Status code.
          * @param s Status message.
          * @return Always returns 0.
          */
         override fun onEmitStatus(l: Long, s: String?): Long {
-            LogUtil.i(AppConfig.TAG, "StartCore-Manager: CoreCallback onEmitStatus $s")
-            return 0
+            return try {
+                LogUtil.i(AppConfig.TAG, "StartCore-Manager: CoreCallback onEmitStatus $s")
+                val stopped = s?.contains("Core stopped", ignoreCase = true) == true
+                if (stopped && !supervisor.isStopRequested() && supervisor.isExpectingRunning()) {
+                    val service = getService()
+                    if (service != null) {
+                        onUnexpectedCoreExit(service, "native_status_core_stopped", null, CoreOrigin.WATCHDOG)
+                    }
+                }
+                0L
+            } catch (e: Exception) {
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: CoreCallback onEmitStatus failed", e)
+                0L
+            }
         }
     }
 
@@ -1144,9 +1519,21 @@ object CoreServiceManager {
                     val pendingResult = goAsync()
                     connectionTestScope.launch {
                         try {
-                            control.stopService()
-                            delay(500L)
-                            LauncherManager.startService(control.getService())
+                            restartTunnel(control.getService())
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (e: Exception) {
+                            LogUtil.e(AppConfig.TAG, "StartCore-Manager: manual restart failed", e)
+                            supervisor.recoveryFinished(false, "manual_restart_error", e)
+                            runCatching {
+                                MessageHelper.sendMsg2UI(
+                                    control.getService(),
+                                    AppConfig.MSG_STATE_STOP_FAILURE,
+                                    "manual_restart_error",
+                                    null,
+                                    "manual_restart_error",
+                                )
+                            }
                         } finally {
                             pendingResult.finish()
                         }
@@ -1200,6 +1587,21 @@ private const val PUBLIC_GROUP_PREFIX = "dams-public-"
 
 /** Écriture de la fenêtre de qualité (la sonde, elle, reste à 1 s). */
 private const val HEALTH_RECORD_INTERVAL_MILLIS = 5_000L
+
+/** Fréquence de la sonde de santé à travers le tunnel. */
+private const val HEALTH_PROBE_INTERVAL_MILLIS = 1_000L
+
+/** Fréquence de surveillance de la durée de vie réelle de la boucle native. */
+private const val WATCHDOG_INTERVAL_MILLIS = 1_000L
+
+/** Borne d'un rechargement pendant une relance : un appel natif bloqué ne gèle pas la boucle. */
+private const val RECONNECT_RELOAD_TIMEOUT_MILLIS = 12_000L
+
+/**
+ * Sonde courte après un changement de réseau : au-delà, la socket est
+ * considérée morte et le cœur est rechargé.
+ */
+private const val HANDOVER_VERIFY_TIMEOUT_MILLIS = 3_000L
 
 /** Comparaison périodique du serveur actif avec les autres Configs. */
 private const val SWITCH_EVALUATION_INTERVAL_MILLIS = 60_000L
