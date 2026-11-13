@@ -39,7 +39,8 @@ class MultipathLogSanitizerTest {
 
     @Test
     fun `long message is truncated to the maximum length`() {
-        val safe = MultipathEventLogger.sanitize("a".repeat(500))
+        // 'z' n'est pas hexadécimal : la chaîne n'est donc pas masquée avant troncature.
+        val safe = MultipathEventLogger.sanitize("z".repeat(500))
         assertEquals(240, safe.length)
         assertTrue(safe.endsWith("…"))
     }
