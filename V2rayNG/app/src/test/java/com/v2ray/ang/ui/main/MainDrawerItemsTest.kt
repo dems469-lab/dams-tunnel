@@ -36,4 +36,9 @@ class MainDrawerItemsTest {
     fun `journal stays reachable from the drawer`() {
         assertTrue(drawerItems(showPremium = false).contains(MainDestination.Logcat))
     }
+
+    @Test
+    fun `tester entry stays reachable from the drawer`() {
+        assertTrue(drawerItems(showPremium = false).contains(MainDestination.Tester))
+    }
 }

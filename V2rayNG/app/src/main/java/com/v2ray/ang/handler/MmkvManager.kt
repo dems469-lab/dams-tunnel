@@ -59,6 +59,7 @@ object MmkvManager {
     private const val KEY_SERVER_HEALTH_PREFIX = "SERVER_HEALTH_"
     private const val KEY_FAILOVER_HISTORY = "FAILOVER_HISTORY"
     private const val KEY_LAST_FAILOVER_AT = "LAST_FAILOVER_AT"
+    private const val KEY_TESTER_MEASURE_PREFIX = "TESTER_MEASURE_"
 
     private val recoveryHandler = object : MMKVHandler {
         override fun onMMKVCRCCheckFail(mmapID: String) =
@@ -220,6 +221,18 @@ object MmkvManager {
 
     fun setLastFailoverAt(atMillis: Long) {
         mainStorage.encode(KEY_LAST_FAILOVER_AT, atMillis)
+    }
+
+    // ── Mesures de l'écran Tester (ping réseau et test de tunnel) ─────────────
+
+    fun decodeTesterMeasurement(guid: String): String? {
+        if (guid.isBlank()) return null
+        return mainStorage.decodeString(KEY_TESTER_MEASURE_PREFIX + guid)
+    }
+
+    fun encodeTesterMeasurement(guid: String, json: String) {
+        if (guid.isBlank()) return
+        mainStorage.encode(KEY_TESTER_MEASURE_PREFIX + guid, json)
     }
 
     /**

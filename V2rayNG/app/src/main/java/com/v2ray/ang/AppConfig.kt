@@ -110,6 +110,12 @@ object AppConfig {
     const val PREF_AUTO_SWITCH_DEFAULT_SERVER = "pref_auto_switch_default_server"
     const val PREF_REAL_PING_CONCURRENCY = "pref_real_ping_concurrency"
 
+    /** File d'attente dédiée à l'écran Tester (5 à 10 tests en parallèle). */
+    const val PREF_TESTER_CONCURRENCY = "pref_tester_concurrency"
+    const val TESTER_CONCURRENCY_MIN = 5
+    const val TESTER_CONCURRENCY_MAX = 10
+    const val TESTER_CONCURRENCY_DEFAULT = 8
+
     /** Cache keys. */
     const val CACHE_SUBSCRIPTION_ID = "cache_subscription_id"
 
