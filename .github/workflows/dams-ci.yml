@@ -41,9 +41,9 @@ jobs:
           mkdir -p V2rayNG/app/libs
           curl --fail --location --retry 3 \
             -o V2rayNG/app/libs/libv2ray.aar \
-            https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.1.23/libv2ray.aar
+            https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.11.9/libv2ray.aar
           test "$(sha256sum V2rayNG/app/libs/libv2ray.aar | cut -d' ' -f1)" = \
-            17387858d760b6a24b7dc3805eaf8554fe5041f5356945e637fdcbe3cea455fa
+            cdfef146218233a31a8b52c8b1016557730d3b63fc121d4c84cacea50e669155
           cp -r libs V2rayNG/app/
 
       - name: Check native libraries

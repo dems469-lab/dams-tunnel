@@ -5,7 +5,7 @@ import java.io.Serializable
 /**
  * Échantillon de latence de la session en cours.
  *
- * La mesure est produite par le cœur lui-même ([libv2ray.CoreController.measureDelay]),
+ * La mesure est produite par le cœur lui-même ([com.v2ray.ang.core.CoreEngine.measureDelay]),
  * c'est-à-dire par une requête HTTP qui traverse réellement le tunnel actif. Ce
  * n'est ni un ping ICMP vers l'adresse du serveur, ni une mesure directe sur le
  * réseau du téléphone.

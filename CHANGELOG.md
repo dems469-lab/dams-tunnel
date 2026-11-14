@@ -3,6 +3,36 @@
 Un seul fichier d'historique. Chaque entrée décrit une intervention terminée,
 les fichiers touchés, ce qui a été vérifié et ce qui reste à vérifier.
 
+## 1.9.8-lab (765) — migration du moteur vers Xray-core v26.11.9
+
+**Contexte** : l'audit a montré un moteur officiel (Xray-core) mais figé à
+janvier 2026 (`v26.1.23`, module `v1.260123.0`, Go 1.25.6, wrapper « Lib v34 »),
+soit 22 releases de retard et six API manquantes dans l'AAR.
+
+**Moteur** : `2dust/AndroidLibXrayLite` **v26.11.9** (AAR `libv2ray.aar`,
+SHA-256 `cdfef146218233a31a8b52c8b1016557730d3b63fc121d4c84cacea50e669155`,
+60 437 926 o), qui embarque **XTLS/Xray-core v26.11.9** (commit `676eaf66f8f0`,
+module `v1.260327.1-0.20261109052709-676eaf66f8f0`, Go 1.27.3, wrapper
+« Lib v40 »). Aucun patch du cœur ; l'AAR est épinglée par URL + SHA-256 dans
+les trois workflows.
+
+**Façade** : `core/CoreEngine.kt` (contrat : démarrer, arrêter, état, latence,
+compteurs, version) et `core/Libv2rayEngine.kt` (seule implémentation, avec
+`CoreNativeManager`, qui importe `libv2ray`). `CoreServiceManager` ne manipule
+plus le type `CoreController`.
+
+**API remplacée** : `CoreController.queryStats(tag, sens)` (supprimée) →
+`queryAllOutboundTrafficStats()` (format `tag,direction,value;`, une seule
+traversée JNI, remise à zéro globale). `util/TrafficStatsParser.kt` est enfin
+branché ; les tags suivis absents de la réponse sont réémis à zéro pour ne pas
+transformer une absence de trafic en indisponibilité. `startLoop`, `stopLoop`,
+`measureDelay`, `measureOutboundDelay`, `initCoreEnv` et les rappels sont
+inchangés.
+
+**À noter** : `StopLoop()` appelle désormais le rappel `shutdown()` (journalisé
+seulement) ; `TrafficStatsParser` ne voit que les compteurs non nuls ; le
+dialogue navigateur natif reste volontairement inerte.
+
 ## 1.9.7-lab (764) — réparation du trafic, du DNS/TUN et du crash FGS
 
 **Contexte** : après la phase C, le VPN affichait « connecté » alors que le

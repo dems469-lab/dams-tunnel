@@ -6,7 +6,6 @@ import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import go.Seq
 import libv2ray.CoreCallbackHandler
-import libv2ray.CoreController
 import libv2ray.Libv2ray
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -43,8 +42,13 @@ object CoreNativeManager {
         }
     }
 
+    /**
+     * Le dialogue navigateur natif (`reconcileBrowserDialer`, nouveau dans
+     * l'AAR v26.11.9) reste volontairement inerte : l'activer changerait le
+     * comportement réseau, hors périmètre de cette migration du moteur.
+     */
     fun reconcileBrowserDialer(dialerAddr: String) {
-        LogUtil.d(AppConfig.TAG, "Browser dialer native reconciliation unavailable in legacy-compatible core: $dialerAddr")
+        LogUtil.d(AppConfig.TAG, "Browser dialer native reconciliation disabled in this build: $dialerAddr")
     }
 
 
@@ -79,17 +83,11 @@ object CoreNativeManager {
     }
 
     /**
-     * Create a new core controller instance.
+     * Crée le moteur consommé par l'application.
      *
-     * @param handler The callback handler for core events
-     * @return A new CoreController instance
+     * Point de construction unique : le reste du code ne voit que [CoreEngine].
+     *
+     * @param handler rappels d'état du cœur
      */
-    fun newCoreController(handler: CoreCallbackHandler): CoreController {
-        return try {
-            Libv2ray.newCoreController(handler)
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to create core controller", e)
-            throw e
-        }
-    }
+    fun newCoreEngine(handler: CoreCallbackHandler): CoreEngine = Libv2rayEngine(handler)
 }

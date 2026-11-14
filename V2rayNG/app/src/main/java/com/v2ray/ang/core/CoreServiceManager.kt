@@ -53,7 +53,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.isActive
 import libv2ray.CoreCallbackHandler
-import libv2ray.CoreController
 
 object CoreServiceManager {
 
@@ -77,7 +76,7 @@ object CoreServiceManager {
 
     private val lifecycleGate = CoreLoopLifecycleGate(stopTimeoutMillis = STOP_TIMEOUT_MILLIS)
 
-    private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
+    private val coreEngine: CoreEngine = CoreNativeManager.newCoreEngine(CoreCallback())
     private val mMsgReceive = ReceiveMessageHandler()
     private var currentConfig: ProfileItem? = null
     private var currentOutboundTags: Set<String> = emptySet()
@@ -204,7 +203,7 @@ object CoreServiceManager {
      * Checks if the V2Ray service is running.
      * @return True if the service is running, false otherwise.
      */
-    fun isRunning() = coreController.isRunning
+    fun isRunning() = coreEngine.isRunning
 
     /** Le cœur tourne ET transporte réellement du trafic vérifié. */
     fun isConnectionVerified() = connectionVerified
@@ -401,7 +400,7 @@ object CoreServiceManager {
         // Le passage au natif est le seul endroit où la boucle démarre : c'est
         // ici que l'événement de démarrage est daté.
         supervisor.coreStarting(origin)
-        coreController.startLoop(result.content, tunFd)
+        coreEngine.start(result.content, tunFd)
 
         if (!isRunning()) {
             error("Core failed to start")
@@ -680,9 +679,9 @@ object CoreServiceManager {
      * a reason to declare the VPN connected.
      */
     private fun measureDelayWithFallback(): Long {
-        val primary = coreController.measureDelay(SettingsManager.getDelayTestUrl())
+        val primary = coreEngine.measureDelay(SettingsManager.getDelayTestUrl())
         if (primary >= 0L) return primary
-        return coreController.measureDelay(SettingsManager.getDelayTestUrl(true))
+        return coreEngine.measureDelay(SettingsManager.getDelayTestUrl(true))
     }
 
     /**
@@ -1115,7 +1114,7 @@ object CoreServiceManager {
                 // Native stopLoop is blocking; isolate it from Android's service thread.
                 // The lifecycle gate holds start/restart until this call actually returns.
                 withTimeoutOrNull(NATIVE_STOP_TIMEOUT_MILLIS) {
-                    withContext(Dispatchers.IO) { coreController.stopLoop() }
+                    withContext(Dispatchers.IO) { coreEngine.stop() }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -1336,7 +1335,7 @@ object CoreServiceManager {
             // Rechargement volontaire : la sortie de l'ancienne boucle est
             // attendue, elle ne doit pas déclencher une récupération en boucle.
             supervisor.stopRequested(CoreOrigin.RECONNECT)
-            withContext(Dispatchers.IO) { coreController.stopLoop() }
+            withContext(Dispatchers.IO) { coreEngine.stop() }
             launchCore(service, tunFd, isReload = true, origin = CoreOrigin.RECONNECT)
 
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload finished")
@@ -1374,18 +1373,25 @@ object CoreServiceManager {
     }
 
     /**
-     * Reads and resets counters through the stable API exported by the pinned
-     * libv2ray AAR. The newer QueryAll helper is not present in the CI artifact.
+     * Lit et remet à zéro les compteurs via `queryAllOutboundTrafficStats()`
+     * de l'AAR v26.11.9 (une seule traversée JNI par lecture, au lieu de deux
+     * par tag).
+     *
+     * L'API native ne renvoie que les compteurs non nuls : les tags suivis
+     * absents de la réponse sont réémis à zéro, afin qu'une absence de trafic
+     * reste une mesure valide et non une indisponibilité.
      */
     fun queryAllOutboundTrafficStats(diagnosticRead: Int? = null): List<OutboundTrafficStat> {
-        if (!isRunning()) return emptyList()
+        if (!isRunning() || currentOutboundTags.isEmpty()) return emptyList()
         return try {
             val tags = currentOutboundTags + AppConfig.TAG_DIRECT
-            if (currentOutboundTags.isEmpty()) return emptyList()
-            val values = mutableListOf<OutboundTrafficStat>()
-            tags.forEach { tag ->
-                values += OutboundTrafficStat(tag, AppConfig.UPLINK, coreController.queryStats(tag, AppConfig.UPLINK))
-                values += OutboundTrafficStat(tag, AppConfig.DOWNLINK, coreController.queryStats(tag, AppConfig.DOWNLINK))
+            val counters = coreEngine.readOutboundTrafficStats()
+                .associateBy { it.tag to it.direction }
+            val values = tags.flatMap { tag ->
+                listOf(
+                    OutboundTrafficStat(tag, AppConfig.UPLINK, counters[tag to AppConfig.UPLINK]?.value ?: 0L),
+                    OutboundTrafficStat(tag, AppConfig.DOWNLINK, counters[tag to AppConfig.DOWNLINK]?.value ?: 0L),
+                )
             }
             if (BuildConfig.DEBUG && diagnosticRead != null) {
                 Log.d(
@@ -1424,7 +1430,7 @@ object CoreServiceManager {
             var errorStr = ""
 
             try {
-                time = coreController.measureDelay(SettingsManager.getDelayTestUrl())
+                time = coreEngine.measureDelay(SettingsManager.getDelayTestUrl())
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to measure delay", e)
                 errorStr = e.message?.substringAfter("\":").orEmpty()
@@ -1432,7 +1438,7 @@ object CoreServiceManager {
             if (time == -1L) {
                 ensureActive()
                 try {
-                    time = coreController.measureDelay(SettingsManager.getDelayTestUrl(true))
+                    time = coreEngine.measureDelay(SettingsManager.getDelayTestUrl(true))
                 } catch (e: Exception) {
                     LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to measure delay", e)
                     errorStr = e.message?.substringAfter("\":").orEmpty()
@@ -1488,10 +1494,11 @@ object CoreServiceManager {
         /**
          * Called when V2Ray core shuts down.
          *
-         * L'AAR épinglée n'appelle jamais ce rappel : la sortie de la boucle est
-         * détectée par la scrutation du drapeau natif et par la sonde réelle.
-         * Le corps est néanmoins protégé, un rappel qui lève traverserait la
-         * frontière native et tuerait le processus.
+         * L'AAR v26.11.9 appelle ce rappel depuis `StopLoop()` ; les versions
+         * antérieures ne l'appelaient jamais. Il ne sert qu'à journaliser : la
+         * sortie de la boucle reste détectée par la scrutation du drapeau natif
+         * et par la sonde réelle. Le corps est protégé, un rappel qui lève
+         * traverserait la frontière native et tuerait le processus.
          */
         override fun shutdown(): Long {
             return try {
