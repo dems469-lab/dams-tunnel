@@ -16,4 +16,14 @@ interface Tun2SocksControl {
      * Stops the tun2socks process and cleans up resources.
      */
     fun stopTun2Socks()
+
+    /**
+     * Indique si le relais relaie réellement des paquets.
+     *
+     * Une interface TUN établie ne prouve rien : sans cette vérification, un
+     * relais mort laisserait le VPN affiché « connecté » alors qu'aucun paquet
+     * n'atteint le moteur. La valeur par défaut est volontairement optimiste :
+     * un doute ne doit jamais provoquer la destruction d'un tunnel sain.
+     */
+    fun isRunning(): Boolean = true
 }

@@ -117,4 +117,23 @@ class TProxyService(
             LogUtil.e(AppConfig.TAG, "Failed to stop hev-socks5-tunnel", e)
         }
     }
+
+    /**
+     * État réel du relais natif.
+     *
+     * Un symbole absent ou une erreur JNI ne doit jamais être interprété comme
+     * « relais mort » : seul un `false` explicite du natif l'affirme ; tout le
+     * reste renvoie true (doute = ne pas casser un tunnel sain).
+     */
+    override fun isRunning(): Boolean {
+        return try {
+            TProxyIsRunning()
+        } catch (t: Throwable) {
+            LogUtil.w(
+                AppConfig.TAG,
+                "hev-socks5-tunnel state unavailable (${t.javaClass.simpleName}), assuming running",
+            )
+            true
+        }
+    }
 }

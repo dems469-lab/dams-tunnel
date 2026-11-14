@@ -17,7 +17,9 @@ import com.v2ray.ang.AppConfig.LOOPBACK
 import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.contracts.ServiceControl
 import com.v2ray.ang.contracts.Tun2SocksControl
+import com.v2ray.ang.core.CoreRecoveryPolicy
 import com.v2ray.ang.core.CoreServiceManager
+import com.v2ray.ang.core.StartDisposition
 import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.NotificationManager
@@ -25,7 +27,6 @@ import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.helper.MessageHelper
 import com.v2ray.ang.root.RootLanSharing
 import com.v2ray.ang.util.LogUtil
-import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -120,22 +121,29 @@ class CoreVpnService : VpnService(), ServiceControl {
     }
 
     override fun startService() {
-        if (CoreServiceManager.isRunning()) {
-            // Le cœur tourne déjà (second appui, intent Always-on, redémarrage
-            // depuis la notification) : conserver la connexion existante et ne
-            // jamais l'arrêter. Publier l'état réel au lieu d'un échec fictif.
-            val verified = CoreServiceManager.isConnectionVerified()
-            LogUtil.w(
-                AppConfig.TAG,
-                "StartCore-VPN: Core already running, keeping the existing connection (verified=$verified)",
-            )
-            MessageHelper.sendMsg2UI(
-                this,
-                if (verified) AppConfig.MSG_STATE_START_SUCCESS else AppConfig.MSG_STATE_CONNECTING,
-                "",
-            )
-            unlockStart()
-            return
+        when (CoreRecoveryPolicy.startDisposition(
+            coreRunning = CoreServiceManager.isRunning(),
+            pathUsable = isTunnelPathUsable(),
+        )) {
+            StartDisposition.KEEP_EXISTING -> {
+                // Le cœur tourne déjà (second appui, intent Always-on, redémarrage
+                // depuis la notification) : conserver la connexion existante et ne
+                // jamais l'arrêter. Publier l'état réel au lieu d'un échec fictif.
+                val verified = CoreServiceManager.isConnectionVerified()
+                LogUtil.w(
+                    AppConfig.TAG,
+                    "StartCore-VPN: Core already running, keeping the existing connection (verified=$verified)",
+                )
+                MessageHelper.sendMsg2UI(
+                    this,
+                    if (verified) AppConfig.MSG_STATE_START_SUCCESS else AppConfig.MSG_STATE_CONNECTING,
+                    "",
+                )
+                unlockStart()
+                return
+            }
+
+            StartDisposition.REBUILD -> Unit
         }
         if (startJob?.isActive == true) {
             // Un démarrage est déjà en cours (verrou posé par onStartCommand) :
@@ -148,6 +156,31 @@ class CoreVpnService : VpnService(), ServiceControl {
         }
         startJob = serviceScope.launch {
             try {
+                // Cœur vivant mais plus aucun paquet ne passe (relais TUN mort,
+                // interface absente) : arrêt réel AVANT toute reconstruction,
+                // pour ne jamais avoir deux relais ni deux instances natives.
+                if (CoreServiceManager.isRunning()) {
+                    LogUtil.e(
+                        AppConfig.TAG,
+                        "StartCore-VPN: Core is alive but the packet path is broken, rebuilding the tunnel",
+                    )
+                    val stopped = CoreServiceManager.stopCoreLoop(
+                        origin = com.v2ray.ang.core.CoreOrigin.UNKNOWN,
+                        onCoreStopped = {
+                            tun2SocksService?.stopTun2Socks()
+                            tun2SocksService = null
+                            isRunning = false
+                        },
+                    )
+                    if (!stopped) {
+                        releaseVpnWakeLock()
+                        publishStartFailure(
+                            "tunnel_rebuild_stop_failed",
+                            "Le moteur n'a pas pu être arrêté avant la reconstruction du tunnel",
+                        )
+                        return@launch
+                    }
+                }
                 // Opérations lourdes hors du thread principal : préparation de
                 // la permission, établissement de l'interface TUN et démarrage
                 // du relais natif.
@@ -194,6 +227,21 @@ class CoreVpnService : VpnService(), ServiceControl {
     override fun setUnderlyingNetworks(networks: Array<Network>?): Boolean {
         return super<VpnService>.setUnderlyingNetworks(networks)
     }
+
+    /**
+     * État réel du chemin des paquets : l'interface existe et le relais qui la
+     * lit est vivant. Sans ce contrôle, le cœur pourrait être déclaré connecté
+     * alors que plus aucun paquet ne quitte le TUN.
+     */
+    override fun isTunnelRelayRunning(): Boolean {
+        if (!::mInterface.isInitialized) return false
+        // Sans relais natif, le moteur lit directement l'interface TUN.
+        val relay = tun2SocksService ?: return !SettingsManager.isUsingHevTun()
+        return runCatching { relay.isRunning() }.getOrDefault(true)
+    }
+
+    /** L'interface et son relais sont utilisables en l'état. */
+    private fun isTunnelPathUsable(): Boolean = isTunnelRelayRunning()
 
     override fun attachBaseContext(newBase: Context?) {
         val context = newBase?.let(AppLocaleManager::localizedContext)
@@ -274,6 +322,16 @@ class CoreVpnService : VpnService(), ServiceControl {
         // Configure app-specific settings (session name and per-app proxy)
         configurePerAppProxy(builder)
 
+        // Le relais lit le descripteur de l'ancienne interface : il doit être
+        // arrêté AVANT sa fermeture, sinon il reste accroché à un fd mort et un
+        // second relais serait lancé sur le nouveau descripteur.
+        try {
+            tun2SocksService?.stopTun2Socks()
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to stop the previous TUN relay", e)
+        }
+        tun2SocksService = null
+
         // Close the old interface since the parameters have been changed
         try {
             if (::mInterface.isInitialized) {
@@ -341,10 +399,17 @@ class CoreVpnService : VpnService(), ServiceControl {
         //if (MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED) == true) {
         //  builder.addDnsServer(PRIVATE_VLAN4_ROUTER)
         //} else {
-        SettingsManager.getVpnDnsServers().forEach {
-            if (Utils.isPureIpAddress(it)) {
-                builder.addDnsServer(it)
-            }
+        val dnsServers = SettingsManager.getVpnDnsServers()
+        if (dnsServers.isEmpty()) {
+            // Aucune adresse exploitable : sans ce repli, Android n'a aucun
+            // résolveur et toutes les applications perdent la résolution.
+            LogUtil.w(
+                AppConfig.TAG,
+                "StartCore-VPN: no valid DNS server configured, falling back to ${AppConfig.DNS_VPN}",
+            )
+        }
+        (dnsServers.ifEmpty { listOf(AppConfig.DNS_VPN) }).forEach {
+            builder.addDnsServer(it)
         }
 
         //builder.setSession(V2RayServiceManager.getRunningServerName())

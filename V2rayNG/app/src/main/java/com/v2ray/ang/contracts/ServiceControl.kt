@@ -35,4 +35,13 @@ interface ServiceControl {
      * @return True if the networks were accepted.
      */
     fun setUnderlyingNetworks(networks: Array<Network>?): Boolean = false
+
+    /**
+     * Indique si le relais TUN qui transporte réellement les paquets est actif.
+     *
+     * Seul le mode VPN possède une interface et un relais ; les modes proxy et
+     * root renvoient true (rien à surveiller). Un doute renvoie true : il ne
+     * doit jamais faire démonter un tunnel qui fonctionne.
+     */
+    fun isTunnelRelayRunning(): Boolean = true
 }

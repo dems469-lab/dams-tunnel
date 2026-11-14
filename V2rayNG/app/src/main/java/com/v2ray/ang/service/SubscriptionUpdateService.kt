@@ -45,7 +45,31 @@ class SubscriptionUpdateService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        CoreNativeManager.initCoreEnv(this)
+        // Contrat du premier plan rempli avant l'initialisation du moteur
+        // natif : sans cela, un chargement lent dépassait le délai système et
+        // provoquait ForegroundServiceDidNotStartInTimeException (:tasks).
+        promoteToForeground()
+        try {
+            CoreNativeManager.initCoreEnv(this)
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "SubscriptionUpdateService: native core initialization failed", e)
+            NotificationHelper.stopForeground(this)
+            stopSelf()
+        }
+    }
+
+    /** Remplit le contrat du service au premier plan de façon idempotente. */
+    private fun promoteToForeground() {
+        try {
+            NotificationHelper.startForeground(
+                this,
+                NotificationChannelType.SUBSCRIPTION_UPDATE,
+                getString(R.string.title_pref_auto_update_subscription),
+                getString(R.string.app_name)
+            )
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "SubscriptionUpdateService: failed to enter foreground state", e)
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -62,12 +86,8 @@ class SubscriptionUpdateService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        NotificationHelper.startForeground(
-            this,
-            NotificationChannelType.SUBSCRIPTION_UPDATE,
-            getString(R.string.title_pref_auto_update_subscription),
-            getString(R.string.app_name)
-        )
+        // Idempotent : déjà fait dans onCreate, couvre une reprise système.
+        promoteToForeground()
         val message = intent?.serializable<SubscriptionUpdateMessage>("content")
         if (message == null) {
             stopSelf(startId)

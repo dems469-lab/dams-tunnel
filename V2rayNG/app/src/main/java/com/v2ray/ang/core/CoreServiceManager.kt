@@ -92,6 +92,17 @@ object CoreServiceManager {
         LogUtil.e(AppConfig.TAG, "StartCore-Manager: uncaught error in core coroutine", throwable)
     }
     private val connectionTestScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + coreCoroutineErrorHandler)
+
+    /**
+     * Portée dédiée au cycle de vie du cœur (relance automatique, redémarrage
+     * manuel).
+     *
+     * Elle est distincte de [connectionTestScope] : l'arrêt du cœur annule les
+     * sondes en cours, mais ne doit jamais annuler la séquence qui le relance
+     * (ancien défaut : un redémarrage manuel était annulé par l'arrêt qu'il
+     * venait lui-même de demander).
+     */
+    private val lifecycleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + coreCoroutineErrorHandler)
     private val _trafficSnapshot = MutableStateFlow(TrafficSnapshot())
     val trafficSnapshot: StateFlow<TrafficSnapshot> = _trafficSnapshot.asStateFlow()
     private var trafficStatsJob: kotlinx.coroutines.Job? = null
@@ -512,7 +523,13 @@ object CoreServiceManager {
                     LogUtil.w(AppConfig.TAG, "StartCore-Manager: connectivity verification failed", e)
                 }
             }
-            if (delayMillis >= 0 && isRunning()) {
+            val relayAlive = isTunnelPathAlive()
+            if (CoreRecoveryPolicy.canPublishConnected(
+                    probeReachable = delayMillis >= 0,
+                    coreRunning = isRunning(),
+                    relayRunning = relayAlive,
+                )
+            ) {
                 connectionVerified = true
                 // Connecté uniquement après une requête réelle : `startLoop()`
                 // qui rend la main ne prouve rien.
@@ -532,9 +549,11 @@ object CoreServiceManager {
                 MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
             } else if (isRunning()) {
                 connectionVerified = false
-                supervisor.tunnelUnverified("initial_probe_failed")
+                supervisor.tunnelUnverified(
+                    if (relayAlive) "initial_probe_failed" else "tunnel_relay_down",
+                )
                 recordActiveHealth(-1L)
-                if (!failoverAttempted) {
+                if (!failoverAttempted && relayAlive) {
                     // Hors de cette coroutine : le rechargement annule la
                     // vérification courante, la bascule doit lui survivre.
                     failoverJob = connectionTestScope.launch {
@@ -569,10 +588,14 @@ object CoreServiceManager {
         lastHealthRecordAt = 0L
         lastSwitchEvaluationAt = System.currentTimeMillis()
         healthCheckJob = connectionTestScope.launch {
+            // Une sonde perdue n'est pas une coupure : recharger le cœur coupe
+            // toutes les connexions en cours, téléchargements compris. Il faut
+            // plusieurs échecs consécutifs avant d'engager une récupération.
+            var consecutiveFailures = 0
             while (isActive && !userStopped) {
-                // Vérification courte : une coupure doit déclencher la reconnexion
-                // avant que l'utilisateur ne perçoive un tunnel abandonné.
-                // Détecter une coupure rapidement sans attendre deux secondes complètes.
+                // Sonde périodique (10 s) : assez fréquente pour détecter une
+                // coupure réelle, assez espacée pour ne pas concurrencer le
+                // trafic des applications.
                 delay(HEALTH_PROBE_INTERVAL_MILLIS)
                 if (!isActive || userStopped) break
                 if (!isRunning()) {
@@ -590,8 +613,7 @@ object CoreServiceManager {
                 }
                 val reachable = probe >= 0L
                 val now = System.currentTimeMillis()
-                // Fenêtre de qualité : une écriture toutes les 5 s suffit, la
-                // sonde elle-même reste à 1 s.
+                // Fenêtre de qualité : une écriture toutes les 5 s suffit.
                 if (now - lastHealthRecordAt >= HEALTH_RECORD_INTERVAL_MILLIS) {
                     lastHealthRecordAt = now
                     recordActiveHealth(probe)
@@ -604,9 +626,27 @@ object CoreServiceManager {
                     SessionRttSample(probe, now, reachable),
                 )
                 if (!reachable) {
+                    consecutiveFailures++
+                } else {
+                    consecutiveFailures = 0
+                }
+                val verdict = CoreRecoveryPolicy.probeVerdict(
+                    reachable = reachable,
+                    consecutiveFailures = consecutiveFailures,
+                    failuresBeforeRecovery = HEALTH_FAILURES_BEFORE_RECOVERY,
+                )
+                if (verdict == ProbeVerdict.TUNNEL_SUSPECT) {
+                    // Le tunnel reçoit encore des paquets : on le laisse vivre,
+                    // seule une coupure confirmée justifie un arrêt.
+                    LogUtil.w(
+                        AppConfig.TAG,
+                        "StartCore-Manager: probe failed ($consecutiveFailures/$HEALTH_FAILURES_BEFORE_RECOVERY), tunnel left untouched",
+                    )
+                    continue
+                }
+                if (verdict == ProbeVerdict.TUNNEL_DOWN) {
                     connectionVerified = false
                     supervisor.tunnelUnverified("probe_unreachable")
-                    recordActiveHealth(-1L)
                     MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, "")
                     NotificationManager.updateState(
                         service.getString(com.v2ray.ang.R.string.connection_reconnecting),
@@ -623,6 +663,16 @@ object CoreServiceManager {
             }
         }
     }
+
+    /**
+     * Le relais TUN transporte-t-il réellement les paquets ?
+     *
+     * Une sonde qui réussit ne prouve que le trajet moteur → serveur : elle ne
+     * dit rien du TUN. Sans ce contrôle, un relais mort laissait publier un
+     * état connecté alors qu'aucune application ne pouvait transmettre.
+     */
+    private fun isTunnelPathAlive(): Boolean =
+        runCatching { serviceControl?.isTunnelRelayRunning() ?: true }.getOrDefault(true)
 
     /**
      * Tests the configured endpoint and then the alternate endpoint when the first
@@ -657,7 +707,7 @@ object CoreServiceManager {
         }
         when (val decision = supervisor.requestRecovery(origin, reason, coreRunning = isRunning())) {
             is RecoveryDecision.Start -> {
-                reconnectJob = connectionTestScope.launch {
+                reconnectJob = lifecycleScope.launch {
                     // Une exception qui s'échappe d'une coroutine détachée atteint
                     // le handler global du thread et tue le processus daemon
                     // (FATAL EXCEPTION). On la journalise et on ferme proprement.
@@ -743,25 +793,43 @@ object CoreServiceManager {
                 if (userStopped) return
                 val previousVerification = connectionVerificationJob
                 try {
-                    if (isRunning()) {
-                        // Borne chaque rechargement : un appel natif bloqué ne doit
-                        // pas empêcher les tentatives suivantes.
-                        kotlinx.coroutines.withTimeoutOrNull(RECONNECT_RELOAD_TIMEOUT_MILLIS) {
-                            reloadCore(cancelConnectionChecks = false)
+                    when (CoreRecoveryPolicy.recoveryPath(
+                        coreRunning = isRunning(),
+                        relayRunning = isTunnelPathAlive(),
+                    )) {
+                        RecoveryPath.RELOAD_CORE -> {
+                            // Borne chaque rechargement : un appel natif bloqué ne
+                            // doit pas empêcher les tentatives suivantes.
+                            kotlinx.coroutines.withTimeoutOrNull(RECONNECT_RELOAD_TIMEOUT_MILLIS) {
+                                reloadCore(cancelConnectionChecks = false)
+                            }
                         }
-                    } else {
-                        // Le cœur est mort : attendre la libération réelle avant de
-                        // relancer, sinon deux instances se chevauchent.
-                        val released = awaitCoreStopped(isCoreRunning = { isRunning() })
-                        if (released) {
-                            LauncherManager.startService(currentService)
-                        } else {
-                            lastFailure = "restart_stop_timeout"
-                            supervisor.stopNotConfirmed(
-                                CoreOrigin.RECONNECT,
-                                "restart_stop_timeout",
-                                DEFAULT_CORE_STOP_TIMEOUT_MILLIS,
+
+                        RecoveryPath.RESTART_SERVICE -> {
+                            // Le cœur est mort : attendre la libération réelle avant
+                            // de relancer, sinon deux instances se chevauchent.
+                            val released = awaitCoreStopped(isCoreRunning = { isRunning() })
+                            if (released) {
+                                LauncherManager.startService(currentService)
+                            } else {
+                                lastFailure = "restart_stop_timeout"
+                                supervisor.stopNotConfirmed(
+                                    CoreOrigin.RECONNECT,
+                                    "restart_stop_timeout",
+                                    DEFAULT_CORE_STOP_TIMEOUT_MILLIS,
+                                )
+                            }
+                        }
+
+                        RecoveryPath.REBUILD_TUNNEL -> {
+                            // Cœur vivant mais relais TUN mort : le trafic ne passe
+                            // plus. Le service reconstruit interface et relais en
+                            // arrêtant d'abord le cœur restant (jamais deux relais).
+                            LogUtil.w(
+                                AppConfig.TAG,
+                                "StartCore-Manager: packet path is down while the core is alive, rebuilding the tunnel",
                             )
+                            LauncherManager.startService(currentService)
                         }
                     }
                 } catch (e: CancellationException) {
@@ -1517,7 +1585,7 @@ object CoreServiceManager {
                     if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
 
                     val pendingResult = goAsync()
-                    connectionTestScope.launch {
+                    lifecycleScope.launch {
                         try {
                             restartTunnel(control.getService())
                         } catch (cancelled: CancellationException) {
@@ -1589,7 +1657,15 @@ private const val PUBLIC_GROUP_PREFIX = "dams-public-"
 private const val HEALTH_RECORD_INTERVAL_MILLIS = 5_000L
 
 /** Fréquence de la sonde de santé à travers le tunnel. */
-private const val HEALTH_PROBE_INTERVAL_MILLIS = 1_000L
+private const val HEALTH_PROBE_INTERVAL_MILLIS = 10_000L
+
+/**
+ * Nombre d'échecs consécutifs avant d'engager une récupération.
+ *
+ * Une sonde perdue (congestion, résolveur lent) ne doit jamais faire recharger
+ * le cœur : un rechargement coupe toutes les connexions en cours.
+ */
+private const val HEALTH_FAILURES_BEFORE_RECOVERY = 2
 
 /** Fréquence de surveillance de la durée de vie réelle de la boucle native. */
 private const val WATCHDOG_INTERVAL_MILLIS = 1_000L

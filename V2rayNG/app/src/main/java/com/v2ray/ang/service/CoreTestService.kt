@@ -54,7 +54,37 @@ class CoreTestService : Service() {
      */
     override fun onCreate() {
         super.onCreate()
-        CoreNativeManager.initCoreEnv(this)
+        // Contrat du premier plan rempli AVANT toute initialisation lourde :
+        // le chargement du moteur natif (bibliothèque Go, assets) peut dépasser
+        // le délai système de quelques secondes sur un téléphone sous pression
+        // mémoire, ce qui produisait ForegroundServiceDidNotStartInTimeException
+        // dans le processus :tasks.
+        promoteToForeground()
+        try {
+            CoreNativeManager.initCoreEnv(this)
+        } catch (e: Exception) {
+            // Aucun test ne peut aboutir sans moteur : échec explicite et
+            // journalisé, jamais une exception silencieuse ni un processus tué.
+            LogUtil.e(AppConfig.TAG, "CoreTestService: native core initialization failed", e)
+            MessageHelper.sendMsg2UI(this, AppConfig.MSG_MEASURE_CONFIG_CANCEL, "", "")
+            NotificationHelper.stopForeground(this)
+            stopSelf()
+        }
+    }
+
+    /** Remplit le contrat du service au premier plan de façon idempotente. */
+    private fun promoteToForeground() {
+        try {
+            NotificationHelper.startForeground(
+                this,
+                NotificationChannelType.CORE_TEST,
+                getString(R.string.app_name),
+                getString(R.string.title_real_ping_all_server),
+                cancelAction
+            )
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "CoreTestService: failed to enter foreground state", e)
+        }
     }
 
     /**
@@ -84,13 +114,9 @@ class CoreTestService : Service() {
      * @return The start mode.
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        NotificationHelper.startForeground(
-            this,
-            NotificationChannelType.CORE_TEST,
-            getString(R.string.app_name),
-            getString(R.string.title_real_ping_all_server),
-            cancelAction
-        )
+        // Idempotent : le contrat a déjà été rempli dans onCreate, cette
+        // promotion couvre un redémarrage du service par le système.
+        promoteToForeground()
         val message = intent?.serializable<TestServiceMessage>("content")
         if (message == null) {
             stopSelf(startId)
