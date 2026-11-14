@@ -3,6 +3,90 @@
 Un seul fichier d'historique. Chaque entrée décrit une intervention terminée,
 les fichiers touchés, ce qui a été vérifié et ce qui reste à vérifier.
 
+## 1.10.0-lab (770) — correctifs issus de l'audit complet
+
+**Contexte** : audit statique complet de la 1.9.9-lab (rapport :
+`RAPPORT-AUDIT-2026-11-14.md`). Les constats de sévérité élevée/moyenne sont
+corrigés ci-dessous. Les points « non appliqués » sont listés explicitement en
+fin d'entrée, avec leur raison.
+
+**Correctifs**
+- `core/CoreLoopLifecycleGate.kt` : le délai borne désormais aussi l'attente du
+  verrou. Un arrêt en cours bloqué dans le moteur natif (JNI non
+  interruptible) ne suspend plus indéfiniment l'arrêt demandé ; `withLock`
+  garantit la libération du verrou.
+- `core/CoreServiceManager.kt` : `reloadCore` borne `coreEngine.stop()`
+  (20 s) et abandonne le rechargement si le stop natif pend, au lieu de
+  lancer un second cœur par-dessus l'ancien. Les bascules annulées sont
+  tracées dans la console (`Failover rollback`, `Failover aborted`).
+- `service/CoreProxyOnlyService.kt`, `service/CoreRootService.kt` : ajout de
+  `detachServiceReceiver` + `clearServiceControl` dans `onDestroy`, comme
+  `CoreVpnService`. Corrige le récepteur laissé sur un service détruit et le
+  refus de rattachement du service suivant.
+- `service/CoreVpnService.kt` (`isTunnelRelayRunning`) : fail-closed. Une
+  exception du relais n'est plus interprétée comme « relais vivant ».
+- `service/CoreVpnService.kt`, `CoreProxyOnlyService.kt`, `CoreRootService.kt` :
+  `CoroutineExceptionHandler` sur les trois scopes de service. Une exception
+  qui s'échappe d'une coroutine ne tue plus le processus `:daemon` (crash
+  FATAL) : elle est journalisée et la surveillance poursuit la récupération.
+- `core/CoreOutboundBuilder.kt` : ports VMess/VLESS/Trojan/SOCKS/HTTP/
+  Hysteria2 via `toIntOrNull()` avec `ConfigValidationException("Port serveur
+  invalide (...)")` ; mux et `reserved` WireGuard protégés de la même façon.
+- `handler/SettingsManager.kt` : MTU bornée à 68..65535 (valeur aberrante
+  refusée par `VpnService.Builder`) et port SOCKS hors 1..65535 ramené au
+  défaut.
+- `ui/main/MainViewModel.kt` : fenêtre de grâce de 1 s après
+  `MeasureConfigFinish` et second flush avant `onTestsFinished` : un résultat
+  arrivé après l'annonce de fin n'est plus perdu (broadcasts non ordonnés).
+- `ui/UrlSchemeActivity.kt` : import exécuté dans une portée détachée du
+  cycle de vie. `finish()` (immédiat) n'annule plus l'import d'abonnement en
+  cours ; l'échec s'affiche en toast d'erreur.
+- `ui/backup/BackupActivity.kt` : verrou d'application appliqué comme dans
+  `MainActivity` (prompt clavier/biométrie avant tout accès). Ferme le
+  contournement de `PREF_APP_LOCK` par l'activité exportée.
+- `res/xml/cache_paths.xml` : le FileProvider n'expose plus tout le cache
+  (`path="/"`) mais seulement `shared_backups/` et `shared_logs/`.
+  `ui/backup/BackupViewModel.kt` écrit l'archive de partage dans
+  `shared_backups/` ; `ui/backup/BackupTempFiles.kt` nettoie aussi ce
+  sous-dossier.
+- `receiver/TaskerReceiver.kt` + réglage `PREF_TASKER_CONTROL` (défaut
+  activé) : le récepteur reste exporté pour Tasker, mais l'utilisateur peut
+  couper le pilotage externe du VPN. Nouvelle ligne dans les réglages
+  (`title_tasker_control` / `summary_tasker_control`).
+- Version `1.10.0-lab`, `versionCode` 770.
+
+**Tests unitaires ajoutés/mis à jour**
+- `CoreLoopLifecycleGateTest` : un `stop` échoue vite (au lieu de suspendre)
+  quand une autre opération détient la porte.
+- `BackupTempFilesTest` : le nettoyage couvre `shared_backups/`.
+
+**Vérifications réellement exécutées**
+- CI `dams-ci` (run 43624606715) : `testPlaystoreDebugUnitTest lintPlaystoreDebug`
+  + builds debug/release + vérification de l'isolation Premium →
+  **succès** (13 min 15 s, artefact `dams-premium-test-apk` produit).
+- Aucun autre test n'a pu être exécuté ici (pas de JDK/SDK/appareil).
+
+**Non appliqué (décision explicite)**
+- **Configs CUSTOM non assainies** (`buildV2rayCustomConfig` laisse les
+  inbounds du JSON tels quels) : non modifié sur votre demande (« sans
+  toucher aux configs custom »). Risque documenté : un JSON importé peut
+  ouvrir un inbound sur le LAN.
+- **MMKV non chiffré** : non modifié. La migration vers `cryptKey` (Keystore)
+  touche les storages multi-processus et les sauvegardes ; elle exige une
+  procédure de migration testable sur appareil, à planifier séparément.
+- **Confirmations d'import** (`v2rayng://install-config|install-sub`) : non
+  ajoutées (choix « sans confirmation ») ; seule la course `finish()` est
+  corrigée.
+- Points faibles/informatifs du rapport (F1-F11 : `QUERY_ALL_PACKAGES`,
+  `isMinifyEnabled=false`, FileProvider, `currentTimeMillis` pour les débits,
+  etc.) : inchangés.
+
+**Non vérifié**
+- Aucun test terrain sur téléphone (poignée de main réelle, TCP/UDP, DNS,
+  débits, reconnexion, app-lock sur appareil, partage de sauvegarde).
+- Le comportement du stop natif lorsqu'il pend réellement n'a pas été
+  reproduit ; le correctif borne l'attente et évite le double démarrage.
+
 ## 1.9.9-lab (766) — correctif : profils TLS/REALITY et service de test
 
 **Contexte** : après la migration 1.9.8-lab (Xray-core v26.11.9), les profils
