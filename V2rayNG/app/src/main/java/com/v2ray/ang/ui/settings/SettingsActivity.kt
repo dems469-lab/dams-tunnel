@@ -154,7 +154,7 @@ fun SettingsScreen(
     var serverSecurityExpanded by rememberSaveable { mutableStateOf(false) }
     var modeSettingsExpanded by rememberSaveable { mutableStateOf(true) }
 
-    var localDns by rememberMmkvBool(AppConfig.PREF_LOCAL_DNS_ENABLED, false)
+    var localDns by rememberMmkvBool(AppConfig.PREF_LOCAL_DNS_ENABLED, true)
     var fakeDns by rememberMmkvBool(AppConfig.PREF_FAKE_DNS_ENABLED, false)
     var appendHttpProxy by rememberMmkvBool(AppConfig.PREF_APPEND_HTTP_PROXY, false)
     var vpnDns by rememberMmkvString(AppConfig.PREF_VPN_DNS, "")

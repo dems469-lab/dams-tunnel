@@ -180,6 +180,13 @@ class MainViewModel(
                 showStartSuccessToast = false
                 _uiState.update { clearEphemeralConnectionData(it, MainStatus.Disconnected) }
             }
+            is MainServiceEvent.StateStopFailure -> {
+                // L'arrêt n'a pas abouti : le tunnel peut encore transporter du
+                // trafic. Ne jamais annoncer « déconnecté » ; le démon retente
+                // et publiera l'état réel (STOP_SUCCESS ou nouvel échec).
+                showStartSuccessToast = false
+                toastError(R.string.toast_services_stop_failure)
+            }
             is MainServiceEvent.TrafficUpdate -> _uiState.update {
                 if (!it.isRunning) it else it.copy(
                     traffic = event.snapshot,

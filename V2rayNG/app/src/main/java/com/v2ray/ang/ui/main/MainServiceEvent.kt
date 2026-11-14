@@ -13,6 +13,7 @@ sealed class MainServiceEvent {
     data object StateReconnecting : MainServiceEvent()
     data class StateStartFailure(val message: String? = null) : MainServiceEvent()
     data object StateStopSuccess : MainServiceEvent()
+    data class StateStopFailure(val message: String? = null) : MainServiceEvent()
     data class TrafficUpdate(val snapshot: TrafficSnapshot) : MainServiceEvent()
     data class SessionRtt(val sample: SessionRttSample) : MainServiceEvent()
     data class MeasureDelayResult(val result: ConnectionTestResult, val requestId: String) : MainServiceEvent()

@@ -3,6 +3,89 @@
 Un seul fichier d'historique. Chaque entrée décrit une intervention terminée,
 les fichiers touchés, ce qui a été vérifié et ce qui reste à vérifier.
 
+## 1.10.1-lab (771) — correctifs de l'audit connexion
+
+**Contexte** : audit statique de la fiabilité de connexion (rapport :
+`RAPPORT-AUDIT-CONNEXION-2026-11-14.md`, non commité). Les correctifs ci-dessous
+visent les constats H1-H4, M1-M8 et L1-L8. Aucun test terrain (poignée de main,
+TCP/UDP, DNS, IPv6 selon ROM, handover, débit) n'a été exécuté ici.
+
+**Correctifs**
+- **Arrêt / relances (H1, L7)** — `core/CoreServiceManager.kt`,
+  `core/LauncherManager.kt`, `AppConfig.kt`, `service/CoreVpnService.kt`,
+  `service/CoreProxyOnlyService.kt`, `service/CoreRootService.kt` : les relances
+  automatiques portent `EXTRA_AUTOMATIC_START` et sont refusées lorsqu'un arrêt
+  utilisateur est armé (`userStopArmed`). Le quota de relances est réinitialisé
+  au démarrage accepté et un `StartInProgress` est repris si le cœur n'a pas été
+  réellement lancé.
+- **Tunnel conservé (H2)** — `core/CoreServiceManager.kt`,
+  `service/CoreVpnService.kt` : un démarrage `KEEP_EXISTING` non vérifié ne
+  publie plus « connecté » ; il déclenche une re-vérification
+  (`requestReverification`) et réinstalle la surveillance
+  (`ensureMonitoring`) sans reconstruire le tunnel.
+- **Arrêt natif (H3)** — `core/CoreServiceManager.kt`,
+  `service/CoreVpnService.kt` : un arrêt de cœur en échec est retenté une fois ;
+  l'état `stopIncomplete` maintient la surveillance (watchdog) pour terminer le
+  nettoyage si le cœur sort plus tard, et `MSG_STATE_STOP_FAILURE` est publié.
+- **IPv6 désactivé (H4)** — `service/CoreVpnService.kt` : lorsque l'IPv6 est
+  désactivée, une route `::/0` de blocage est ajoutée (best-effort) pour éviter
+  les fuites IPv6 hors tunnel.
+- **Session SOCKS figée (M4)** — `core/TunnelSession.kt` (nouveau),
+  `core/CoreServiceManager.kt`, `core/CoreConfigManager.kt`,
+  `service/TProxyService.kt`, `service/CoreVpnService.kt`,
+  `service/CoreProxyOnlyService.kt`, `service/CoreRootService.kt` : le port et les
+  identifiants SOCKS sont figés par session (jamais régénérés par
+  `LauncherManager`) afin que le cœur et le relais hev restent cohérents pendant
+  les rechargements/bascules. UDP est forcé sur l'inbound SOCKS en mode VPN+hev.
+- **Mesures et santé (M1, M5, M6)** — `core/CoreServiceManager.kt` : mesures
+  bornées par exécuteur mono-thread (`MEASURE_TIMEOUT_MILLIS`, garde
+  `measureInFlight`), sonde adaptative (20 s nominale, 5 s après échec, doublée
+  écran éteint), écriture de santé sur changement ou toutes les 30 s, statistiques
+  1 s/3 s selon l'écran, surveillance réseau dès l'API 22.
+- **Bascule et qualité (M1, M2)** — `core/AutoFailoverPolicy.kt`,
+  `core/ServerHealthStore.kt`, `core/CoreServiceManager.kt` : fenêtre candidat
+  élargie (24 h, contre 10 min pour l'actif), gain minimal pour serveur sain,
+  exclusion des candidats dont la dernière mesure a échoué, décroissance des
+  échecs sur succès, et repli vers un pair non mesuré vérifié si aucun candidat
+  mesuré n'est disponible.
+- **Reprise réseau / budget (M7)** — `core/CoreSupervisor.kt`,
+  `core/CoreServiceManager.kt` : reset (anti-rebond) du budget de relances au
+  handover (`RECOVERY_BUDGET_RESET`) et relance lente après plafond atteint,
+  avec publication unique du plafond.
+- **DNS et résolution (M3, M8)** — `core/CoreConfigManager.kt`,
+  `util/HttpUtil.kt`, `ui/settings/SettingsActivity.kt` : DNS local activé par
+  défaut (nouveaux profils), et résolution des domaines d'outbound en parallèle,
+  bornée en threads et en temps.
+- **Réseau / plateforme (L1, L2, L3, L4, L8)** —
+  `handler/SettingsManager.kt` : MTU minimale 1280 si IPv6 activée ;
+  `service/CoreVpnService.kt` : `setMetered` aligné sur le réseau sous-jacent ;
+  `service/NetworkMonitor.kt` : ignore le réseau VPN ;
+  `service/TProxyService.kt` : `isRunning()` fail-closed ; `core/CoreServiceManager.kt` :
+  timeout de vérification de reconnexion réduit (via `ReconnectVerificationWait`).
+- **Interface (L7)** — `ui/main/MainServiceEvent.kt`,
+  `ui/main/MainRepository.kt`, `ui/main/MainViewModel.kt`,
+  `res/values/strings.xml` : l'échec d'arrêt (`StateStopFailure`) est signalé
+  sans annoncer « déconnecté » tant que le tunnel peut encore être actif.
+- **Nettoyage** : suppression du code mort `service/ProcessService.kt` (non
+  référencé, logging potentiellement sensible).
+- `core/ReconnectVerificationWait.kt` : timeout de vérification 6 s.
+- Version `1.10.1-lab`, `versionCode` 771.
+
+**Tests unitaires**
+- `AutoFailoverPolicyTest` : adaptation aux nouvelles règles (fraîcheur candidat
+  24 h, gain sain, exclusion `lastFailed`, candidat non mesuré actif testé dans
+  la fenêtre récente).
+
+**Limites connues / non vérifié ici**
+- Aucun JDK/SDK/appareil local : compilation et exécution des tests non réalisées
+  localement ; la CI GitHub fait foi.
+- Wake lock CPU conservée pendant la session VPN pour la fiabilité ; le coût est
+  réduit par les intervalles adaptatifs mais non mesuré ici.
+- Comportement IPv6 exact selon ROM/appareils, handover réel, DNS UDP/TCP de bout
+  en bout, débit et stabilité longue durée : **non testés** (tests terrain
+  requis).
+- Configs CUSTOM inchangées (décision explicite).
+
 ## 1.10.0-lab (770) — correctifs issus de l'audit complet
 
 **Contexte** : audit statique complet de la 1.9.9-lab (rapport :

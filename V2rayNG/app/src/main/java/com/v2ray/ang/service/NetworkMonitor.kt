@@ -62,6 +62,8 @@ class NetworkMonitor(
 
     private val callback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
+            // Le VPN lui-même ne doit jamais être pris pour le réseau porteur.
+            if (isVpnNetwork(network)) return
             val previous = upstream
             upstream = network
             underlyingIsCellular = connectivity.getNetworkCapabilities(network)
@@ -74,6 +76,7 @@ class NetworkMonitor(
         }
 
         override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+            if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return
             // it's a good idea to refresh capabilities
             if (upstream == network) {
                 underlyingIsCellular = networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
@@ -124,6 +127,10 @@ class NetworkMonitor(
             LogUtil.w(AppConfig.TAG, "NetworkMonitor: Failed to unregister callback", e)
         }
     }
+
+    private fun isVpnNetwork(network: Network): Boolean =
+        connectivity.getNetworkCapabilities(network)
+            ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
 
     private fun scheduleHandover(network: Network) {
         LogUtil.i(AppConfig.TAG, "NetworkMonitor: Upstream is now $network")

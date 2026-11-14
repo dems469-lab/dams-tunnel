@@ -86,6 +86,9 @@ class MainRepository(
                 )
 
                 AppConfig.MSG_STATE_STOP_SUCCESS -> MainServiceEvent.StateStopSuccess
+                AppConfig.MSG_STATE_STOP_FAILURE -> MainServiceEvent.StateStopFailure(
+                    safeIntent.getStringExtra("content")
+                )
                 AppConfig.MSG_TRAFFIC_UPDATE -> safeIntent
                     .serializable<TrafficSnapshot>("content")
                     ?.let { MainServiceEvent.TrafficUpdate(it) }

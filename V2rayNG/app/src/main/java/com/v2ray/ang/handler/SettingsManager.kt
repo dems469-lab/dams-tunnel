@@ -408,7 +408,11 @@ object SettingsManager {
      */
     fun getVpnMtu(): Int {
         val mtu = Utils.parseInt(MmkvManager.decodeSettingsString(AppConfig.PREF_VPN_MTU), AppConfig.VPN_MTU)
-        return mtu.coerceIn(68, 65_535)
+        // IPv6 impose un MTU d'au moins 1280 : une valeur inférieure fait
+        // échouer le transport des paquets IPv6 (PMTU) et casse les connexions
+        // qui négocient IPv6.
+        val minMtu = if (MmkvManager.decodeSettingsBool(AppConfig.PREF_IPV6_ENABLED)) 1280 else 68
+        return mtu.coerceIn(minMtu, 65_535)
     }
 
     /**

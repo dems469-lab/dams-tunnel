@@ -35,18 +35,27 @@ object LauncherManager {
         return true
     }
 
-    fun startService(context: Context, guid: String? = null) {
-        LogUtil.i(AppConfig.TAG, "LauncherManager: startService from ${context::class.java.simpleName}")
+    /**
+     * Démarre le service choisi par la configuration.
+     *
+     * @param automatic true pour une relance décidée par le démon (boucle de
+     *   reconnexion, reconstruction du TUN). Le démon refuse alors l'intent si
+     *   l'utilisateur a demandé l'arrêt entre-temps.
+     */
+    fun startService(context: Context, guid: String? = null, automatic: Boolean = false) {
+        LogUtil.i(AppConfig.TAG, "LauncherManager: startService from ${context::class.java.simpleName}, automatic=$automatic")
 
         if (guid != null) {
             MmkvManager.setSelectServer(guid)
         }
 
         try {
-            startContextService(context)
+            startContextService(context, automatic)
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "LauncherManager: ${e.message}", e)
-            context.toast(e.message ?: e.javaClass.simpleName)
+            if (!automatic) {
+                context.toast(e.message ?: e.javaClass.simpleName)
+            }
         }
     }
 
@@ -68,7 +77,7 @@ object LauncherManager {
     }
 
     @Throws(Exception::class)
-    private fun startContextService(context: Context) {
+    private fun startContextService(context: Context, automatic: Boolean = false) {
         // Note: isRunning check is removed here to avoid loading Native libraries in the UI process.
         // The check is performed in CoreServiceManager when the service starts in the daemon process.
 
@@ -92,17 +101,21 @@ object LauncherManager {
             error(context.getString(R.string.toast_config_file_invalid))
         }
 
-        SettingsManager.refreshRuntimeSocksPort()
+        // Le port SOCKS dynamique est tiré dans le processus qui construit la
+        // configuration (démon), pas ici : le régénérer depuis l'interface
+        // désynchronisait le relais hev et le cœur (voir TunnelSession).
 
         // A TLS-insecure profile remains compatible when explicitly requested by the
         // profile.  Do not display a start-up toast here: it obscures the connection
         // state and must not be mistaken for a connection failure.  The setting stays
         // visible only in the profile editor.
 
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_PROXY_SHARING)) {
-            context.toast(R.string.toast_warning_pref_proxysharing_short)
-        } else {
-            context.toast(R.string.toast_services_start)
+        if (!automatic) {
+            if (MmkvManager.decodeSettingsBool(AppConfig.PREF_PROXY_SHARING)) {
+                context.toast(R.string.toast_warning_pref_proxysharing_short)
+            } else {
+                context.toast(R.string.toast_services_start)
+            }
         }
 
         val isRootMode = SettingsManager.isRootMode()
@@ -120,6 +133,10 @@ object LauncherManager {
         } else {
             LogUtil.i(AppConfig.TAG, "LauncherManager: Starting Proxy service")
             Intent(context.applicationContext, CoreProxyOnlyService::class.java)
+        }
+
+        if (automatic) {
+            intent.putExtra(AppConfig.EXTRA_AUTOMATIC_START, true)
         }
 
         try {

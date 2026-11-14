@@ -70,6 +70,9 @@ enum class CoreEventKind {
     RECONNECT_FAILED,
     RECONNECT_LIMIT_REACHED,
 
+    /** Le quota de relances repart à zéro (nouveau réseau, action explicite). */
+    RECOVERY_BUDGET_RESET,
+
     /** L'arrêt n'a pas été confirmé dans le délai : aucune seconde instance n'est lancée. */
     STOP_NOT_CONFIRMED,
 }
@@ -402,6 +405,23 @@ class CoreSupervisor(
         recoveryInFlight = false
         recoverySuccess = false
         attempts.clear()
+    }
+
+    /**
+     * Nouveau réseau validé : le plafond de relances de l'ancien réseau ne doit
+     * pas condamner la nouvelle connexion (ancien défaut : après un handover,
+     * trois échecs sur l'ancien réseau bloquaient toute reprise pendant cinq
+     * minutes alors que le nouveau réseau fonctionnait).
+     */
+    fun resetRecoveryBudget(reason: String) = synchronized(lock) {
+        if (userStopped) return@synchronized
+        attempts.clear()
+        emit(
+            CoreEventKind.RECOVERY_BUDGET_RESET,
+            reason = reason,
+            origin = CoreOrigin.NETWORK,
+            previousState = state,
+        )
     }
 
     // ── Détection de sortie ──────────────────────────────────────────────────

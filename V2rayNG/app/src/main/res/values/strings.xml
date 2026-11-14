@@ -94,6 +94,7 @@
     <string name="toast_services_stop">Stopping service</string>
     <string name="toast_services_success">Service started successfully</string>
     <string name="toast_services_failure">Failed to start service</string>
+    <string name="toast_services_stop_failure">The VPN could not be stopped. It is still active and a retry is in progress.</string>
 
     <!--ServerActivity-->
     <string name="title_server">Config</string>

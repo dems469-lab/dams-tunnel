@@ -98,6 +98,14 @@ object AppConfig {
     const val PREF_ROOT_MODE_ENABLE = "pref_root_mode_enabled"
     const val PREF_ROOT_LAN_SHARING = "pref_root_lan_sharing"
     const val PREF_IS_BOOTED = "pref_is_booted"
+
+    /**
+     * Extra posé sur les intents de relance automatique (boucle de reconnexion,
+     * reconstruction du relais). Le démon refuse ces intents lorsqu'un arrêt
+     * volontaire vient d'être demandé : sans ce marqueur, une relance déjà
+     * planifiée pouvait rallumer le VPN après un appui sur « arrêter ».
+     */
+    const val EXTRA_AUTOMATIC_START = "automatic_start"
     const val PREF_CHECK_UPDATE_PRE_RELEASE = "pref_check_update_pre_release"
     const val PREF_GEO_FILES_SOURCES = "pref_geo_files_sources"
     const val PREF_USE_HEV_TUNNEL = "pref_use_hev_tunnel_v2"

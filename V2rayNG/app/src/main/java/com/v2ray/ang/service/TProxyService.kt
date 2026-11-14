@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.ParcelFileDescriptor
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.contracts.Tun2SocksControl
+import com.v2ray.ang.core.TunnelSession
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.util.LogUtil
@@ -15,8 +16,7 @@ import java.io.File
 class TProxyService(
     private val context: Context,
     private val vpnInterface: ParcelFileDescriptor,
-    private val isRunningProvider: () -> Boolean,
-    private val restartCallback: () -> Unit
+    private val isRunningProvider: () -> Boolean
 ) : Tun2SocksControl {
     companion object {
         @JvmStatic
@@ -67,9 +67,11 @@ class TProxyService(
     }
 
     private fun buildConfig(): String {
-        val socksPort = SettingsManager.getSocksPort()
-        val socksUsername = SettingsManager.getSocksUsername()
-        val socksPassword = SettingsManager.getSocksPassword()
+        // Paramètres figés au démarrage de la session : le cœur lit les mêmes
+        // valeurs, y compris après un rechargement (voir TunnelSession).
+        val socksPort = TunnelSession.socksPort()
+        val socksUsername = TunnelSession.socksUsername()
+        val socksPassword = TunnelSession.socksPassword()
         val vpnConfig = SettingsManager.getCurrentVpnInterfaceAddressConfig()
         val escapedSocksUsername = socksUsername?.replace("'", "''")
         val escapedSocksPassword = socksPassword?.replace("'", "''")
@@ -121,19 +123,20 @@ class TProxyService(
     /**
      * État réel du relais natif.
      *
-     * Un symbole absent ou une erreur JNI ne doit jamais être interprété comme
-     * « relais mort » : seul un `false` explicite du natif l'affirme ; tout le
-     * reste renvoie true (doute = ne pas casser un tunnel sain).
+     * Fail-closed : une erreur JNI (symbole absent, bibliothèque déchargée)
+     * signifie que le relais ne peut pas être prouvé vivant. La déclarer
+     * « morte » déclenche la reconstruction du tunnel, au lieu de publier un
+     * état connecté sur un chemin de paquets inutilisable.
      */
     override fun isRunning(): Boolean {
         return try {
             TProxyIsRunning()
         } catch (t: Throwable) {
-            LogUtil.w(
+            LogUtil.e(
                 AppConfig.TAG,
-                "hev-socks5-tunnel state unavailable (${t.javaClass.simpleName}), assuming running",
+                "hev-socks5-tunnel state unavailable (${t.javaClass.simpleName}), treating relay as down",
             )
-            true
+            false
         }
     }
 }

@@ -5,7 +5,9 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
 import android.net.ProxyInfo
 import android.net.VpnService
 import android.os.Build
@@ -20,6 +22,7 @@ import com.v2ray.ang.contracts.Tun2SocksControl
 import com.v2ray.ang.core.CoreRecoveryPolicy
 import com.v2ray.ang.core.CoreServiceManager
 import com.v2ray.ang.core.StartDisposition
+import com.v2ray.ang.core.TunnelSession
 import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.NotificationManager
@@ -110,6 +113,16 @@ class CoreVpnService : VpnService(), ServiceControl {
         if (isSystemVpnStart) {
             unlockStart()
         }
+        // Relance automatique déjà planifiée alors que l'utilisateur a demandé
+        // l'arrêt : ne jamais rallumer le VPN. Un intent utilisateur ou
+        // Always-on (sans cet extra) reste accepté.
+        if (intent?.getBooleanExtra(AppConfig.EXTRA_AUTOMATIC_START, false) == true &&
+            CoreServiceManager.isUserStopArmed()
+        ) {
+            LogUtil.i(AppConfig.TAG, "StartCore-VPN: automatic start ignored, user stop is pending")
+            if (!CoreServiceManager.isRunning()) stopSelf(startId)
+            return START_NOT_STICKY
+        }
         if (!tryLockStart()) {
             LogUtil.w(AppConfig.TAG, "StartCore-VPN: Start already in progress")
             return START_NOT_STICKY
@@ -142,11 +155,18 @@ class CoreVpnService : VpnService(), ServiceControl {
                     AppConfig.TAG,
                     "StartCore-VPN: Core already running, keeping the existing connection (verified=$verified)",
                 )
-                MessageHelper.sendMsg2UI(
-                    this,
-                    if (verified) AppConfig.MSG_STATE_START_SUCCESS else AppConfig.MSG_STATE_CONNECTING,
-                    "",
-                )
+                if (verified) {
+                    MessageHelper.sendMsg2UI(this, AppConfig.MSG_STATE_START_SUCCESS, "")
+                    // Watchdog/sonde peuvent avoir été perdus avec un service
+                    // précédent : les réinstaller sans toucher au tunnel.
+                    CoreServiceManager.ensureMonitoring()
+                } else {
+                    // « Conserver » n'est pas « connecté » : un tunnel non
+                    // vérifié (reprise Always-on, arrêt incomplet) doit être
+                    // re-testé au lieu de rester indéfiniment en « connexion ».
+                    MessageHelper.sendMsg2UI(this, AppConfig.MSG_STATE_CONNECTING, "")
+                    CoreServiceManager.requestReverification("keep_existing_unverified")
+                }
                 unlockStart()
                 return
             }
@@ -273,6 +293,11 @@ class CoreVpnService : VpnService(), ServiceControl {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Permission not granted")
             return "vpn_permission_required"
         }
+
+        // Nouvelle interface : c'est ici que la session SOCKS est ouverte. Le
+        // cœur et le relais hev liront ensuite le même port, même après un
+        // rechargement déclenché par une bascule ou un changement de réseau.
+        TunnelSession.begin(force = true)
 
         if (configureVpnService() != true) {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Configuration failed")
@@ -404,6 +429,15 @@ class CoreVpnService : VpnService(), ServiceControl {
             } else {
                 builder.addRoute("::", 0)
             }
+        } else {
+            // IPv6 désactivé : sans route, Android continue d'envoyer l'IPv6
+            // hors du tunnel (fuite réelle, adresse et DNS compris). Une route
+            // ::/0 sans adresse IPv6 attribuée capture ces paquets et les fait
+            // tomber, au lieu de les laisser sortir en clair.
+            runCatching { builder.addRoute("::", 0) }
+                .onFailure {
+                    LogUtil.w(AppConfig.TAG, "StartCore-VPN: IPv6 blackhole route rejected", it)
+                }
         }
 
         // Configure DNS servers
@@ -434,10 +468,27 @@ class CoreVpnService : VpnService(), ServiceControl {
     private fun configurePlatformFeatures(builder: Builder) {
         // Android Q (API 29) and above: Configure metering and HTTP proxy
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            builder.setMetered(false)
+            // Un VPN sur un réseau non facturé ne doit pas être annoncé comme
+            // facturé (ni l'inverse) : les applications adaptent sinon leurs
+            // téléchargements et leurs sauvegardes à tort.
+            builder.setMetered(isActiveNetworkMetered())
             if (MmkvManager.decodeSettingsBool(AppConfig.PREF_APPEND_HTTP_PROXY)) {
                 builder.setHttpProxy(ProxyInfo.buildDirectProxy(LOOPBACK, SettingsManager.getHttpPort()))
             }
+        }
+    }
+
+    /** Réseau sous-jacent facturé ? Par défaut oui (prudent) si inconnu. */
+    private fun isActiveNetworkMetered(): Boolean {
+        return try {
+            val connectivity = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return true
+            val network = connectivity.activeNetwork ?: return true
+            val capabilities = connectivity.getNetworkCapabilities(network) ?: return true
+            !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+        } catch (e: Exception) {
+            LogUtil.w(AppConfig.TAG, "StartCore-VPN: metered state unavailable", e)
+            true
         }
     }
 
@@ -495,8 +546,7 @@ class CoreVpnService : VpnService(), ServiceControl {
             tun2SocksService = TProxyService(
                 context = applicationContext,
                 vpnInterface = mInterface,
-                isRunningProvider = { isRunning },
-                restartCallback = { runTun2socks() }
+                isRunningProvider = { isRunning }
             )
         } else {
             tun2SocksService = null
@@ -514,7 +564,7 @@ class CoreVpnService : VpnService(), ServiceControl {
 
     private suspend fun performStop(closeInterface: Boolean, stopService: Boolean) {
         RootLanSharing.stopClientSharing(this)
-        val stopped = runCatching {
+        suspend fun stopOnce(): Boolean = runCatching {
             // Origine neutre : un arrêt interne (échec de préparation, arrêt de
             // la tâche) ne doit pas être enregistré comme un arrêt volontaire de
             // l'utilisateur, qui interdirait toute reprise automatique.
@@ -538,6 +588,15 @@ class CoreVpnService : VpnService(), ServiceControl {
         }
             .onFailure { LogUtil.e(AppConfig.TAG, "StartCore-VPN: Core stop failed", it) }
             .getOrDefault(false)
+
+        var stopped = stopOnce()
+        if (!stopped && CoreServiceManager.isRunning()) {
+            // Une seule nouvelle tentative : le moteur peut avoir été libéré
+            // entre-temps (arrêt natif lent). Sans elle, un échec transitoire
+            // laissait un tunnel orphelin alors qu'un second appel réussit.
+            LogUtil.w(AppConfig.TAG, "StartCore-VPN: core still running after stop, retrying once")
+            stopped = stopOnce()
+        }
         if (!stopped) {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Core stop did not complete; keeping VPN resources open")
             // Le moteur peut encore tourner : la surveillance reprend, et aucune

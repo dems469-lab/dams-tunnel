@@ -513,9 +513,9 @@ object CoreConfigManager {
 
         val enableLocalProxy = forcedByHev || forcedBySocksRoot || MmkvManager.decodeSettingsBool(AppConfig.PREF_ENABLE_LOCAL_PROXY, true)
 
-        val socksPort = SettingsManager.getSocksPort()
-        val socksUsername = SettingsManager.getSocksUsername()
-        val socksPassword = SettingsManager.getSocksPassword()
+        val socksPort = TunnelSession.socksPort()
+        val socksUsername = TunnelSession.socksUsername()
+        val socksPassword = TunnelSession.socksPassword()
         val inbound1 = v2rayConfig.inbounds[0]
         if (inbound1.settings == null) {
             inbound1.settings = V2rayConfig.InboundBean.InSettingsBean()
@@ -525,7 +525,11 @@ object CoreConfigManager {
             inbound1.listen = AppConfig.LOOPBACK
         }
         inbound1.port = socksPort
-        inbound1.settings?.udp = MmkvManager.decodeSettingsBool(AppConfig.PREF_SOCKS_ENABLE_UDP, AppConfig.DEFAULT_SOCKS_ENABLE_UDP)
+        // hev-socks5-tunnel transporte aussi l'UDP (DNS, QUIC) vers cet
+        // inbound : le désactiver produit un tunnel qui « marche » en TCP mais
+        // casse toute résolution DNS. Le mode VPN+hev impose donc l'UDP.
+        inbound1.settings?.udp = forcedByHev ||
+            MmkvManager.decodeSettingsBool(AppConfig.PREF_SOCKS_ENABLE_UDP, AppConfig.DEFAULT_SOCKS_ENABLE_UDP)
         if (socksUsername != null && socksPassword != null) {
             inbound1.settings?.auth = "password"
             inbound1.settings?.accounts = listOf(
@@ -577,7 +581,7 @@ object CoreConfigManager {
      * Enable fake DNS when local DNS and fake DNS are both enabled.
      */
     private fun configureFakeDns(v2rayConfig: V2rayConfig) {
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED) == true
+        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED, true)
             && MmkvManager.decodeSettingsBool(AppConfig.PREF_FAKE_DNS_ENABLED) == true
         ) {
             v2rayConfig.fakedns = listOf(V2rayConfig.FakednsBean())
@@ -626,7 +630,7 @@ object CoreConfigManager {
      * Configure local DNS inbounds, outbounds, and routing rules.
      */
     private fun configureLocalDns(configContext: CoreConfigContext, v2rayConfig: V2rayConfig) {
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED) != true) {
+        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED, true) != true) {
             return
         }
 
@@ -1074,23 +1078,22 @@ object CoreConfigManager {
         val newHosts = dns.hosts?.toMutableMap() ?: mutableMapOf()
         val preferIpv6 = MmkvManager.decodeSettingsBool(AppConfig.PREF_PREFER_IPV6) == true
 
-        for (item in proxyOutboundList) {
+        // Un seul lot de résolutions parallèles bornées, au lieu d'un appel
+        // bloquant par outbound.
+        val pending = proxyOutboundList.mapNotNull { item ->
             val domain = item.getServerAddress()
-            if (domain.isNullOrEmpty()) {
-                continue
-            }
+            if (domain.isNullOrEmpty() || newHosts.containsKey(domain)) null else item to domain
+        }
+        val resolved = if (pending.isEmpty()) {
+            emptyMap()
+        } else {
+            HttpUtil.resolveHostsInParallel(pending.map { it.second }.distinct(), preferIpv6)
+        }
 
-            if (newHosts.containsKey(domain)) {
-                item.ensureSockopt().domainStrategy = "UseIP"
-                item.ensureSockopt().happyEyeballs = V2rayConfig.OutboundBean.StreamSettingsBean.HappyEyeballsBean(
-                    prioritizeIPv6 = preferIpv6,
-                    interleave = 2
-                )
-                continue
-            }
-
-            val resolvedIps = HttpUtil.resolveHostToIP(domain, preferIpv6)
-            if (resolvedIps.isNullOrEmpty()) {
+        for (item in proxyOutboundList) {
+            val domain = item.getServerAddress() ?: continue
+            val resolvedIps = resolved[domain]
+            if (resolvedIps.isNullOrEmpty() && !newHosts.containsKey(domain)) {
                 continue
             }
 
@@ -1099,6 +1102,7 @@ object CoreConfigManager {
                 prioritizeIPv6 = preferIpv6,
                 interleave = 2
             )
+            if (resolvedIps.isNullOrEmpty()) continue
             newHosts[domain] = if (resolvedIps.size == 1) {
                 resolvedIps[0]
             } else {

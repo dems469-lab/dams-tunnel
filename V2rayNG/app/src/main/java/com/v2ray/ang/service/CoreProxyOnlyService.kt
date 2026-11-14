@@ -7,6 +7,7 @@ import android.os.IBinder
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.contracts.ServiceControl
 import com.v2ray.ang.core.CoreServiceManager
+import com.v2ray.ang.core.TunnelSession
 import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.util.LogUtil
@@ -48,12 +49,22 @@ class CoreProxyOnlyService : Service(), ServiceControl {
         NotificationManager.ensureForeground(this)
         LogUtil.i(AppConfig.TAG, "StartCore-Proxy: Service command received")
 
+        if (intent?.getBooleanExtra(AppConfig.EXTRA_AUTOMATIC_START, false) == true &&
+            CoreServiceManager.isUserStopArmed()
+        ) {
+            LogUtil.i(AppConfig.TAG, "StartCore-Proxy: automatic start ignored, user stop is pending")
+            if (!CoreServiceManager.isRunning()) stopSelf(startId)
+            return START_NOT_STICKY
+        }
+
         if (setupJob?.isActive == true || CoreServiceManager.isRunning()) {
             LogUtil.i(AppConfig.TAG, "StartCore-Proxy: Core is already running")
             return START_STICKY
         }
 
         setupJob = serviceScope.launch {
+            // Nouvelle session proxy : le port SOCKS peut être retiré au hasard.
+            TunnelSession.begin(force = true)
             if (!CoreServiceManager.startCoreLoop(null)) {
                 LogUtil.e(AppConfig.TAG, "StartCore-Proxy: Failed to start core loop")
                 stopSelf()

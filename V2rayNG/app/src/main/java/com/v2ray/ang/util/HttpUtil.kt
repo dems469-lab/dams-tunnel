@@ -17,9 +17,15 @@ import java.net.MalformedURLException
 import java.net.Proxy
 import java.net.URI
 import java.net.URL
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 object HttpUtil {
+
+    /** Résolution parallèle des domaines d'outbounds, bornée en threads et en temps. */
+    private const val MAX_RESOLVE_THREADS = 4
+    private const val DEFAULT_RESOLVE_TIMEOUT_MILLIS = 3_000L
 
     /**
      * Converts the domain part of a URL string to its IDN (Punycode, ASCII Compatible Encoding) format.
@@ -100,6 +106,45 @@ object HttpUtil {
         }
     }
 
+
+    /**
+     * Résout plusieurs hôtes en parallèle, avec une borne stricte.
+     *
+     * Une résolution DNS séquentielle sur des profils à plusieurs serveurs
+     * bloquait la construction de la configuration pendant plusieurs dizaines de
+     * secondes (et donc un rechargement après handover). Ici : au plus
+     * [MAX_RESOLVE_THREADS] résolutions simultanées, [timeoutMillis] par hôte,
+     * et les hôtes non résolus sont simplement absents du résultat.
+     */
+    fun resolveHostsInParallel(
+        hosts: List<String>,
+        ipv6Preferred: Boolean = false,
+        timeoutMillis: Long = DEFAULT_RESOLVE_TIMEOUT_MILLIS,
+    ): Map<String, List<String>> {
+        val distinct = hosts.filter { it.isNotBlank() }.distinct()
+        if (distinct.isEmpty()) return emptyMap()
+        val pool = Executors.newFixedThreadPool(minOf(MAX_RESOLVE_THREADS, distinct.size))
+        return try {
+            val futures = distinct.associateWith { host ->
+                pool.submit(Callable { resolveHostToIP(host, ipv6Preferred) })
+            }
+            buildMap {
+                futures.forEach { (host, future) ->
+                    try {
+                        future.get(timeoutMillis, TimeUnit.MILLISECONDS)?.let { put(host, it) }
+                    } catch (e: Exception) {
+                        future.cancel(true)
+                        LogUtil.w(
+                            AppConfig.TAG,
+                            "DNS resolution skipped for $host (${e.javaClass.simpleName})",
+                        )
+                    }
+                }
+            }
+        } finally {
+            pool.shutdownNow()
+        }
+    }
 
     /**
      * Retrieves the content of a URL as a string.

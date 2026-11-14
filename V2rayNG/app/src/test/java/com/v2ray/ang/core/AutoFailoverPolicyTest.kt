@@ -16,6 +16,7 @@ class AutoFailoverPolicyTest {
         samples: Int = 3,
         failures: Int = 0,
         ageMillis: Long = 0L,
+        lastFailed: Boolean = false,
     ) = ServerHealthSnapshot(
         guid = guid,
         protocol = "VLESS",
@@ -23,6 +24,7 @@ class AutoFailoverPolicyTest {
         samples = samples,
         failures = failures,
         lastTestedAtMillis = now - ageMillis,
+        lastFailed = lastFailed,
     )
 
     @Test
@@ -57,11 +59,35 @@ class AutoFailoverPolicyTest {
     fun `stale measurement is ignored`() {
         val decision = AutoFailoverPolicy.decide(
             active = snapshot("active", 2_000L),
-            candidates = listOf(snapshot("old", 50L, ageMillis = 11 * 60_000L)),
+            candidates = listOf(snapshot("old", 50L, ageMillis = 25 * 60 * 60_000L)),
             nowMillis = now,
         )
 
         assertFalse(decision.switches)
+    }
+
+    @Test
+    fun `a candidate whose last probe failed is not selected`() {
+        val decision = AutoFailoverPolicy.decide(
+            active = snapshot("active", 900L, lastFailed = true),
+            candidates = listOf(snapshot("flaky", 50L, lastFailed = true)),
+            nowMillis = now,
+        )
+
+        assertFalse(decision.switches)
+        assertEquals("no_candidate", decision.reason)
+    }
+
+    @Test
+    fun `a recent candidate outside the active probe window is still usable`() {
+        val decision = AutoFailoverPolicy.decide(
+            active = snapshot("active", 2_000L),
+            candidates = listOf(snapshot("tested-hours-ago", 100L, ageMillis = 6 * 60 * 60_000L)),
+            nowMillis = now,
+        )
+
+        assertTrue(decision.switches)
+        assertEquals("tested-hours-ago", decision.candidate?.guid)
     }
 
     @Test

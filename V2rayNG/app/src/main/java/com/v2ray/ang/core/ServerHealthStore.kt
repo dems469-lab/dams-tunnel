@@ -12,6 +12,8 @@ internal data class ServerHealthRecord(
     var lastLatency: Long = -1L,
     var lastTestedAt: Long = 0L,
     var protocol: String = "",
+    /** Résultat de la dernière mesure : false après un succès. */
+    var lastFailed: Boolean = false,
 )
 
 /** Événement de bascule, affiché dans l'historique. */
@@ -52,6 +54,7 @@ internal object ServerHealthStore {
             samples = measured,
             failures = failures,
             lastTestedAtMillis = record.lastTestedAt,
+            lastFailed = record.lastFailed,
         )
     }
 
@@ -62,6 +65,11 @@ internal object ServerHealthStore {
             record.latencySum += latencyMillis
             record.lastLatency = latencyMillis
             record.lastTestedAt = System.currentTimeMillis()
+            record.lastFailed = false
+            // Un succès efface un échec ancien : un incident transitoire ne doit
+            // pas garder le serveur « dégradé » pendant toute la fenêtre et
+            // provoquer une bascule sur la foi d'un vieux compteur (M2).
+            if (record.failures > 0) record.failures -= 1
             if (protocol.isNotBlank()) record.protocol = protocol
         }
     }
@@ -73,6 +81,7 @@ internal object ServerHealthStore {
             record.failures += 1
             record.lastLatency = -1L
             record.lastTestedAt = System.currentTimeMillis()
+            record.lastFailed = true
             if (protocol.isNotBlank()) record.protocol = protocol
         }
     }

@@ -7,6 +7,7 @@ import android.os.IBinder
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.contracts.ServiceControl
 import com.v2ray.ang.core.CoreServiceManager
+import com.v2ray.ang.core.TunnelSession
 import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.root.RootProxyManager
@@ -49,6 +50,14 @@ class CoreRootService : Service(), ServiceControl {
         NotificationManager.ensureForeground(this)
         LogUtil.i(AppConfig.TAG, "StartCore-Root: command received")
 
+        if (intent?.getBooleanExtra(AppConfig.EXTRA_AUTOMATIC_START, false) == true &&
+            CoreServiceManager.isUserStopArmed()
+        ) {
+            LogUtil.i(AppConfig.TAG, "StartCore-Root: automatic start ignored, user stop is pending")
+            if (!CoreServiceManager.isRunning()) stopSelf(startId)
+            return START_NOT_STICKY
+        }
+
         if (setupJob?.isActive == true || CoreServiceManager.isRunning()) {
             LogUtil.i(AppConfig.TAG, "StartCore-Root: Core is already running")
             return START_STICKY
@@ -57,6 +66,7 @@ class CoreRootService : Service(), ServiceControl {
         // Start the in-process core first (this also posts the foreground notification),
         // then install the root routing off the main thread.
         setupJob = serviceScope.launch {
+            TunnelSession.begin(force = true)
             if (!CoreServiceManager.startCoreLoop(null)) {
                 LogUtil.e(AppConfig.TAG, "StartCore-Root: core failed to start")
                 stopService()

@@ -22,4 +22,4 @@ internal suspend fun awaitNextReconnectVerification(
     }
 }
 
-internal const val DEFAULT_RECONNECT_VERIFICATION_TIMEOUT_MILLIS = 12_000L
+internal const val DEFAULT_RECONNECT_VERIFICATION_TIMEOUT_MILLIS = 6_000L
