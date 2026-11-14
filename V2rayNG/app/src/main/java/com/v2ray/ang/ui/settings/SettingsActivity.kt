@@ -163,6 +163,7 @@ fun SettingsScreen(
     var vpnMtu by rememberMmkvString(AppConfig.PREF_VPN_MTU, "")
     var killSwitch by rememberMmkvBool(AppConfig.PREF_KILL_SWITCH, false)
     var appLock by rememberMmkvBool(AppConfig.PREF_APP_LOCK, false)
+    var taskerControl by rememberMmkvBool(AppConfig.PREF_TASKER_CONTROL, true)
 
     var mux by rememberMmkvBool(AppConfig.PREF_MUX_ENABLED, false)
     var muxConcurrency by rememberMmkvString(AppConfig.PREF_MUX_CONCURRENCY, "8")
@@ -850,6 +851,12 @@ fun SettingsScreen(
                     summary = stringResource(R.string.summary_app_lock),
                     checked = appLock,
                     onCheckedChange = { appLock = it }
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.title_tasker_control),
+                    summary = stringResource(R.string.summary_tasker_control),
+                    checked = taskerControl,
+                    onCheckedChange = { taskerControl = it }
                 )
                 SettingsMenuItem(
                     title = stringResource(R.string.title_configuration_backup_restore),

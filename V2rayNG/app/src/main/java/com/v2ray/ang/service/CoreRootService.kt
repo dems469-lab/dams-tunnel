@@ -11,6 +11,7 @@ import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.root.RootProxyManager
 import com.v2ray.ang.util.LogUtil
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,7 +31,13 @@ import kotlinx.coroutines.launch
 class CoreRootService : Service(), ServiceControl {
 
     private var setupJob: Job? = null
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Handler d'exception : une erreur qui s'échappe d'une coroutine tue le
+    // processus :daemon ; on journalise au lieu de laisser le crash survenir.
+    private val serviceScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, error ->
+            LogUtil.e(AppConfig.TAG, "StartCore-Root: uncaught exception in service scope", error)
+        }
+    )
 
     override fun onCreate() {
         super.onCreate()
@@ -69,6 +76,10 @@ class CoreRootService : Service(), ServiceControl {
         // Cancel setup before removing routes so a pending setup cannot install new rules
         // after teardown has begun. The setup scope belongs to this service instance.
         setupJob?.cancel()
+        // Symétrique de CoreVpnService : sans detach, le récepteur reste
+        // enregistré sur ce service détruit et empêche un futur service de
+        // se rattacher (receiverService jamais remis à null).
+        CoreServiceManager.detachServiceReceiver(this)
         serviceScope.launch {
             setupJob?.join()
             // Remove routing rules BEFORE stopping the core so traffic is never redirected
@@ -78,6 +89,7 @@ class CoreRootService : Service(), ServiceControl {
                 .onFailure { LogUtil.e(AppConfig.TAG, "StartCore-Root: core stop failed", it) }
                 .getOrDefault(false)
             if (!stopped) LogUtil.e(AppConfig.TAG, "StartCore-Root: core stop timed out; cleanup remains pending")
+            CoreServiceManager.clearServiceControl(this@CoreRootService)
             serviceScope.cancel()
         }
     }

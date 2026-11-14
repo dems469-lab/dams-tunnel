@@ -1,11 +1,13 @@
 package com.v2ray.ang.ui.backup
 
+import android.app.KeyguardManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog as PlatformAlertDialog
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
@@ -90,9 +92,69 @@ class BackupActivity : HelperBaseComponentActivity() {
 
     private val viewModel: BackupViewModel by viewModels()
     private var pendingDamsUri: Uri? = null
+    private var contentInitialized = false
+    private var appUnlocked = false
+    private var unlockInFlight = false
+
+    private val appLockLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        unlockInFlight = false
+        if (result.resultCode == RESULT_OK) {
+            appUnlocked = true
+            initializeContent()
+        } else {
+            finish()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!ensureUnlocked()) return
+        initializeContent()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Même contrat que MainActivity : l'écran de sauvegarde/restauration
+        // donne accès à toutes les configurations, il ne doit pas être un
+        // chemin de contournement du verrou d'application.
+        if (!appUnlocked) ensureUnlocked()
+    }
+
+    /**
+     * @return true si l'écran peut s'afficher immédiatement, false si le
+     *         déverrouillage est en cours (ou l'activité terminée).
+     */
+    private fun ensureUnlocked(): Boolean {
+        if (appUnlocked) return true
+        if (unlockInFlight) return false
+        if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_APP_LOCK, false)) {
+            appUnlocked = true
+            return true
+        }
+        val keyguard = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+        if (!keyguard.isDeviceSecure) {
+            toastError(R.string.app_lock_not_available)
+            appUnlocked = true
+            return true
+        }
+        val intent = keyguard.createConfirmDeviceCredentialIntent(
+            getString(R.string.app_name),
+            getString(R.string.app_lock_prompt),
+        )
+        if (intent == null) {
+            finish()
+            return false
+        }
+        unlockInFlight = true
+        appLockLauncher.launch(intent)
+        return false
+    }
+
+    private fun initializeContent() {
+        if (contentInitialized) return
+        contentInitialized = true
         observeViewModel()
         viewModel.cleanupOldBackupTempFiles(cacheDir)
         (intent.getStringExtra(EXTRA_DAMS_URI)?.let { Uri.parse(it) } ?: intent.data)?.let {

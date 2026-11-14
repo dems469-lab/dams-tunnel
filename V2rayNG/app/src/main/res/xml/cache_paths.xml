@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Partage restreint : le FileProvider n'expose plus tout le cache (path="/")
+    mais uniquement les sous-dossiers contenant des fichiers destinés au
+    partage (sauvegardes compressées et console Xray).
+-->
 <paths>
     <cache-path
-        name="cache"
-        path="/" />
+        name="shared_backups"
+        path="shared_backups/" />
+    <cache-path
+        name="shared_logs"
+        path="shared_logs/" />
 </paths>

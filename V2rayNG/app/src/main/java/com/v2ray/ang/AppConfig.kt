@@ -39,6 +39,7 @@ object AppConfig {
     const val PREF_VPN_MTU = "pref_vpn_mtu"
     const val PREF_KILL_SWITCH = "pref_kill_switch"
     const val PREF_APP_LOCK = "pref_app_lock"
+    const val PREF_TASKER_CONTROL = "pref_tasker_control"
     const val PREF_ROUTING_DOMAIN_STRATEGY = "pref_routing_domain_strategy"
     const val PREF_ROUTING_RULESET = "pref_routing_ruleset"
     const val PREF_MUX_ENABLED = "pref_mux_enabled"

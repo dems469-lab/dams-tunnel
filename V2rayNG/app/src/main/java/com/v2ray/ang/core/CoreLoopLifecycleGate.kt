@@ -12,11 +12,16 @@ internal class CoreLoopLifecycleGate(
 
     suspend fun <T> start(block: suspend () -> T): T = mutex.withLock { block() }
 
-    suspend fun stop(block: suspend () -> Boolean): Boolean = mutex.withLock {
+    /**
+     * Le délai borne l'attente du verrou *et* le bloc : si un arrêt en cours
+     * est bloqué dans le moteur natif (JNI non interruptible) et détient la
+     * porte, l'arrêt demandé échoue après le délai au lieu de suspendre
+     * indéfiniment. `withLock` garantit la libération du verrou en sortie.
+     */
+    suspend fun stop(block: suspend () -> Boolean): Boolean =
         withTimeoutOrNull(stopTimeoutMillis) {
-            block()
+            mutex.withLock { block() }
         } ?: false
-    }
 
     companion object {
         const val DEFAULT_STOP_TIMEOUT_MILLIS = 5_000L

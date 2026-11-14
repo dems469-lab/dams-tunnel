@@ -960,12 +960,16 @@ object CoreServiceManager {
             switchAndVerify(fromGuid)
             ServerHealthStore.recordEvent(fromName, target.remarks, reason, "rollback")
             LogUtil.w(AppConfig.TAG, "Failover: candidat rejeté, retour au serveur précédent")
+            // Traçabilité UI : la bascule annulée est visible dans la console,
+            // l'état connecté/échec reste publié par la boucle de vérification.
+            XrayConsole.event("Core", "Failover rollback: candidate rejected, restored previous server")
             return false
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failover: échec de la bascule", e)
             runCatching { MmkvManager.setSelectServer(fromGuid) }
+            XrayConsole.event("Core", "Failover aborted: switch failed, selection restored")
             return false
         } finally {
             failoverMutex.unlock()
@@ -1335,7 +1339,16 @@ object CoreServiceManager {
             // Rechargement volontaire : la sortie de l'ancienne boucle est
             // attendue, elle ne doit pas déclencher une récupération en boucle.
             supervisor.stopRequested(CoreOrigin.RECONNECT)
-            withContext(Dispatchers.IO) { coreEngine.stop() }
+            val stopped = withTimeoutOrNull(NATIVE_STOP_TIMEOUT_MILLIS) {
+                withContext(Dispatchers.IO) { coreEngine.stop() }
+            }
+            if (stopped == null) {
+                // Stop natif bloqué : relancer un cœur par-dessus l'ancien créerait
+                // une double boucle ; on abandonne le rechargement, la récupération
+                // reprendra depuis un état connu.
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: Core reload native stopLoop timed out")
+                throw java.util.concurrent.TimeoutException("native stopLoop timed out during reload")
+            }
             launchCore(service, tunFd, isReload = true, origin = CoreOrigin.RECONNECT)
 
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload finished")

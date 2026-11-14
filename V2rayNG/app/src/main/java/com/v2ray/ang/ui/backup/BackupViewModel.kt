@@ -289,8 +289,11 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
             Locale.getDefault()
         ).format(System.currentTimeMillis())
         val folderName = "${appName}_$dateFormatted"
-        val backupDir = File(cacheDir, folderName)
-        val zipFile = File(cacheDir, "$folderName.zip")
+        // Sous-dossier dédié : le FileProvider n'expose que shared_backups/
+        // et shared_logs/, plus le cache entier (cache_paths.xml).
+        val sharedBackupsDir = File(cacheDir, "shared_backups").apply { mkdirs() }
+        val backupDir = File(sharedBackupsDir, folderName)
+        val zipFile = File(sharedBackupsDir, "$folderName.zip")
         return try {
             if (MMKV.backupAllToDirectory(backupDir.absolutePath) <= 0) {
                 return Pair(false, "")

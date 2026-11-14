@@ -27,6 +27,7 @@ import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.helper.MessageHelper
 import com.v2ray.ang.root.RootLanSharing
 import com.v2ray.ang.util.LogUtil
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -41,7 +42,14 @@ class CoreVpnService : VpnService(), ServiceControl {
     private var isRunning = false
     private var tun2SocksService: Tun2SocksControl? = null
     private val isStartingLock = AtomicBoolean(false)
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Handler d'exception : une erreur qui s'échappe d'une coroutine du
+    // service tue le processus :daemon et coupe le VPN ; on journalise et
+    // on laisse la surveillance (watchdog/superviseur) gérer la récupération.
+    private val serviceScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, error ->
+            LogUtil.e(AppConfig.TAG, "StartCore-VPN: uncaught exception in service scope", error)
+        }
+    )
     private var startJob: Job? = null
     private var stopJob: Job? = null
     private var vpnWakeLockLease: VpnWakeLockLease? = null
@@ -237,7 +245,10 @@ class CoreVpnService : VpnService(), ServiceControl {
         if (!::mInterface.isInitialized) return false
         // Sans relais natif, le moteur lit directement l'interface TUN.
         val relay = tun2SocksService ?: return !SettingsManager.isUsingHevTun()
-        return runCatching { relay.isRunning() }.getOrDefault(true)
+        // Fail-closed : une exception du relais est traitée comme un relais
+        // mort ; le chemin de récupération REBUILD_TUNNEL prend le relais.
+        // (getOrDefault(true) pouvait déclarer sain un tunnel sans paquets.)
+        return runCatching { relay.isRunning() }.getOrDefault(false)
     }
 
     /** L'interface et son relais sont utilisables en l'état. */

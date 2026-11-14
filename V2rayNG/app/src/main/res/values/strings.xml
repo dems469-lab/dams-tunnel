@@ -640,6 +640,8 @@
     <string name="summary_app_lock">Demander le PIN, le schéma ou la biométrie à l’ouverture.</string>
     <string name="app_lock_prompt">Déverrouillez Dams Tunnel pour continuer.</string>
     <string name="app_lock_not_available">Configurez d’abord un verrouillage d’écran Android.</string>
+    <string name="title_tasker_control">Contrôle externe (Tasker)</string>
+    <string name="summary_tasker_control">Autoriser Tasker et les automatisations à démarrer, arrêter ou changer de serveur.</string>
     <string name="diagnostic_network">Réseau du téléphone</string>
     <string name="diagnostic_server">Serveur</string>
     <string name="diagnostic_tunnel">Application routing (not verified)</string>

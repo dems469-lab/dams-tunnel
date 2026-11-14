@@ -2,6 +2,7 @@ package com.v2ray.ang.core
 
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -46,5 +47,22 @@ class CoreLoopLifecycleGateTest {
 
         assertFalse(stopped)
         assertFalse(completed)
+    }
+
+    @Test
+    fun stopFailsFastWhenAnotherOperationHoldsTheGate() = runBlocking {
+        val gate = CoreLoopLifecycleGate(stopTimeoutMillis = 100)
+        val holder = launch {
+            gate.start { delay(500) }
+        }
+        delay(50)
+        val startedAt = System.nanoTime()
+
+        val stopped = gate.stop { true }
+
+        val elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000
+        assertFalse(stopped)
+        assertTrue(elapsedMillis < 450)
+        holder.join()
     }
 }

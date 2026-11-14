@@ -263,7 +263,9 @@ object SettingsManager {
             } else {
                 Utils.parseInt(MmkvManager.decodeSettingsString(AppConfig.PREF_SOCKS_PORT), AppConfig.PORT_SOCKS.toInt())
             }
-        return port ?: AppConfig.PORT_SOCKS.toInt()
+        // Bornage défensif : une valeur hors 1..65535 (saisie libre) doit
+        // retomber sur le port par défaut, pas produire un inbound invalide.
+        return port?.takeIf { it in 1..65_535 } ?: AppConfig.PORT_SOCKS.toInt()
     }
 
     @Synchronized
@@ -401,9 +403,12 @@ object SettingsManager {
 
     /**
      * Get the VPN MTU from settings, defaulting to AppConfig.VPN_MTU.
+     * La valeur est bornée : Android exige une MTU entre 68 et 65535 sur le
+     * builder VpnService, une valeur aberrante ferait échouer la connexion.
      */
     fun getVpnMtu(): Int {
-        return Utils.parseInt(MmkvManager.decodeSettingsString(AppConfig.PREF_VPN_MTU), AppConfig.VPN_MTU)
+        val mtu = Utils.parseInt(MmkvManager.decodeSettingsString(AppConfig.PREF_VPN_MTU), AppConfig.VPN_MTU)
+        return mtu.coerceIn(68, 65_535)
     }
 
     /**
@@ -460,6 +465,7 @@ object SettingsManager {
         ensureDefaultValue(AppConfig.PREF_MODE, VPN)
         ensureDefaultValue(AppConfig.PREF_VPN_DNS, AppConfig.DNS_VPN)
         ensureDefaultValue(AppConfig.PREF_VPN_MTU, AppConfig.VPN_MTU.toString())
+        ensureDefaultValue(AppConfig.PREF_TASKER_CONTROL, "true")
         ensureDefaultValue(AppConfig.PREF_SOCKS_PORT, AppConfig.PORT_SOCKS)
         ensureDefaultValue(AppConfig.PREF_REMOTE_DNS, AppConfig.DNS_PROXY)
         ensureDefaultValue(AppConfig.PREF_DOMESTIC_DNS, AppConfig.DNS_DIRECT)

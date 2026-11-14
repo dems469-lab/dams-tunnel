@@ -4,7 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.lifecycleScope
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.extension.toast
@@ -13,12 +12,22 @@ import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.main.MainActivity
 import com.v2ray.ang.util.LogUtil
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URLDecoder
 
 class UrlSchemeActivity : BaseComponentActivity() {
+
+    companion object {
+        // Portée détachée du cycle de vie : l'activité translucide appelle
+        // finish() immédiatement et un import d'abonnement peut travailler
+        // sur le réseau plusieurs secondes. lifecycleScope l'aurait annulé
+        // en cours de route (import partiel, toast perdu).
+        private val importScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,13 +81,13 @@ class UrlSchemeActivity : BaseComponentActivity() {
             if (uri.fragment.isNullOrEmpty() && !fragment.isNullOrEmpty()) {
                 decodedUrl += "#${fragment}"
             }
-            lifecycleScope.launch(Dispatchers.IO) {
+            importScope.launch {
                 val (count, countSub) = AngConfigManager.importBatchConfig(decodedUrl, "", false)
                 withContext(Dispatchers.Main) {
                     if (count + countSub > 0) {
                         toast(R.string.import_subscription_success)
                     } else {
-                        toast(R.string.import_subscription_failure)
+                        toastError(R.string.import_subscription_failure)
                     }
                 }
             }

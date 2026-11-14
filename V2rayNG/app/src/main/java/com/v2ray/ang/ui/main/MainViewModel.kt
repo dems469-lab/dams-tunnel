@@ -226,6 +226,11 @@ class MainViewModel(
                     scheduledFlush?.cancelAndJoin()
                     if (testRequests.bulk?.id != request.id) return@launch
                     flushPendingTestResults(request)
+                    // Les broadcasts du cœur ne sont pas ordonnés entre eux :
+                    // un résultat peut arriver après la fin annoncée. Fenêtre de
+                    // grâce avant de conclure, puis flush final des retardataires.
+                    delay(TEST_RESULT_LATE_GRACE_MS)
+                    flushPendingTestResults(request)
                     onTestsFinished(request.id)
                 }
             }
@@ -1099,5 +1104,6 @@ class MainViewModel(
 
     private companion object {
         const val TEST_RESULT_FLUSH_INTERVAL_MS = 500L
+        const val TEST_RESULT_LATE_GRACE_MS = 1_000L
     }
 }

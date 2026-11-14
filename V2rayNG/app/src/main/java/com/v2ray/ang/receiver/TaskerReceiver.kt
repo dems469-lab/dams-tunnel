@@ -6,6 +6,7 @@ import android.content.Intent
 import android.text.TextUtils
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.core.LauncherManager
+import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.util.LogUtil
 
 class TaskerReceiver : BroadcastReceiver() {
@@ -20,6 +21,13 @@ class TaskerReceiver : BroadcastReceiver() {
      */
     override fun onReceive(context: Context, intent: Intent?) {
         try {
+            // Contrôle externe désactivable : le récepteur reste exporté pour
+            // Tasker, mais une application tierce ne peut plus piloter le VPN
+            // quand l'utilisateur a coupé l'option dans les réglages.
+            if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_TASKER_CONTROL, true)) {
+                LogUtil.w(AppConfig.TAG, "Tasker broadcast ignored: external control is disabled")
+                return
+            }
             val bundle = intent?.getBundleExtra(AppConfig.TASKER_EXTRA_BUNDLE)
             val switch = bundle?.getBoolean(AppConfig.TASKER_EXTRA_BUNDLE_SWITCH, false)
             val guid = bundle?.getString(AppConfig.TASKER_EXTRA_BUNDLE_GUID).orEmpty()

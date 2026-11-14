@@ -39,9 +39,16 @@ class BackupTempFilesTest {
             }
             val unrelated = File(cache, "other.tmp").apply { writeText("keep") }
 
-            assertEquals(2, deleteExpiredBackupTempFiles(cache, nowMillis = 10_000, maxAgeMillis = 5_000))
+            val sharedBackups = File(cache, "shared_backups").apply { mkdirs() }
+            val oldSharedZip = File(sharedBackups, "Dams Tunnel_2026-01-01-13-00-00.zip").apply {
+                writeText("zip")
+                setLastModified(1_000)
+            }
+
+            assertEquals(3, deleteExpiredBackupTempFiles(cache, nowMillis = 10_000, maxAgeMillis = 5_000))
             assertFalse(oldZip.exists())
             assertFalse(oldFolder.exists())
+            assertFalse(oldSharedZip.exists())
             assertTrue(recent.exists())
             assertTrue(unrelated.exists())
         } finally {

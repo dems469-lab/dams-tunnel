@@ -10,6 +10,7 @@ import com.v2ray.ang.core.CoreServiceManager
 import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.util.LogUtil
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,7 +19,13 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 class CoreProxyOnlyService : Service(), ServiceControl {
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Handler d'exception : une erreur qui s'échappe d'une coroutine tue le
+    // processus :daemon ; on journalise au lieu de laisser le crash survenir.
+    private val serviceScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, error ->
+            LogUtil.e(AppConfig.TAG, "StartCore-Proxy: uncaught exception in service scope", error)
+        }
+    )
     private var setupJob: Job? = null
 
     /**
@@ -62,12 +69,17 @@ class CoreProxyOnlyService : Service(), ServiceControl {
     override fun onDestroy() {
         super.onDestroy()
         setupJob?.cancel()
+        // Symétrique de CoreVpnService : sans detach, le récepteur reste
+        // enregistré sur ce service détruit et empêche un futur service de
+        // se rattacher (receiverService jamais remis à null).
+        CoreServiceManager.detachServiceReceiver(this)
         serviceScope.launch {
             setupJob?.join()
             val stopped = runCatching { CoreServiceManager.stopCoreLoop() }
                 .onFailure { LogUtil.e(AppConfig.TAG, "StartCore-Proxy: core stop failed", it) }
                 .getOrDefault(false)
             if (!stopped) LogUtil.e(AppConfig.TAG, "StartCore-Proxy: core stop timed out; cleanup remains pending")
+            CoreServiceManager.clearServiceControl(this@CoreProxyOnlyService)
             serviceScope.cancel()
         }
     }

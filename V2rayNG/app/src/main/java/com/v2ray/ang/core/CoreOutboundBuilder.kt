@@ -61,8 +61,8 @@ object CoreOutboundBuilder {
 
             if (muxEnabled) {
                 outbound.mux?.enabled = true
-                outbound.mux?.concurrency = MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_CONCURRENCY, "8").orEmpty().toInt()
-                outbound.mux?.xudpConcurrency = MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_XUDP_CONCURRENCY, AppConfig.DEFAULT_MUX_XUDP_CONCURRENCY).orEmpty().toInt()
+                outbound.mux?.concurrency = MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_CONCURRENCY, "8")?.trim()?.toIntOrNull() ?: 8
+                outbound.mux?.xudpConcurrency = MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_XUDP_CONCURRENCY, AppConfig.DEFAULT_MUX_XUDP_CONCURRENCY)?.trim()?.toIntOrNull() ?: 8
                 outbound.mux?.xudpProxyUDP443 = MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_XUDP_QUIC, "reject")
                 if (protocol.equals(EConfigType.VLESS.name, true) && outbound.settings?.flow?.isNotEmpty() == true) {
                     outbound.mux?.concurrency = -1
@@ -114,12 +114,20 @@ object CoreOutboundBuilder {
 
     // ── Per-protocol builders — implementations are identical to each *Fmt.toOutbound ──
 
+    /**
+     * Port numérique requis : échoue avec un message explicite (capté par le
+     * catch de getV2rayConfig) au lieu d'un NumberFormatException illisible.
+     */
+    private fun parseServerPort(profileItem: ProfileItem): Int =
+        profileItem.serverPort?.trim()?.toIntOrNull()
+            ?: throw ConfigValidationException("Port serveur invalide (${profileItem.serverPort.orEmpty().trim()})")
+
     private fun toOutboundVmess(profileItem: ProfileItem): OutboundBean? {
         val outboundBean = createInitOutbound(EConfigType.VMESS)
 
         outboundBean?.settings?.let { settings ->
             settings.address = getServerAddress(profileItem)
-            settings.port = profileItem.serverPort.orEmpty().toInt()
+            settings.port = parseServerPort(profileItem)
             settings.id = profileItem.password.orEmpty()
             settings.security = profileItem.method
             settings.level = AppConfig.DEFAULT_LEVEL
@@ -141,7 +149,7 @@ object CoreOutboundBuilder {
 
         outboundBean?.settings?.let { settings ->
             settings.address = getServerAddress(profileItem)
-            settings.port = profileItem.serverPort.orEmpty().toInt()
+            settings.port = parseServerPort(profileItem)
             settings.id = profileItem.password.orEmpty()
             settings.encryption = profileItem.method
             settings.flow = profileItem.flow
@@ -192,7 +200,7 @@ object CoreOutboundBuilder {
 
         outboundBean?.settings?.let { settings ->
             settings.address = getServerAddress(profileItem)
-            settings.port = profileItem.serverPort.orEmpty().toInt()
+            settings.port = parseServerPort(profileItem)
             settings.password = profileItem.password
             settings.flow = profileItem.flow
             settings.level = AppConfig.DEFAULT_LEVEL
@@ -214,7 +222,7 @@ object CoreOutboundBuilder {
 
         outboundBean?.settings?.let { settings ->
             settings.address = getServerAddress(profileItem)
-            settings.port = profileItem.serverPort.orEmpty().toInt()
+            settings.port = parseServerPort(profileItem)
             settings.level = AppConfig.DEFAULT_LEVEL
             if (profileItem.username.isNotNullEmpty()) {
                 settings.user = profileItem.username.orEmpty()
@@ -230,7 +238,7 @@ object CoreOutboundBuilder {
 
         outboundBean?.settings?.let { settings ->
             settings.address = getServerAddress(profileItem)
-            settings.port = profileItem.serverPort.orEmpty().toInt()
+            settings.port = parseServerPort(profileItem)
             settings.level = AppConfig.DEFAULT_LEVEL
             if (profileItem.username.isNotNullEmpty()) {
                 settings.user = profileItem.username.orEmpty()
@@ -283,7 +291,7 @@ object CoreOutboundBuilder {
             }
             wireguard.mtu = profileItem.mtu
             wireguard.remoteDNS = remotes
-            wireguard.reserved = profileItem.reserved?.takeIf { it.isNotBlank() }?.split(",")?.filter { it.isNotBlank() }?.map { it.trim().toInt() }
+            wireguard.reserved = profileItem.reserved?.takeIf { it.isNotBlank() }?.split(",")?.filter { it.isNotBlank() }?.mapNotNull { it.trim().toIntOrNull() }
         }
 
         if (!profileItem.finalMask.isNullOrBlank()) {
@@ -303,7 +311,7 @@ object CoreOutboundBuilder {
 
         outboundBean.settings?.let { server ->
             server.address = getServerAddress(profileItem)
-            server.port = profileItem.serverPort.orEmpty().toInt()
+            server.port = parseServerPort(profileItem)
             server.version = 2
         }
 
