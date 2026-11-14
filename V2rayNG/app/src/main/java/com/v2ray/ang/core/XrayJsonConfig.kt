@@ -398,10 +398,14 @@ object XrayJsonConfig {
             SECURITY_TLS -> {
                 stream.addProperty("security", SECURITY_TLS)
                 stream.add("tlsSettings", JsonObject().apply {
-                    // Les passerelles MAXIT présentent des certificats qui ne
-                    // correspondent pas toujours au nom : le test et le profil
-                    // transformé utilisent donc la même politique explicite.
-                    addProperty("allowInsecure", true)
+                    // Xray-core ≥ 26.6 a supprimé « allowInsecure » : l'émettre
+                    // fait rejeter la configuration. La vérification est
+                    // obligatoire ; pinnedCA256/verifyPeerCertByName du profil
+                    // restent les seuls moyens d'adapter la vérification.
+                    profile.pinnedCA256?.takeIf { it.isNotBlank() }
+                        ?.let { addProperty("pinnedPeerCertSha256", it) }
+                    profile.verifyPeerCertByName?.takeIf { it.isNotBlank() }
+                        ?.let { addProperty("verifyPeerCertByName", it) }
                     sni?.let { addProperty("serverName", it) }
                     profile.fingerPrint?.takeIf { it.isNotBlank() }
                         ?.let { addProperty("fingerprint", it) }

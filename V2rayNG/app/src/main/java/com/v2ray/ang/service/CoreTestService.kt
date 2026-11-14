@@ -60,16 +60,10 @@ class CoreTestService : Service() {
         // mémoire, ce qui produisait ForegroundServiceDidNotStartInTimeException
         // dans le processus :tasks.
         promoteToForeground()
-        try {
-            CoreNativeManager.initCoreEnv(this)
-        } catch (e: Exception) {
-            // Aucun test ne peut aboutir sans moteur : échec explicite et
-            // journalisé, jamais une exception silencieuse ni un processus tué.
-            LogUtil.e(AppConfig.TAG, "CoreTestService: native core initialization failed", e)
-            MessageHelper.sendMsg2UI(this, AppConfig.MSG_MEASURE_CONFIG_CANCEL, "", "")
-            NotificationHelper.stopForeground(this)
-            stopSelf()
-        }
+        // Le moteur natif (bibliothèque Go de ~30 Mo) n'est plus chargé ici :
+        // une annulation ne doit pas démarrer le processus :tasks pour rien, et
+        // ce chargement sur le thread principal retardait les démarrages
+        // suivants. Il est initialisé au début de chaque campagne réelle.
     }
 
     /** Remplit le contrat du service au premier plan de façon idempotente. */
@@ -139,6 +133,18 @@ class CoreTestService : Service() {
 
     private fun handleMeasureStart(message: TestServiceMessage, startId: Int, requestId: String) {
         LogUtil.i(AppConfig.TAG, "CoreTestService starting worker   subscription ${message.subscriptionId}")
+
+        // Aucun test ne peut aboutir sans moteur : échec explicite et
+        // journalisé, jamais une exception silencieuse ni un processus tué.
+        try {
+            CoreNativeManager.initCoreEnv(this)
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "CoreTestService: native core initialization failed", e)
+            MessageHelper.sendMsg2UI(this, AppConfig.MSG_MEASURE_CONFIG_CANCEL, "", requestId)
+            NotificationHelper.stopForeground(this)
+            stopSelf(startId)
+            return
+        }
 
         val guidsList = when {
             message.serverGuids.isNotEmpty() -> message.serverGuids

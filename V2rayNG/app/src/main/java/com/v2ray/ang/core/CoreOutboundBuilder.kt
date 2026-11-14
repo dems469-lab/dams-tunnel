@@ -561,15 +561,25 @@ object CoreOutboundBuilder {
      */
     fun populateTlsSettings(streamSettings: OutboundBean.StreamSettingsBean, profileItem: ProfileItem, sniExt: String?) {
         val streamSecurity = profileItem.security.orEmpty()
-        // Keep the historical behavior for stored profiles that omit the flag. New
-        // profiles are initialized with insecure=false before reaching the core.
-        val allowInsecure = profileItem.insecure == true && profileItem.pinnedCA256.isNullOrEmpty()
+        // Xray-core ≥ 26.6 a supprimé « allowInsecure » : la vérification du
+        // certificat est désormais obligatoire et l'émission du champ fait
+        // échouer le chargement de la configuration. On ne l'émet donc plus
+        // jamais ; un profil qui comptait dessus sans épingle est signalé.
+        if (profileItem.insecure == true && profileItem.pinnedCA256.isNullOrEmpty()) {
+            runCatching {
+                LogUtil.w(
+                    "V2rayConfigManager",
+                    "Profil « ${profileItem.remarks} » : allowInsecure n'existe plus " +
+                        "dans Xray 26.6+, la vérification du certificat est obligatoire " +
+                        "(utiliser pinnedCA256 ou verifyPeerCertByName)."
+                )
+            }
+        }
         val sni = resolveTlsServerName(profileItem, sniExt)
 
         streamSettings.security = streamSecurity.nullIfBlank()
         if (streamSettings.security == null) return
         val tlsSetting = OutboundBean.StreamSettingsBean.TlsSettingsBean(
-            allowInsecure = allowInsecure,
             serverName = sni.nullIfBlank(),
             fingerprint = profileItem.fingerPrint.nullIfBlank(),
             alpn = profileItem.alpn?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.takeIf { !it.isNullOrEmpty() },

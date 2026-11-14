@@ -3,6 +3,60 @@
 Un seul fichier d'historique. Chaque entrée décrit une intervention terminée,
 les fichiers touchés, ce qui a été vérifié et ce qui reste à vérifier.
 
+## 1.9.9-lab (766) — correctif : profils TLS/REALITY et service de test
+
+**Contexte** : après la migration 1.9.8-lab (Xray-core v26.11.9), les profils
+TLS/REALITY ne démarraient plus :
+`Failed to build TLS config > common/errors: The feature "allowInsecure" has
+been removed and migrated to "pinnedPeerCertSha256"(pcs) and
+"verifyPeerCertByName"(vcn)`. Le moteur refuse désormais la configuration dès
+que `allowInsecure` vaut `true` (`false` reste accepté mais n'a plus de sens).
+L'application l'émettait quand `profileItem.insecure == true` (valeur que l'UI
+met par défaut sur `true` pour un profil réenregistré), et `XrayJsonConfig`
+l'émettait en dur pour le test réel et la bascule.
+
+**Correctif**
+- `dto/V2rayConfig.kt` : `allowInsecure` retiré de `TlsSettingsBean` ; le champ
+  n'est plus jamais sérialisé dans le JSON runtime.
+- `core/CoreOutboundBuilder.kt` : plus aucune émission de `allowInsecure`. Les
+  remplacements officiels restent alimentés (`pinnedCA256` →
+  `pinnedPeerCertSha256`, `verifyPeerCertByName`). Un avertissement journalise
+  les profils qui comptent sur `insecure` sans épingle : la vérification du
+  certificat est maintenant obligatoire.
+- `core/XrayJsonConfig.kt` : `allowInsecure: true` supprimé du JSON généré
+  (test réel, bascule), avec `pinnedPeerCertSha256`/`verifyPeerCertByName`
+  repris du profil.
+- `helper/MessageHelper.kt` : l'annulation d'une campagne de latence n'utilise
+  plus `startForegroundService` (un simple `startService`). Ce démarrage au
+  premier plan, déclenché aussi à la fermeture de l'écran, démarrait à froid
+  le processus `:tasks` et pouvait dépasser le délai système
+  (`ForegroundServiceDidNotStartInTimeException`).
+- `service/CoreTestService.kt` : le moteur natif n'est plus chargé dans
+  `onCreate` mais au début d'une campagne réelle. Une annulation ne charge
+  donc plus la bibliothèque Go, et le thread principal reste libre pour les
+  démarrages suivants.
+
+**Limite connue** : un serveur à certificat auto-signé doit désormais fournir
+un `pinnedCA256` (ou `verifyPeerCertByName`) ; la case « autoriser les
+certificats non vérifiés » n'a plus d'effet, le moteur n'offrant plus cette
+possibilité.
+
+**Vérifications réellement exécutées**
+- Binaire officiel Xray v26.11.9 (`xray run -test`) : VLESS+TLS avec
+  `pinnedPeerCertSha256` + `verifyPeerCertByName`, Trojan+TLS et REALITY sur
+  RAW → `Configuration OK` ; `allowInsecure: true` → erreur reproduite ;
+  champ absent → OK.
+- Tests unitaires ajoutés/mis à jour : absence de `allowInsecure` dans le TLS
+  et le REALITY générés (builder et `XrayJsonConfig`), présence des champs de
+  remplacement.
+- CI `dams-ci` et `dams-build` : voir la section de publication ci-dessous.
+
+**Non vérifié**
+- Aucun test terrain sur téléphone (poignée de main réelle, trafic TCP/UDP,
+  DNS, débits, reconnexion) : la validation finale doit être faite sur l'APK.
+- Le délai `:tasks` n'a pas pu être reproduit ici ; le correctif supprime le
+  démarrage au premier plan inutile, sans mesure sur appareil.
+
 ## 1.9.8-lab (765) — migration du moteur vers Xray-core v26.11.9
 
 **Contexte** : l'audit a montré un moteur officiel (Xray-core) mais figé à

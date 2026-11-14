@@ -211,7 +211,8 @@ data class V2rayConfig(
             )
 
             data class TlsSettingsBean(
-                var allowInsecure: Boolean = false,
+                // « allowInsecure » a été supprimé par Xray-core ≥ 26.6 : le champ
+                // ne doit plus être émis (le moteur refuse la configuration).
                 var serverName: String? = null,
                 val alpn: List<String>? = null,
                 val minVersion: String? = null,

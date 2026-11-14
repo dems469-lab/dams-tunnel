@@ -83,12 +83,28 @@ class XrayJsonConfigTest {
     }
 
     @Test
-    fun `tls uses allowInsecure and the dynamic sni`() {
+    fun `tls omits the removed allowInsecure and keeps the dynamic sni`() {
         val json = outbound(profile())
         val tls = stream(json).getAsJsonObject("tlsSettings")
 
-        assertTrue(tls.get("allowInsecure").asBoolean)
+        // Xray-core >= 26.6 refuse la configuration si « allowInsecure » est émis.
+        assertFalse(tls.has("allowInsecure"))
         assertEquals("maxit-mobile.orange.bf", tls.get("serverName").asString)
+    }
+
+    @Test
+    fun `tls maps the profile pins to the replacement fields`() {
+        val json = outbound(
+            profile().copy(
+                pinnedCA256 = "aa:bb",
+                verifyPeerCertByName = "cert.example.com",
+            ),
+        )
+        val tls = stream(json).getAsJsonObject("tlsSettings")
+
+        assertEquals("aa:bb", tls.get("pinnedPeerCertSha256").asString)
+        assertEquals("cert.example.com", tls.get("verifyPeerCertByName").asString)
+        assertFalse(tls.has("allowInsecure"))
     }
 
     @Test

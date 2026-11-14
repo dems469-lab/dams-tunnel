@@ -118,12 +118,15 @@ object MessageHelper {
                 }
 
                 AppConfig.MSG_MEASURE_CONFIG_CANCEL -> {
-                    // Deliver the request id so the service cancels only that batch.
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        ContextCompat.startForegroundService(ctx, intent)
-                    } else {
-                        ctx.startService(intent)
-                    }
+                    // Une annulation ne justifie pas un service au premier plan :
+                    // ce démarrage à froid du processus :tasks (déclenché aussi
+                    // à la fermeture de l'écran) dépassait le délai système sous
+                    // pression mémoire (ForegroundServiceDidNotStartInTime).
+                    // Si le service tourne déjà, startService lui livre l'intent ;
+                    // sinon l'annulation est sans objet. Hors premier plan, Android
+                    // peut refuser ce démarrage : ce n'est pas une erreur.
+                    runCatching { ctx.startService(intent) }
+                        .onFailure { LogUtil.d(AppConfig.TAG, "Test service cancel not delivered: ${it.message}") }
                 }
 
                 else -> {
