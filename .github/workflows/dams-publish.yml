@@ -29,6 +29,15 @@ jobs:
           gh run download "${{ inputs.run_id }}" -R "${{ github.repository }}" -n dams-universal-apk -D dist/universal
           find dist -name '*.apk' -exec ls -lh {} \;
 
+      - name: Print APK fingerprints
+        run: |
+          set -euo pipefail
+          find dist -name '*.apk' -print0 | sort -z | while IFS= read -r -d '' apk; do
+            size=$(stat -c '%s' "$apk")
+            sha=$(sha256sum "$apk" | cut -d' ' -f1)
+            echo "FINGERPRINT $(basename "$apk") size=$size sha256=$sha"
+          done
+
       - name: Upload APKs to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
