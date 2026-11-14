@@ -63,7 +63,16 @@ fin d'entrée, avec leur raison.
 **Vérifications réellement exécutées**
 - CI `dams-ci` (run 43624606715) : `testPlaystoreDebugUnitTest lintPlaystoreDebug`
   + builds debug/release + vérification de l'isolation Premium →
-  **succès** (13 min 15 s, artefact `dams-premium-test-apk` produit).
+  **succès** (13 min 18 s, artefact `dams-premium-test-apk` produit).
+- CI `dams-ci` (run 43639493269, commit de documentation) : **succès**.
+- CI `dams-build` (run 43640442989) : APK signés produits → **succès**.
+- CI `dams-publish` (run 43642978980) : dépôt des APK sur la release →
+  **succès**.
+- Release `v1.10.0-lab` (tag sur `5eac407`, Latest) : arm64
+  `DamsTunnel_1.10.0-lab_arm64-v8a.apk` (33 501 126 o, SHA-256
+  `8a80c4476994fb524e9b803b0f6692de5f30315b8cec85b04e90dcd071c5f85d`) et
+  universel `DamsTunnel_1.10.0-lab_universal.apk` (73 127 759 o, SHA-256
+  `55669ad907bec26394c0768b6fb32d7f6a69d1656887f63ab181315e2b75a60d`).
 - Aucun autre test n'a pu être exécuté ici (pas de JDK/SDK/appareil).
 
 **Non appliqué (décision explicite)**
