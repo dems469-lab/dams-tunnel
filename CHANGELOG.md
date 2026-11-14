@@ -49,7 +49,14 @@ possibilité.
 - Tests unitaires ajoutés/mis à jour : absence de `allowInsecure` dans le TLS
   et le REALITY générés (builder et `XrayJsonConfig`), présence des champs de
   remplacement.
-- CI `dams-ci` et `dams-build` : voir la section de publication ci-dessous.
+- CI `dams-ci` (run 43551095432) : 516 tests unitaires + lint
+  **BUILD SUCCESSFUL**.
+- CI `dams-build` (run 43552056170) : APK signés produits et vérifiés.
+- Release `v1.9.9-lab` (tag sur `0ca6661`, Latest) : arm64
+  `DamsTunnel_1.9.9-lab_arm64-v8a.apk` (33 499 030 o, SHA-256
+  `086785453a74f17c826973619b343297c2109a13fb2c839d2303cdb74288612f`) et
+  universel `DamsTunnel_1.9.9-lab_universal.apk` (73 125 659 o, SHA-256
+  `899e7a16e392544e7e8a2ec61fc2639ac080c13873feb43a0c88c4dadc8bb6e0`).
 
 **Non vérifié**
 - Aucun test terrain sur téléphone (poignée de main réelle, trafic TCP/UDP,
