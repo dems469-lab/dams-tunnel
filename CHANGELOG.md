@@ -44,8 +44,17 @@ exécuté ici.
 - `core/CoreRecoveryPolicyTest.kt` : 5 cas ajoutés sur les décisions pures
   (confirmation exigée avec relais vivant, panne confirmée, relais mort,
   handover à une puis deux sondes négatives).
-- CI GitHub à exécuter après poussée ; build et publication non lancés à ce
-  stade.
+- CI `Dams CI` run `43719457890` sur `2ec98fb` : **success** (tests, lint,
+  builds debug/release, contrôle Premium TEST APK).
+- Build signé `Dams APK` run `43720734202` sur `2ec98fb` : **success**.
+- Publication `Dams Publish APK` run `43723330841` : **success**, release
+  `v1.10.2-lab` (Latest, tag sur `2ec98fb`, non draft) avec les deux APK.
+
+**Empreintes**
+- arm64 : `DamsTunnel_1.10.2-lab_arm64-v8a.apk` — 33 509 530 o —
+  SHA-256 `fab7b6adc55a0aac9b4a7b085e80e95cdf2e442974b8be172bad45f72ae3ccac`
+- universel : `DamsTunnel_1.10.2-lab_universal.apk` — 73 136 163 o —
+  SHA-256 `da9d3930b5a8e4b69eae5225f6dc43be71044793e9212a4516e07766e6df4a37`
 
 **Reste à vérifier (terrain)**
 - Absence de coupures pendant un flux saturé (le scénario que ce lot corrige).
