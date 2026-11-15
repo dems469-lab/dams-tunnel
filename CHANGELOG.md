@@ -3,6 +3,42 @@
 Un seul fichier d'historique. Chaque entrée décrit une intervention terminée,
 les fichiers touchés, ce qui a été vérifié et ce qui reste à vérifier.
 
+## 1.10.5-lab (775) — un redémarrage lent n'est plus abandonné en cours d'arrêt
+
+**Contexte** : journal terrain —
+`restart aborted, core stop not confirmed within 8000 ms`, suivi de
+`automatic recovery stopped after 3 attempts in 300000 ms`. Le redémarrage
+manuel abandonnait au bout de 8 s, alors que le chemin d'arrêt de production
+peut légitimement en prendre jusqu'à 27 (arrêt natif borné à 25 s, puis 2 s de
+grâce pour que le drapeau natif retombe). Résultat : l'arrêt se terminait
+**après** l'abandon, aucune relance n'était demandée, et le tunnel restait
+mort jusqu'à une action manuelle.
+
+**Correctifs**
+- **Budget d'arrêt cohérent** — `core/CoreSupervisor.kt`,
+  `core/CoreServiceManager.kt` : `MANUAL_RESTART_STOP_TIMEOUT_MILLIS` passe de
+  8 s à 30 s et couvre tout le chemin d'arrêt. Un arrêt lent mais normal aboutit
+  désormais à une relance au lieu d'un abandon.
+- **Plus d'ANR possible** — `core/CoreServiceManager.kt` : le récepteur de
+  diffusion est acquitté immédiatement (`pendingResult.finish()` juste après
+  `goAsync`), au lieu de rester ouvert pendant toute la relance. Le service
+  étant au premier plan, le processus survit sans retenir la diffusion : la
+  relance peut donc attendre 30 s sans exposer le récepteur à un ANR.
+
+**Ce qui reste ouvert** : un moteur réellement bloqué dans `stopLoop` (appel
+natif non interruptible) ne peut pas être tué sans redémarrer le processus de
+l'application. Ce lot supprime l'abandon prématuré, pas ce cas extrême.
+
+**Vérifications**
+- `core/CoreSupervisorTest.kt` : nouveau cas — le budget d'arrêt manuel doit
+  rester supérieur à l'arrêt natif borné (25 s) majoré de la grâce (2 s).
+- CI, build et publication : à renseigner après exécution.
+
+**Ouvert, à qualifier** : « certains protocoles ne fonctionnent pas » n'est pas
+reproduit ici. Il manque le protocole et le serveur concernés (VMess, VLESS,
+Shadowsocks, Trojan, Hysteria2, WireGuard) ainsi que le message d'erreur
+affiché au moment de la connexion.
+
 ## 1.10.4-lab (774) — le routage appliqué enfin lisible dans la console
 
 **Contexte** : les journaux envoyés en retour ne contenaient que du bruit du

@@ -783,3 +783,14 @@ internal suspend fun performManualRestart(
 internal const val DEFAULT_CORE_STOP_TIMEOUT_MILLIS = 25_000L
 internal const val DEFAULT_CORE_STOP_POLL_MILLIS = 100L
 internal const val DEFAULT_CORE_RELEASE_SETTLE_MILLIS = 250L
+
+/**
+ * Budget accordé à l'arrêt réel lors d'un redémarrage manuel.
+ *
+ * Il doit couvrir tout le chemin d'arrêt de production : `stopLoop` natif borné
+ * à 25 s, puis 2 s de grâce pour que le drapeau natif retombe. L'ancien budget
+ * de 8 s abandonnait le redémarrage alors que l'arrêt était encore en cours
+ * (`restart aborted, core stop not confirmed within 8000 ms`), laissant le
+ * tunnel mort sans relance.
+ */
+internal const val MANUAL_RESTART_STOP_TIMEOUT_MILLIS = 30_000L

@@ -259,7 +259,19 @@ class CoreSupervisorTest {
         assertEquals(CoreRuntimeState.STOPPING, h.supervisor.snapshot().state)
     }
 
-    // 10. Limite de trois relances automatiques.
+    // 10. Le budget d'arrêt manuel doit couvrir tout le chemin d'arrêt.
+    //
+    // L'ancien budget de 8 s abandonnait le redémarrage pendant que l'arrêt
+    // était encore en cours (`restart aborted, core stop not confirmed within
+    // 8000 ms`), laissant le tunnel arrêté sans relance. Le budget doit rester
+    // supérieur à l'arrêt natif borné (25 s) majoré de la grâce du drapeau (2 s).
+    @Test
+    fun manualRestartBudgetCoversTheWholeStopPath() {
+        assertTrue(MANUAL_RESTART_STOP_TIMEOUT_MILLIS >= 27_000L)
+        assertTrue(MANUAL_RESTART_STOP_TIMEOUT_MILLIS > DEFAULT_CORE_STOP_TIMEOUT_MILLIS)
+    }
+
+    // 11. Limite de trois relances automatiques.
     @Test
     fun automaticAttemptsAreCappedAtThree() {
         val h = Harness()
@@ -283,7 +295,7 @@ class CoreSupervisorTest {
         assertEquals(3, h.supervisor.attemptsInWindow())
     }
 
-    // 11. Réinitialisation : la fenêtre expire et une action manuelle ouvre un épisode.
+    // 12. Réinitialisation : la fenêtre expire et une action manuelle ouvre un épisode.
     @Test
     fun attemptsExpireWithTheWindowAndAManualConnectResetsThem() {
         val h = Harness(RecoveryLimitPolicy(maxAutomaticAttempts = 1, windowMillis = 60_000L))
@@ -318,7 +330,7 @@ class CoreSupervisorTest {
         )
     }
 
-    // 12. Échec de récupération.
+    // 13. Échec de récupération.
     @Test
     fun recoveryFailureIsReportedWithoutInventingSuccess() {
         val h = Harness()
@@ -342,7 +354,7 @@ class CoreSupervisorTest {
         assertEquals(2, h.kinds().count { it == CoreEventKind.RECONNECT_FAILED })
     }
 
-    // 13. Changement de réseau pendant une récupération.
+    // 14. Changement de réseau pendant une récupération.
     @Test
     fun networkChangeDuringRecoveryDoesNotStartASecondRecovery() {
         val h = Harness()

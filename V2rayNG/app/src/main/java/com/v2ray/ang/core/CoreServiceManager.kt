@@ -1511,9 +1511,9 @@ object CoreServiceManager {
             isCoreRunning = { isRunning() },
             requestStop = { serviceControl?.stopService() },
             requestStart = { LauncherManager.startService(service) },
-            // Le récepteur de diffusion est un contexte borné : rester 25 s dans
-            // goAsync expose à un ANR. Un arrêt normal prend moins d'une seconde ;
-            // au-delà de 8 s, l'échec est publié et l'utilisateur peut réessayer.
+            // Le budget couvre tout l'arrêt de production (stopLoop natif borné,
+            // puis grâce du drapeau). Le récepteur de diffusion est acquitté
+            // immédiatement : la relance se termine en arrière-plan, sans ANR.
             stopTimeoutMillis = MANUAL_RESTART_STOP_TIMEOUT_MILLIS,
         )
 
@@ -1943,7 +1943,10 @@ object CoreServiceManager {
                     // daemon before stopping it instead of relying on possibly stale UI state.
                     if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
 
-                    val pendingResult = goAsync()
+                    // Acquittement immédiat et pas de `goAsync` : le service est au
+                    // premier plan, le processus survit sans retenir la diffusion.
+                    // La relance peut donc attendre l'arrêt complet du cœur (30 s)
+                    // sans exposer le récepteur à un ANR.
                     lifecycleScope.launch {
                         try {
                             restartTunnel(control.getService())
@@ -1961,8 +1964,6 @@ object CoreServiceManager {
                                     "manual_restart_error",
                                 )
                             }
-                        } finally {
-                            pendingResult.finish()
                         }
                     }
                 }
@@ -2061,9 +2062,6 @@ private const val MIN_PROBE_URL_BUDGET_MILLIS = 2_500L
 /** Intervalle des statistiques de trafic, écran allumé / éteint. */
 private const val TRAFFIC_STATS_INTERVAL_MILLIS = 1_000L
 private const val TRAFFIC_STATS_INTERVAL_SCREEN_OFF_MILLIS = 3_000L
-
-/** Délai accordé à l'arrêt natif lors d'un redémarrage depuis la notification. */
-private const val MANUAL_RESTART_STOP_TIMEOUT_MILLIS = 8_000L
 
 /** Relance lente après épuisement du quota de reconnexions automatiques. */
 private const val SLOW_RECOVERY_RETRY_MILLIS = 60_000L
