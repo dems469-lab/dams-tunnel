@@ -71,6 +71,23 @@ internal object CoreRecoveryPolicy {
     }
 
     /**
+     * Une sonde en échec ne justifie une récupération destructrice qu'après une
+     * fenêtre de confirmation. Tant que le relais vit, la sonde peut simplement
+     * être en file derrière un flux saturé : recharger le cœur à ce moment
+     * couperait toutes les connexions de l'utilisateur sans preuve de panne.
+     */
+    fun shouldRecoverAfterProbeFailures(relayRunning: Boolean, confirmedDown: Boolean): Boolean =
+        !relayRunning || confirmedDown
+
+    /**
+     * Après un changement de réseau, la radio peut mettre plusieurs secondes à
+     * se réinstaller : une seule sonde négative ne prouve rien. Seule une
+     * double vérification négative autorise un rechargement.
+     */
+    fun handoverNeedsRecovery(firstProbeReachable: Boolean, secondProbeReachable: Boolean): Boolean =
+        !firstProbeReachable && !secondProbeReachable
+
+    /**
      * Un état « connecté » n'est publié que si la requête réelle a abouti,
      * que le cœur tourne **et** que le relais vit : la sonde seule ne prouve
      * que le trajet moteur → serveur, jamais le TUN.

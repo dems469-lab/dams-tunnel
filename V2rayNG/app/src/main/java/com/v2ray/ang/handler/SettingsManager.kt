@@ -380,6 +380,20 @@ object SettingsManager {
     }
 
     /**
+     * URLs de sonde, dans l'ordre d'essai.
+     *
+     * Le repli ne doit pas rester chez le même fournisseur que l'URL
+     * principale : deux URLs Google échouent ensemble quand un serveur bloque
+     * Google, ce qui faisait recharger le cœur en boucle alors que le tunnel
+     * transportait du trafic.
+     */
+    fun getDelayTestUrls(): List<String> = listOf(
+        getDelayTestUrl(),
+        AppConfig.DELAY_TEST_URL2,
+        AppConfig.DELAY_TEST_URL3,
+    ).distinct()
+
+    /**
      * Get real ping concurrency.
      * @return The number of concurrent real-ping tests (clamped to 1..64).
      */

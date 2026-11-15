@@ -142,4 +142,64 @@ class CoreRecoveryPolicyTest {
             CoreRecoveryPolicy.startDisposition(coreRunning = false, pathUsable = false),
         )
     }
+
+    // ── Confirmation avant récupération ──────────────────────────────────────
+
+    @Test
+    fun `une sonde en echec avec relais vivant ne suffit pas a recharger`() {
+        assertFalse(
+            CoreRecoveryPolicy.shouldRecoverAfterProbeFailures(
+                relayRunning = true,
+                confirmedDown = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `une panne confirmee par la fenetre declenche la recuperation`() {
+        assertTrue(
+            CoreRecoveryPolicy.shouldRecoverAfterProbeFailures(
+                relayRunning = true,
+                confirmedDown = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `un relais mort ne passe pas par la fenetre de confirmation`() {
+        assertTrue(
+            CoreRecoveryPolicy.shouldRecoverAfterProbeFailures(
+                relayRunning = false,
+                confirmedDown = false,
+            ),
+        )
+    }
+
+    // ── Handover ─────────────────────────────────────────────────────────────
+
+    @Test
+    fun `une seule sonde negative apres handover ne recharge pas`() {
+        assertFalse(
+            CoreRecoveryPolicy.handoverNeedsRecovery(
+                firstProbeReachable = true,
+                secondProbeReachable = false,
+            ),
+        )
+        assertFalse(
+            CoreRecoveryPolicy.handoverNeedsRecovery(
+                firstProbeReachable = false,
+                secondProbeReachable = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `deux sondes negatives apres handover declenchent la recuperation`() {
+        assertTrue(
+            CoreRecoveryPolicy.handoverNeedsRecovery(
+                firstProbeReachable = false,
+                secondProbeReachable = false,
+            ),
+        )
+    }
 }

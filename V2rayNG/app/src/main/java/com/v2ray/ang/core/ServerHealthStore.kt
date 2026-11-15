@@ -86,6 +86,23 @@ internal object ServerHealthStore {
         }
     }
 
+    /**
+     * Marque le serveur comme joignable sans ajouter d'échantillon de latence.
+     *
+     * Utilisé par la fenêtre de confirmation : la requête a abouti, mais sa
+     * durée reflète la congestion du moment, pas la qualité du serveur. Un
+     * chiffre lent fausserait le classement de bascule — et une bascule
+     * recharge le cœur, donc coupe les connexions en cours.
+     */
+    fun recordReachable(guid: String, protocol: String) {
+        if (guid.isBlank()) return
+        update(guid) { record ->
+            record.lastTestedAt = System.currentTimeMillis()
+            record.lastFailed = false
+            if (protocol.isNotBlank()) record.protocol = protocol
+        }
+    }
+
     /** Toutes les mesures connues, pour le classement. */
     fun snapshots(guids: Collection<String>): List<ServerHealthSnapshot> =
         guids.distinct().map(::snapshot).filter { it.samples > 0 }

@@ -170,6 +170,13 @@ object AppConfig {
     const val TG_CHANNEL_URL = "https://t.me/github_2dust"
     const val DELAY_TEST_URL = "https://www.gstatic.com/generate_204"
     const val DELAY_TEST_URL2 = "https://www.google.com/generate_204"
+
+    /**
+     * Repli non-Google : si un serveur bloque Google, deux URLs Google
+     * échouent ensemble et le cœur était rechargé en boucle alors que le
+     * tunnel fonctionnait. Ce repli doit rester chez un autre fournisseur.
+     */
+    const val DELAY_TEST_URL3 = "https://cp.cloudflare.com/generate_204"
     const val OBSERVATORY_LEAST_PING_INTERVAL = "3m"
     const val OBSERVATORY_LEAST_LOAD_INTERVAL = "5m"
     const val OBSERVATORY_LEAST_LOAD_METHOD = "HEAD"

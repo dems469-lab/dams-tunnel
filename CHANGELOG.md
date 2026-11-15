@@ -3,6 +3,55 @@
 Un seul fichier d'historique. Chaque entrée décrit une intervention terminée,
 les fichiers touchés, ce qui a été vérifié et ce qui reste à vérifier.
 
+## 1.10.2-lab (772) — stabilité sous charge : plus de rechargement sur une sonde isolée
+
+**Contexte** : audit statique de performance (rapport :
+`RAPPORT-AUDIT-PERFORMANCE-2026-11-15.md`, non commité). Le constat principal
+était qu'une sonde en échec — y compris une simple requête en file derrière un
+flux saturé — déclenchait un rechargement complet du cœur, coupant toutes les
+connexions. Aucun test terrain (débit, streaming, handover réel) n'a été
+exécuté ici.
+
+**Correctifs**
+- **Confirmation avant récupération (C1)** — `core/CoreServiceManager.kt`,
+  `core/CoreRecoveryPolicy.kt` : deux échecs de sonde ne suffisent plus à
+  recharger le cœur. Tant que le relais TUN vit, une fenêtre de confirmation
+  (deux essais bornés à 12 s, espacés de 8 s) re-vérifie le tunnel sans toucher
+  au cœur ni au relais ; si une requête aboutit, le tunnel est conservé et le
+  compteur d'échecs remis à zéro. Un relais mort court-circuite la fenêtre
+  (reconstruction immédiate). La raison publiée devient
+  `probe_unreachable_confirmed`.
+- **Handover moins impatient (C2)** — `core/CoreServiceManager.kt`,
+  `core/CoreRecoveryPolicy.kt` : la vérification après changement de réseau
+  passe de 3 s à 6 s et un second essai est effectué après 2 s. Seule une double
+  vérification négative déclenche le rechargement.
+- **Repli de sonde non-Google (C3)** — `AppConfig.kt`,
+  `handler/SettingsManager.kt`, `core/CoreServiceManager.kt` : ajout de
+  `DELAY_TEST_URL3` (`https://cp.cloudflare.com/generate_204`) et de
+  `SettingsManager.getDelayTestUrls()`. La sonde de santé et la mesure de
+  latence essayent les URLs dans l'ordre (configurée, puis Google, puis
+  Cloudflare, sans doublon) : un serveur qui bloque Google ne rend plus la
+  mesure définitivement négative. Le budget total de la sonde est inchangé,
+  mais chaque URL ne peut en consommer que la moitié, sinon une URL bloquée
+  mangerait le temps des replis.
+- **Mesures honnêtes** — `core/ServerHealthStore.kt`,
+  `core/CoreServiceManager.kt` : un succès obtenu pendant la fenêtre de
+  confirmation marque le serveur joignable **sans** ajouter d'échantillon de
+  latence (une mesure à 12 s derrière un flux saturé aurait fait passer le
+  serveur pour mauvais et déclenché une bascule, donc une coupe).
+
+**Vérifications**
+- `core/CoreRecoveryPolicyTest.kt` : 5 cas ajoutés sur les décisions pures
+  (confirmation exigée avec relais vivant, panne confirmée, relais mort,
+  handover à une puis deux sondes négatives).
+- CI GitHub à exécuter après poussée ; build et publication non lancés à ce
+  stade.
+
+**Reste à vérifier (terrain)**
+- Absence de coupures pendant un flux saturé (le scénario que ce lot corrige).
+- Comportement réel du handover Wi-Fi ↔ 4G sur réseau lent à se réinstaller.
+- Qu'un serveur bloquant Google reste connecté grâce au repli Cloudflare.
+
 ## 1.10.1-lab (771) — correctifs de l'audit connexion
 
 **Contexte** : audit statique de la fiabilité de connexion (rapport :
