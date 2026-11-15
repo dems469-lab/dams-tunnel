@@ -42,7 +42,17 @@ résidentielle), pas dans l'APK.
   refus de reprise sur règle modifiée, sur règle ajoutée/supprimée, sur règles
   absentes, et contrôle du contenu des deux presets livrés (le Mondial proxyfie
   bien tout et ne laisse pas `geoip:cn`/`geosite:cn` en direct).
-- CI, build et publication : à renseigner après exécution.
+- CI `Dams CI` run `43726955295` sur `740c55b` : **success** (tests, lint,
+  builds debug/release, contrôle Premium TEST APK).
+- Build signé `Dams APK` run `43728241488` sur `740c55b` : **success**.
+- Publication `Dams Publish APK` run `43729020908` : **success**, release
+  `v1.10.3-lab` (Latest, tag sur `740c55b`, non draft) avec les deux APK.
+
+**Empreintes**
+- arm64 : `DamsTunnel_1.10.3-lab_arm64-v8a.apk` — 33 510 282 o —
+  SHA-256 `24e3b4eb249ff1f70839c01172b1db651e432001b33695b918b440b202758091`
+- universel : `DamsTunnel_1.10.3-lab_universal.apk` — 73 136 915 o —
+  SHA-256 `8ba69b3d1175f70ccac4832aef26b6968d29f9a38f046010b0edd5bddde12d39`
 
 ## 1.10.2-lab (772) — stabilité sous charge : plus de rechargement sur une sonde isolée
 
