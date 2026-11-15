@@ -74,7 +74,23 @@ TCP/UDP, DNS, IPv6 selon ROM, handover, débit) n'a été exécuté ici.
 **Tests unitaires**
 - `AutoFailoverPolicyTest` : adaptation aux nouvelles règles (fraîcheur candidat
   24 h, gain sain, exclusion `lastFailed`, candidat non mesuré actif testé dans
-  la fenêtre récente).
+  la fenêtre récente) ; horodatage epoch réaliste pour que l'âge des mesures soit
+  évalué sur sa valeur réelle.
+- `CoreSupervisorTest` : le scénario d'exhaustivité du journal émet
+  `RECOVERY_BUDGET_RESET` (nouvel événement du correctif M7).
+
+**CI et publication**
+- `dams-ci` 43665588754 : échec initial sur deux tests (fixture à horodatage
+  négatif, événement de journal manquant) ; corrigé par `d23dc2c`.
+- `dams-ci` 43666213455 : verte (519 tests, lint, builds debug/release, isolation
+  Premium).
+- `dams-build` 43667521942 : APK signés arm64 et universel.
+- `dams-publish` 43668313208 : release `v1.10.1-lab` (Latest) avec les deux APK.
+- Empreintes :
+  - `DamsTunnel_1.10.1-lab_arm64-v8a.apk` — 33 507 774 o — SHA-256
+    `3240633eeca09978d31ce5d979be09c1e7fe0849e0d2958aec544e34126bece5`
+  - `DamsTunnel_1.10.1-lab_universal.apk` — 73 134 403 o — SHA-256
+    `80114684a9c299de011adbacf385cefac9d7bf8edb62808dd510e532d5314a3e`
 
 **Limites connues / non vérifié ici**
 - Aucun JDK/SDK/appareil local : compilation et exécution des tests non réalisées
