@@ -11,6 +11,7 @@ import com.v2ray.ang.AppConfig.GEOIP_PRIVATE
 import com.v2ray.ang.AppConfig.GEOSITE_PRIVATE
 import com.v2ray.ang.AppConfig.TAG_DIRECT
 import com.v2ray.ang.AppConfig.VPN
+import com.v2ray.ang.core.RoutingPresetPolicy
 import com.v2ray.ang.dto.V2rayConfig
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.dto.entities.RulesetItem
@@ -37,6 +38,9 @@ object SettingsManager {
     @Volatile
     private var runtimeSocksPort: Int? = null
 
+    /** Verrou de la reprise unique de l'ancien preset de routage par défaut. */
+    private const val ROUTING_DEFAULT_MIGRATION_KEY = "routing_default_preset_global_migrated"
+
     fun initApp(context: Context) {
         ensureDefaultSettings()
         //ensureDefaultSubscription()
@@ -52,9 +56,47 @@ object SettingsManager {
     private fun initRoutingRulesets(context: Context) {
         val exist = MmkvManager.decodeRoutingRulesets()
         if (exist.isNullOrEmpty()) {
-            val rulesetList = getPresetRoutingRulesets(context)
+            val rulesetList = getPresetRoutingRulesets(context, RoutingPresetPolicy.DEFAULT_PRESET)
             MmkvManager.encodeRoutingRulesets(rulesetList)
+            // Rien à reprendre : l'installation part directement sur le défaut actuel.
+            MmkvManager.encodeSettings(ROUTING_DEFAULT_MIGRATION_KEY, true)
+            return
         }
+        migrateLegacyDefaultRoutingRuleset(context, exist)
+    }
+
+    /**
+     * Remplace l'ancien preset par défaut par le nouveau, une seule fois.
+     *
+     * Jusqu'à la 1.10.2-lab, l'installation partait sur la liste d'autorisation
+     * Chine, qui envoie `geoip:cn` et `geosite:cn` en direct : les services
+     * chinois (DeepSeek) ne passaient jamais par le tunnel. On ne reprend que
+     * les règles strictement identiques à ce défaut d'origine, pour ne jamais
+     * écraser une configuration choisie ou modifiée.
+     */
+    private fun migrateLegacyDefaultRoutingRuleset(
+        context: Context,
+        exist: MutableList<RulesetItem>,
+    ) {
+        if (MmkvManager.decodeSettingsBool(ROUTING_DEFAULT_MIGRATION_KEY, false)) {
+            return
+        }
+
+        val legacy = getPresetRoutingRulesets(context, RoutingPresetPolicy.LEGACY_DEFAULT_PRESET)
+        if (RoutingPresetPolicy.isLegacyDefault(exist, legacy)) {
+            val replacement = getPresetRoutingRulesets(context, RoutingPresetPolicy.DEFAULT_PRESET)
+            if (replacement != null) {
+                MmkvManager.encodeRoutingRulesets(replacement)
+                LogUtil.i(
+                    AppConfig.TAG,
+                    "Routing preset upgraded from ${RoutingPresetPolicy.LEGACY_DEFAULT_PRESET} to ${RoutingPresetPolicy.DEFAULT_PRESET}",
+                )
+            } else {
+                LogUtil.w(AppConfig.TAG, "Routing preset upgrade skipped: default preset asset missing")
+            }
+        }
+
+        MmkvManager.encodeSettings(ROUTING_DEFAULT_MIGRATION_KEY, true)
     }
 
     /**
@@ -63,7 +105,7 @@ object SettingsManager {
      * @param type The routing preset type.
      * @return A mutable list of RulesetItem.
      */
-    private fun getPresetRoutingRulesets(context: Context, type: RoutingType = RoutingType.WHITE): MutableList<RulesetItem>? {
+    private fun getPresetRoutingRulesets(context: Context, type: RoutingType = RoutingPresetPolicy.DEFAULT_PRESET): MutableList<RulesetItem>? {
         val assets = Utils.readTextFromAssets(context, type.fileName)
         if (TextUtils.isEmpty(assets)) {
             return null

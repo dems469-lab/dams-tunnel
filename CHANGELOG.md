@@ -3,6 +3,47 @@
 Un seul fichier d'historique. Chaque entrée décrit une intervention terminée,
 les fichiers touchés, ce qui a été vérifié et ce qui reste à vérifier.
 
+## 1.10.3-lab (773) — le trafic chinois ne contourne plus le tunnel par défaut
+
+**Contexte** : retour terrain après la 1.10.2-lab — Telegram rapide, mais
+DeepSeek, ChatGPT et les applications de streaming « ne changent pas ». Le
+diagnostic statique a trouvé une cause de configuration, indépendante du
+serveur : le preset de routage appliqué par défaut à l'installation était la
+**liste d'autorisation Chine**, qui envoie `geoip:cn` et `geosite:cn` en
+**direct**. Tout service chinois — DeepSeek en premier — gardait donc l'IP
+réelle, quel que soit le serveur choisi.
+
+**Correctifs**
+- **Nouveau défaut : Mondial** — `handler/SettingsManager.kt`,
+  `enums/RoutingType.kt` (via `core/RoutingPresetPolicy.kt`) : une installation
+  neuve part sur le preset Mondial, qui proxyfie tout (`port 0-65535`), ne
+  laisse en direct que le réseau local (`geoip:private`, `geosite:private`) et
+  bloque l'UDP/443 (QUIC) pour éviter un contournement du tunnel.
+- **Reprise unique de l'ancien défaut** — `handler/SettingsManager.kt` :
+  au démarrage, si les règles stockées sont **strictement identiques** au preset
+  Chine livré auparavant, elles sont remplacées par le preset Mondial, une seule
+  fois (verrou `routing_default_preset_global_migrated`). Toute règle ajoutée,
+  supprimée ou modifiée par la personne annule la reprise : une configuration
+  volontaire n'est jamais écrasée. Un simple changement de libellé (`remarks`)
+  n'annule pas la reprise, car il ne change pas le routage.
+- **Documentation du preset Chine** — `assets/custom_routing_white` est
+  inchangé et reste disponible dans le menu « Importer des ensembles de règles
+  prédéfinis » pour qui veut le routage chinois.
+
+**Ce qui n'est pas corrigé ici** : si une application reste refusée **après**
+changement d'IP, la cause est l'IP de sortie du serveur (plages datacenter
+bloquées par OpenAI, Cloudflare ou les plateformes de streaming), pas le
+routage. Cela se traite côté serveur (autre IP, autre port, sortie
+résidentielle), pas dans l'APK.
+
+**Vérifications**
+- `core/RoutingPresetPolicyTest.kt` : 8 cas — défaut global, legacy Chine
+  documenté, reprise d'un défaut intact, reprise après changement de libellé,
+  refus de reprise sur règle modifiée, sur règle ajoutée/supprimée, sur règles
+  absentes, et contrôle du contenu des deux presets livrés (le Mondial proxyfie
+  bien tout et ne laisse pas `geoip:cn`/`geosite:cn` en direct).
+- CI, build et publication : à renseigner après exécution.
+
 ## 1.10.2-lab (772) — stabilité sous charge : plus de rechargement sur une sonde isolée
 
 **Contexte** : audit statique de performance (rapport :
