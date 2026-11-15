@@ -26,7 +26,18 @@ vérifier sur l'appareil le correctif de la 1.10.3-lab.
   Chine en direct et sans règle attrape-tout, preset Mondial décrit comme
   proxyfiant tout, règles désactivées ignorées, absence de règles sans plantage,
   texte final exact.
-- CI, build et publication : à renseigner après exécution.
+- CI `Dams CI` run `43731024801` sur `30a24f3` : **success**.
+- Build signé `Dams APK` run `43731915970` sur `30a24f3` : **success**.
+- Publication `Dams Publish APK` run `43732854637` : **success**, release
+  `v1.10.4-lab` (Latest, tag sur `30a24f3`, non draft) avec les deux APK.
+  Premier essai de publication en échec (release non créée à cause d'une coupure
+  TLS vers l'API GitHub), relancé après création de la release.
+
+**Empreintes**
+- arm64 : `DamsTunnel_1.10.4-lab_arm64-v8a.apk` — 33 511 922 o —
+  SHA-256 `d8479c97932140b2af0ab1a0ebd29ac278096683da6b909c5c1b432b82697285`
+- universel : `DamsTunnel_1.10.4-lab_universal.apk` — 73 138 551 o —
+  SHA-256 `a8a51a3b76ef16e0c0daad367f6b456b14828ee6be60bda57835524227113e86`
 
 ## 1.10.3-lab (773) — le trafic chinois ne contourne plus le tunnel par défaut
 
