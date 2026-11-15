@@ -392,6 +392,8 @@ class CoreSupervisorTest {
             sup.recoveryFinished(false, "verification_failed")
         }
         sup.requestRecovery(CoreOrigin.WATCHDOG, "exit", coreRunning = false)
+        // Nouveau réseau validé : le quota de relances repart à zéro.
+        sup.resetRecoveryBudget("network_handover")
         sup.coreStartFailed("core_start_failed", IllegalStateException("boom"), CoreOrigin.USER)
         sup.stopNotConfirmed(CoreOrigin.USER, "restart_stop_timeout", 25_000L)
 

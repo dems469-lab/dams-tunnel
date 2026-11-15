@@ -8,7 +8,10 @@ import org.junit.jupiter.api.Test
 
 class AutoFailoverPolicyTest {
 
-    private val now = 1_000_000L
+    // Horodatage réaliste (epoch) : une mesure vieille de 25 h doit rester
+    // strictement positive, sinon la fraîcheur serait rejetée pour cause de
+    // valeur négative et non pour son âge réel.
+    private val now = 1_700_000_000_000L
 
     private fun snapshot(
         guid: String,
