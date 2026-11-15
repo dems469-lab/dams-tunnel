@@ -26,7 +26,18 @@ l'application ne le libère pas forcément (le démon survit à l'interface).
 **Vérifications**
 - `core/CoreRecoveryPolicyTest.kt` : deux cas — un seul échec ne tue pas le
   démon, deux échecs consécutifs déclenchent la réinitialisation.
-- CI, build et publication : à renseigner après exécution.
+- CI `Dams CI` run `43737802043` sur `06dcdf5` : **success** (le `EXIT=1` de
+  `gh run watch` venait d'une coupure réseau à la fin du suivi, `unexpected
+  EOF` ; le run lui-même est `completed / success`).
+- Build signé `Dams APK` run `43738812797` sur `06dcdf5` : **success**.
+- Publication `Dams Publish APK` run `43739509438` : **success**, release
+  `v1.10.6-lab` (Latest, tag sur `06dcdf5`) avec les deux APK.
+
+**Empreintes**
+- arm64 : `DamsTunnel_1.10.6-lab_arm64-v8a.apk` — 33 513 002 o —
+  SHA-256 `cfb0c1c1e0bee1ba25f7efa85c6189a6e1db4e8900302a2134b017c371cacb1a`
+- universel : `DamsTunnel_1.10.6-lab_universal.apk` — 73 139 631 o —
+  SHA-256 `89f07e675d2523fc07235c7825d7fd750799d1f2a6c30d13cd023f3c8133a5a2`
 
 ## 1.10.5-lab (775) — un redémarrage lent n'est plus abandonné en cours d'arrêt
 
@@ -57,7 +68,16 @@ l'application. Ce lot supprime l'abandon prématuré, pas ce cas extrême.
 **Vérifications**
 - `core/CoreSupervisorTest.kt` : nouveau cas — le budget d'arrêt manuel doit
   rester supérieur à l'arrêt natif borné (25 s) majoré de la grâce (2 s).
-- CI, build et publication : à renseigner après exécution.
+- CI `Dams CI` run `43735917794` sur `cc56d3a` : **success**.
+- Build signé `Dams APK` run `43737228573` sur `cc56d3a` : **success**.
+- Publication `Dams Publish APK` run `43738001346` : **success**, release
+  `v1.10.5-lab` (Latest, tag sur `cc56d3a`, non draft) avec les deux APK.
+
+**Empreintes**
+- arm64 : `DamsTunnel_1.10.5-lab_arm64-v8a.apk` — 33 511 662 o —
+  SHA-256 `bf9a594d0b809ebe9b3992505f27b68bc74b25a40456f338cbde55aa47f3d042`
+- universel : `DamsTunnel_1.10.5-lab_universal.apk` — 73 138 291 o —
+  SHA-256 `6cc80afb490b898956a44c8a0fb2a7e4c5ec48144b5f5f9f5d1f1c5803c8b87b`
 
 **Ouvert, à qualifier** : « certains protocoles ne fonctionnent pas » n'est pas
 reproduit ici. Il manque le protocole et le serveur concernés (VMess, VLESS,
