@@ -105,4 +105,16 @@ internal object CoreRecoveryPolicy {
      */
     fun startDisposition(coreRunning: Boolean, pathUsable: Boolean): StartDisposition =
         if (coreRunning && pathUsable) StartDisposition.KEEP_EXISTING else StartDisposition.REBUILD
+
+    /**
+     * Un arrêt refusé deux fois de suite n'est plus un retard : `stopLoop` est
+     * natif et non interruptible, donc le moteur restera bloqué jusqu'à la mort
+     * du processus. Le démon tourne dans son propre processus (`:daemon`) :
+     * le tuer libère le moteur sans toucher à l'interface.
+     *
+     * Une seule fois, l'échec peut être un arrêt simplement lent ; on ne
+     * réinitialise donc qu'à partir du deuxième échec consécutif.
+     */
+    fun shouldHardResetWedgedCore(consecutiveStopFailures: Int): Boolean =
+        consecutiveStopFailures >= 2
 }

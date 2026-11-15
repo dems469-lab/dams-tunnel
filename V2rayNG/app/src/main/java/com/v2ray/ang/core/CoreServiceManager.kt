@@ -145,6 +145,14 @@ object CoreServiceManager {
     private var stopIncomplete = false
 
     /**
+     * Échecs d'arrêt consécutifs. À partir du deuxième, `stopLoop` est considéré
+     * comme bloqué et le processus du démon est réinitialisé : l'appel natif
+     * n'est pas interruptible, attendre ne libérerait jamais le moteur.
+     */
+    @Volatile
+    private var stopFailureStreak = 0
+
+    /**
      * Un arrêt volontaire a été demandé. Sert de garde aux intents de relance
      * automatique déjà en vol : sans ce drapeau, une relance planifiée avant
      * l'appui sur « arrêter » pouvait rallumer le VPN après coup (H1).
@@ -355,6 +363,9 @@ object CoreServiceManager {
             userStopped = false
             userStopArmed = false
             stopIncomplete = false
+            // Un démarrage réussi part d'un moteur neuf : le compteur d'échecs
+            // d'arrêt ne doit pas hériter d'un épisode précédent.
+            stopFailureStreak = 0
             recoveryLimitPublished = false
             lastRecordedReachable = true
             slowRetryJob?.cancel()
@@ -1461,6 +1472,8 @@ object CoreServiceManager {
         currentVpnInterface = null
         currentOutboundTags = emptySet()
         stopIncomplete = false
+        // L'arrêt a abouti : le moteur n'est pas bloqué.
+        stopFailureStreak = 0
         // La session SOCKS est terminée : le prochain tunnel pourra tirer un
         // nouveau port dynamique, sans jamais changer celui d'un tunnel vivant.
         TunnelSession.clear()
@@ -1569,6 +1582,44 @@ object CoreServiceManager {
             null,
             reason,
         )
+
+        // Deuxième échec consécutif : le moteur est bloqué dans l'appel natif
+        // `stopLoop`, non interruptible. Attendre ne le libérera jamais ; on
+        // réinitialise le processus du démon pour que la prochaine connexion
+        // reparte d'un moteur sain, sans que la personne doive forcer l'arrêt
+        // de l'application.
+        stopFailureStreak += 1
+        if (CoreRecoveryPolicy.shouldHardResetWedgedCore(stopFailureStreak)) {
+            resetWedgedDaemon(service, reason)
+        }
+    }
+
+    /**
+     * Tue le processus du démon (`:daemon`) pour libérer un moteur bloqué.
+     *
+     * L'interface tourne dans un autre processus : elle survit, constate que le
+     * service n'est plus joignable et peut relancer une connexion propre. Sans
+     * cela, un `stopLoop` bloqué rendait toute reconnexion impossible, même
+     * après avoir fermé puis rouvert l'application.
+     */
+    private fun resetWedgedDaemon(service: Service, reason: String) {
+        LogUtil.e(
+            AppConfig.TAG,
+            "StartCore-Manager: core wedged after $stopFailureStreak stop failures ($reason), resetting the daemon process",
+        )
+        XrayConsole.event("Core", "Moteur bloqué : réinitialisation du processus du tunnel")
+        MessageHelper.sendMsg2UI(
+            service,
+            AppConfig.MSG_STATE_STOP_FAILURE,
+            service.getString(com.v2ray.ang.R.string.connection_core_wedged),
+            null,
+            "core_wedged",
+        )
+        lifecycleScope.launch {
+            // Laisse la diffusion et les journaux sortir avant la mort du processus.
+            delay(WEDGED_CORE_RESET_DELAY_MILLIS)
+            runCatching { android.os.Process.killProcess(android.os.Process.myPid()) }
+        }
     }
 
     /**
@@ -2065,6 +2116,12 @@ private const val TRAFFIC_STATS_INTERVAL_SCREEN_OFF_MILLIS = 3_000L
 
 /** Relance lente après épuisement du quota de reconnexions automatiques. */
 private const val SLOW_RECOVERY_RETRY_MILLIS = 60_000L
+
+/**
+ * Délai avant de tuer le processus du démon quand le moteur est bloqué :
+ * laisse le temps à la diffusion d'état et aux journaux de sortir.
+ */
+private const val WEDGED_CORE_RESET_DELAY_MILLIS = 800L
 
 /** Anti-rebond du reset du quota de relances sur changement de réseau. */
 private const val NETWORK_RESET_INTERVAL_MILLIS = 60_000L

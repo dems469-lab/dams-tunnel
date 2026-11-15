@@ -3,6 +3,31 @@
 Un seul fichier d'historique. Chaque entrée décrit une intervention terminée,
 les fichiers touchés, ce qui a été vérifié et ce qui reste à vérifier.
 
+## 1.10.6-lab (776) — réinitialiser un moteur bloqué sans forcer l'arrêt de l'app
+
+**Contexte** : après `restart aborted` puis `automatic recovery stopped`, tous
+les protocoles (VMess, VLESS, Trojan, Hysteria2, WireGuard, chaîne) restaient
+inutilisables. Un `stopLoop` natif bloqué ne rend jamais la main : le moteur
+reste verrouillé dans le processus `:daemon`, et fermer puis rouvrir
+l'application ne le libère pas forcément (le démon survit à l'interface).
+
+**Correctifs**
+- **Compteur d'échecs d'arrêt** — `core/CoreServiceManager.kt` : deux échecs
+  d'arrêt **consécutifs** signent un moteur bloqué. Un seul échec peut n'être
+  qu'un arrêt lent : on ne réinitialise donc qu'à partir du deuxième.
+- **Réinitialisation du démon** — `core/CoreServiceManager.kt` : le processus
+  `:daemon` est alors tué (`android.os.Process.killProcess`), après publication
+  d'un message explicite (`connection_core_wedged`) et 800 ms pour laisser
+  sortir l'état et les journaux. L'interface tourne dans un autre processus :
+  elle survit, constate que le service n'est plus joignable et permet une
+  reconnexion propre, sans que la personne doive forcer l'arrêt de l'app.
+- Le compteur repart à zéro après un arrêt réussi ou un démarrage réussi.
+
+**Vérifications**
+- `core/CoreRecoveryPolicyTest.kt` : deux cas — un seul échec ne tue pas le
+  démon, deux échecs consécutifs déclenchent la réinitialisation.
+- CI, build et publication : à renseigner après exécution.
+
 ## 1.10.5-lab (775) — un redémarrage lent n'est plus abandonné en cours d'arrêt
 
 **Contexte** : journal terrain —

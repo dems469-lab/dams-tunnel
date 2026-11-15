@@ -202,4 +202,18 @@ class CoreRecoveryPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun `un seul echec d arret ne tue pas le demon`() {
+        // Un arrêt lent mais normal ne doit pas coûter le processus : tuer le
+        // démon coupe le TUN et toute connexion en cours.
+        assertFalse(CoreRecoveryPolicy.shouldHardResetWedgedCore(0))
+        assertFalse(CoreRecoveryPolicy.shouldHardResetWedgedCore(1))
+    }
+
+    @Test
+    fun `deux echecs d arret consecutifs signent un moteur bloque`() {
+        assertTrue(CoreRecoveryPolicy.shouldHardResetWedgedCore(2))
+        assertTrue(CoreRecoveryPolicy.shouldHardResetWedgedCore(3))
+    }
 }
