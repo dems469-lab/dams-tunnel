@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.R
+import com.v2ray.ang.core.RoutingSummary
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.ui.base.BaseViewModel
@@ -142,6 +143,7 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
         XrayConsole.event("System", "Dams Tunnel ${BuildConfig.VERSION_NAME}")
         XrayConsole.event("System", "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · ${Build.MODEL}")
         XrayConsole.event("System", "Mode: $mode")
+        XrayConsole.event("System", RoutingSummary.describe(MmkvManager.decodeRoutingRulesets()))
     }
 
     private fun startStreaming() {

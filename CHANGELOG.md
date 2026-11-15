@@ -3,6 +3,31 @@
 Un seul fichier d'historique. Chaque entrée décrit une intervention terminée,
 les fichiers touchés, ce qui a été vérifié et ce qui reste à vérifier.
 
+## 1.10.4-lab (774) — le routage appliqué enfin lisible dans la console
+
+**Contexte** : les journaux envoyés en retour ne contenaient que du bruit du
+pilote graphique MediaTek (`FPSGO`, `perfctl`, `mali-cmar-backend`,
+`DynamicFPS`), attribué au paquet `com.v2ray.ang` par logcat : ces lignes
+concernent l'affichage, pas le réseau. Impossible, en revanche, de savoir depuis
+un journal si le trafic chinois partait encore en direct — c'est-à-dire de
+vérifier sur l'appareil le correctif de la 1.10.3-lab.
+
+**Correctifs**
+- **Résumé du routage au démarrage de la console** — `core/RoutingSummary.kt`,
+  `ui/logcat/LogcatViewModel.kt` : la console affiche désormais une ligne
+  `System` du type
+  `Routage : 4 règles · Chine en direct : non · QUIC bloqué : oui · défaut : proxy`.
+  Elle permet de vérifier sans outil externe que le preset actif proxyfie bien
+  tout, et qu'aucune règle ne renvoie `geoip:cn` / `geosite:cn` en direct.
+- Les règles désactivées sont ignorées dans ce résumé, comme par le cœur.
+
+**Vérifications**
+- `core/RoutingSummaryTest.kt` : 5 cas — preset Chine décrit comme laissant la
+  Chine en direct et sans règle attrape-tout, preset Mondial décrit comme
+  proxyfiant tout, règles désactivées ignorées, absence de règles sans plantage,
+  texte final exact.
+- CI, build et publication : à renseigner après exécution.
+
 ## 1.10.3-lab (773) — le trafic chinois ne contourne plus le tunnel par défaut
 
 **Contexte** : retour terrain après la 1.10.2-lab — Telegram rapide, mais
