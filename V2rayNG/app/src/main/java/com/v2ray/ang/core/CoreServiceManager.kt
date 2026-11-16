@@ -166,6 +166,18 @@ object CoreServiceManager {
     /** Re-vérification différée, non destructrice, après une preuve insuffisante. */
     private var reverificationJob: kotlinx.coroutines.Job? = null
 
+    /**
+     * Dernier échantillon de statistiques où du trafic utilisateur réel a été
+     * observé. Sert à ne pas couper une session en cours pour une sonde qui
+     * échoue alors que des octets traversent encore le tunnel.
+     */
+    @Volatile
+    private var lastUserTrafficAt = 0L
+
+    /** Limite la fréquence du journal « sonde en échec mais trafic réel ». */
+    @Volatile
+    private var trafficProtectionLogAt = 0L
+
     /** L'échec « quota atteint » n'est publié qu'une fois par épisode. */
     @Volatile
     private var recoveryLimitPublished = false
@@ -833,11 +845,32 @@ object CoreServiceManager {
                 }
                 val reachable = report.reachable
                 val now = System.currentTimeMillis()
+                if ((report.verdict == TunnelVerdict.DOWN ||
+                        report.verdict == TunnelVerdict.RELAY_DOWN) &&
+                    isUserTrafficFlowing()
+                ) {
+                    // Des octets réels traversent le tunnel : la sonde se trompe
+                    // (URL filtrée par le serveur, requête en file derrière un
+                    // flux saturé). Recharger maintenant couperait la session de
+                    // l'utilisateur pour une panne non prouvée.
+                    if (now - trafficProtectionLogAt >= TRAFFIC_PROTECTION_LOG_INTERVAL_MILLIS) {
+                        trafficProtectionLogAt = now
+                        LogUtil.i(
+                            AppConfig.TAG,
+                            "StartCore-Manager: probe failed but user traffic is flowing, tunnel kept",
+                        )
+                        XrayConsole.event("Core", "Probe failed but real traffic is flowing: no recovery")
+                    }
+                    continue
+                }
                 // Seule une panne prouvée par plusieurs fournisseurs compte
                 // comme un échec : une sonde ignorée, un réseau absent ou une
                 // preuve insuffisante ne doivent jamais faire recharger le cœur.
                 when (report.verdict) {
-                    TunnelVerdict.DOWN -> consecutiveFailures++
+                    // Un relais mort est un échec réel : sans incrément, la
+                    // boucle restait indéfiniment en « suspect » et ne relançait
+                    // jamais le cœur alors que plus aucun paquet ne passait.
+                    TunnelVerdict.DOWN, TunnelVerdict.RELAY_DOWN -> consecutiveFailures++
                     TunnelVerdict.UP, TunnelVerdict.SLOW, TunnelVerdict.NO_INTERNET -> consecutiveFailures = 0
                     else -> Unit
                 }
@@ -1103,6 +1136,19 @@ object CoreServiceManager {
         networkMonitor?.upstreamValidated ?: true
 
     /**
+     * Des octets utilisateur traversent-ils réellement le tunnel en ce moment ?
+     *
+     * Le cœur doit tourner : après un arrêt ou un rechargement, les compteurs
+     * précédents ne prouvent plus rien (ils sont remis à zéro par
+     * [startTrafficStats]).
+     */
+    private fun isUserTrafficFlowing(): Boolean =
+        isRunning() && AutoFailoverPolicy.shouldProtectUserTraffic(
+            lastUserTrafficAtMillis = lastUserTrafficAt,
+            nowMillis = System.currentTimeMillis(),
+        )
+
+    /**
      * Enregistre une mesure sans polluer le classement : un succès lent reste
      * une preuve de vie, mais sa latence reflète la congestion du moment.
      */
@@ -1132,6 +1178,17 @@ object CoreServiceManager {
     ) {
         if (fatalConfigError != null) return
         if (userStopped) return
+        // Une relance automatique ne doit jamais couper un tunnel qui transporte
+        // réellement des octets : la panne n'est pas prouvée. Les actions
+        // manuelles (USER/SYSTEM/NOTIFICATION) ne sont pas concernées.
+        if (origin in TRAFFIC_PROTECTED_ORIGINS && isUserTrafficFlowing()) {
+            supervisor.noteRequestMerged(origin, "$reason:user_traffic")
+            LogUtil.i(
+                AppConfig.TAG,
+                "StartCore-Manager: user traffic in progress, recovery postponed ($reason)",
+            )
+            return
+        }
         if (reconnectJob?.isActive == true) {
             // Une boucle tourne déjà : la demande est fusionnée, pas dupliquée.
             supervisor.noteRequestMerged(origin, "$reason:loop_active")
@@ -1350,6 +1407,12 @@ object CoreServiceManager {
         if (LaboratoryTunnelBridge.read(service) != null) return false
         val groupId = failed.subscriptionId.ifBlank { AppConfig.DEFAULT_SUBSCRIPTION_ID }
         if (groupId.startsWith(PUBLIC_GROUP_PREFIX)) return false
+        if (isUserTrafficFlowing()) {
+            // Changer de serveur recharge le cœur : interdit tant que des
+            // octets utilisateur traversent le tunnel.
+            LogUtil.i(AppConfig.TAG, "Failover: user traffic in progress, server kept")
+            return false
+        }
 
         val candidates = MmkvManager.decodeServerList(groupId)
             .asSequence()
@@ -1525,6 +1588,11 @@ object CoreServiceManager {
     private fun startTrafficStats(service: Service) {
         trafficStatsJob?.cancel()
         trafficStatsDiagnosticRead = 0
+        // Nouveau cœur : les octets comptés avant le rechargement ne prouvent
+        // plus rien sur le tunnel courant. Sans cette remise à zéro, une
+        // protection de 10 s survivrait à la bascule et retarderait à tort la
+        // récupération suivante.
+        lastUserTrafficAt = 0L
         trafficStatsJob = connectionTestScope.launch {
             var previousTime = System.currentTimeMillis()
             while (isRunning()) {
@@ -1557,6 +1625,19 @@ object CoreServiceManager {
                     downlinkTotalBytes = _trafficSnapshot.value.downlinkTotalBytes,
                     available = false,
                 )
+                // Octets réellement déplacés pendant cet échantillon : seuls eux,
+                // et non la simple existence de connexions, prouvent un usage.
+                // La sortie « direct » est exclue : un flux hors tunnel ne
+                // prouve rien sur la santé du tunnel.
+                if (snapshot.available) {
+                    val movedBytes = stats
+                        .asSequence()
+                        .filter { it.tag != AppConfig.TAG_DIRECT }
+                        .sumOf { it.value.coerceAtLeast(0L) }
+                    if (AutoFailoverPolicy.isUserTrafficSample(movedBytes)) {
+                        lastUserTrafficAt = now
+                    }
+                }
                 val dailyMobileUsage = if (snapshot.available && networkMonitor?.underlyingIsCellular == true) {
                     val uplink = stats.filter { it.direction == AppConfig.UPLINK }.sumOf { it.value.coerceAtLeast(0L) }
                     val downlink = stats.filter { it.direction == AppConfig.DOWNLINK }.sumOf { it.value.coerceAtLeast(0L) }
@@ -2383,3 +2464,19 @@ private const val FAILOVER_RELOAD_TIMEOUT_MILLIS = 20_000L
  * puis restauré, ce qui produisait deux rechargements pour rien.
  */
 private const val FAILOVER_VERIFY_WAIT_MILLIS = 20_000L
+
+/**
+ * Origines automatiques retenues par du trafic réel : une relance déclenchée
+ * par la sonde, le réseau, le chien de garde ou la boucle de reconnexion ne
+ * doit pas interrompre une session active. Les actions de l'utilisateur
+ * (USER/SYSTEM/NOTIFICATION) restent immédiates.
+ */
+private val TRAFFIC_PROTECTED_ORIGINS = setOf(
+    CoreOrigin.NETWORK,
+    CoreOrigin.WATCHDOG,
+    CoreOrigin.PROBE,
+    CoreOrigin.RECONNECT,
+)
+
+/** Fréquence maximale du journal « sonde en échec mais trafic réel ». */
+private const val TRAFFIC_PROTECTION_LOG_INTERVAL_MILLIS = 60_000L

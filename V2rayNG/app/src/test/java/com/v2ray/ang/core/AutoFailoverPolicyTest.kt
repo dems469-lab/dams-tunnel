@@ -247,4 +247,62 @@ class AutoFailoverPolicyTest {
         // Un relais TUN mort ne se répare pas en changeant de serveur.
         assertFalse(AutoFailoverPolicy.shouldAttemptFailover(2, relayAlive = false))
     }
+
+    // ── Lot A3 ───────────────────────────────────────────────────────────────
+
+    @Test
+    fun `A3 du trafic recent interdit de couper le tunnel`() {
+        assertTrue(
+            AutoFailoverPolicy.shouldProtectUserTraffic(
+                lastUserTrafficAtMillis = now - 1_000L,
+                nowMillis = now,
+            ),
+        )
+        assertTrue(
+            AutoFailoverPolicy.shouldProtectUserTraffic(
+                lastUserTrafficAtMillis = now - AutoFailoverPolicy.USER_TRAFFIC_QUIET_MILLIS,
+                nowMillis = now,
+            ),
+        )
+    }
+
+    @Test
+    fun `A3 un silence prolonge autorise la recuperation`() {
+        assertFalse(
+            AutoFailoverPolicy.shouldProtectUserTraffic(
+                lastUserTrafficAtMillis = now - AutoFailoverPolicy.USER_TRAFFIC_QUIET_MILLIS - 1L,
+                nowMillis = now,
+            ),
+        )
+    }
+
+    @Test
+    fun `A3 aucune mesure de trafic ne bloque jamais une recuperation`() {
+        assertFalse(
+            AutoFailoverPolicy.shouldProtectUserTraffic(
+                lastUserTrafficAtMillis = 0L,
+                nowMillis = now,
+            ),
+        )
+    }
+
+    @Test
+    fun `A3 une horloge qui recule reste protectrice`() {
+        // Réglage système en arrière : la dernière mesure paraît future, donc
+        // récente. On protège plutôt que de couper une session en cours.
+        assertTrue(
+            AutoFailoverPolicy.shouldProtectUserTraffic(
+                lastUserTrafficAtMillis = now + 5_000L,
+                nowMillis = now,
+            ),
+        )
+    }
+
+    @Test
+    fun `A3 une sonde interne ne compte pas comme trafic utilisateur`() {
+        assertFalse(AutoFailoverPolicy.isUserTrafficSample(1_024L))
+        assertFalse(AutoFailoverPolicy.isUserTrafficSample(AutoFailoverPolicy.USER_TRAFFIC_MIN_BYTES - 1L))
+        assertTrue(AutoFailoverPolicy.isUserTrafficSample(AutoFailoverPolicy.USER_TRAFFIC_MIN_BYTES))
+        assertTrue(AutoFailoverPolicy.isUserTrafficSample(2_000_000L))
+    }
 }

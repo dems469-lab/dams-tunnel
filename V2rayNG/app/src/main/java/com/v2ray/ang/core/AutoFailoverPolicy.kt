@@ -97,6 +97,43 @@ internal object AutoFailoverPolicy {
     fun shouldAttemptFailover(confirmedDownPasses: Int, relayAlive: Boolean): Boolean =
         relayAlive && confirmedDownPasses >= REQUIRED_CONFIRMED_FAILURES
 
+    /**
+     * Fenêtre pendant laquelle des octets réellement observés protègent le
+     * tunnel. Couvre plusieurs échantillons de statistiques (1 s écran allumé,
+     * 3 s éteint) : une courte pause dans un flux ne doit pas autoriser un
+     * rechargement au milieu d'une session.
+     */
+    const val USER_TRAFFIC_QUIET_MILLIS = 10_000L
+
+    /**
+     * Volume minimal déplacé pendant un échantillon pour compter comme trafic
+     * utilisateur. Les sondes internes (réponse 204) et les keepalives des
+     * applications restent largement en dessous ; un téléchargement ou une
+     * vidéo le dépassent en permanence.
+     */
+    const val USER_TRAFFIC_MIN_BYTES = 16L * 1024L
+
+    /** Cet échantillon de statistiques prouve-t-il un usage réel du tunnel ? */
+    fun isUserTrafficSample(movedBytes: Long): Boolean = movedBytes >= USER_TRAFFIC_MIN_BYTES
+
+    /**
+     * Du trafic réel a-t-il circulé assez récemment pour interdire une coupure ?
+     *
+     * `lastUserTrafficAtMillis == 0` signifie « aucune mesure » : ce n'est pas
+     * une preuve de silence, mais l'absence de preuve ne doit pas bloquer une
+     * récupération. Une horloge qui recule (réglage système) est traitée comme
+     * une mesure récente, donc protectrice.
+     */
+    fun shouldProtectUserTraffic(
+        lastUserTrafficAtMillis: Long,
+        nowMillis: Long,
+        quietMillis: Long = USER_TRAFFIC_QUIET_MILLIS,
+    ): Boolean {
+        if (lastUserTrafficAtMillis <= 0L) return false
+        val age = nowMillis - lastUserTrafficAtMillis
+        return age < 0L || age <= quietMillis
+    }
+
     fun score(snapshot: ServerHealthSnapshot): Int {
         if (snapshot.samples <= 0) return 0
         val availability = snapshot.availabilityPercent
