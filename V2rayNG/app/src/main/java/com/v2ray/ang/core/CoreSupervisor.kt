@@ -461,6 +461,21 @@ class CoreSupervisor(
     // ── Vérification réelle ──────────────────────────────────────────────────
 
     fun tunnelVerified() = synchronized(lock) {
+        // Un arrêt demandé ou un cœur qui n'est plus vivant interdit toute
+        // publication de « connecté » : une sonde qui aboutit après un arrêt
+        // volontaire (ou après la mort du cœur) ne doit jamais ressusciter
+        // l'état CONNECTED dans l'interface.
+        if (userStopped || stopRequested) return@synchronized
+        when (state) {
+            CoreRuntimeState.IDLE,
+            CoreRuntimeState.STOPPED,
+            CoreRuntimeState.STOPPING,
+            CoreRuntimeState.EXIT_UNEXPECTED,
+            CoreRuntimeState.FAILED,
+            -> return@synchronized
+
+            else -> Unit
+        }
         val previous = state
         if (previous != CoreRuntimeState.CONNECTED) {
             lastVerifiedAtMillis = clock()

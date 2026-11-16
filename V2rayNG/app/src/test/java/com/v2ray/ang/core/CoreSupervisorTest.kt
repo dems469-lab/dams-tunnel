@@ -475,4 +475,61 @@ class CoreSupervisorTest {
                 is RecoveryDecision.Start,
         )
     }
+
+    // 16. Sonde tardive après un arrêt volontaire.
+    @Test
+    fun lateVerificationNeverRepublishesConnectedAfterAUserStop() {
+        val h = Harness()
+        h.supervisor.startRequested(CoreOrigin.USER, coreRunning = false)
+        h.supervisor.coreStarted()
+
+        h.supervisor.stopRequested(CoreOrigin.USER)
+        // Une sonde déjà en vol aboutit après la demande d'arrêt.
+        h.supervisor.tunnelVerified()
+        assertEquals(CoreRuntimeState.STOPPING, h.supervisor.snapshot().state)
+        assertFalse(h.supervisor.lastRecoverySucceeded())
+
+        h.supervisor.stopped(CoreOrigin.USER)
+        h.now += 5_000L
+        h.supervisor.tunnelVerified()
+        assertEquals(CoreRuntimeState.STOPPED, h.supervisor.snapshot().state)
+        assertFalse(h.supervisor.lastRecoverySucceeded())
+        assertNull(h.supervisor.snapshot().lastVerifiedAtMillis)
+        // La sortie volontaire reste une sortie volontaire.
+        assertFalse(h.supervisor.unexpectedExit("late", null, CoreOrigin.WATCHDOG))
+    }
+
+    // 17. Sonde tardive après la mort du cœur.
+    @Test
+    fun lateVerificationAfterAnUnexpectedExitDoesNotResurrectTheTunnel() {
+        val h = Harness()
+        h.runningSession()
+        h.supervisor.unexpectedExit("native_loop_stopped", null, CoreOrigin.WATCHDOG)
+
+        h.supervisor.tunnelVerified()
+
+        assertEquals(CoreRuntimeState.EXIT_UNEXPECTED, h.supervisor.snapshot().state)
+    }
+
+    // 18. Rechargement interne : la sonde de l'ancien cœur ne compte pas.
+    @Test
+    fun reloadIgnoresAVerificationUntilTheNewCoreHasStarted() {
+        val h = Harness()
+        h.runningSession()
+        val verifiedBefore = h.supervisor.snapshot().lastVerifiedAtMillis
+
+        h.supervisor.stopRequested(CoreOrigin.RECONNECT)
+        h.now += 5_000L
+        h.supervisor.tunnelVerified()
+        assertEquals(CoreRuntimeState.STOPPING, h.supervisor.snapshot().state)
+        assertEquals(verifiedBefore, h.supervisor.snapshot().lastVerifiedAtMillis)
+
+        h.supervisor.coreStarting(CoreOrigin.RECONNECT)
+        h.supervisor.coreStarted()
+        h.now += 5_000L
+        h.supervisor.tunnelVerified()
+
+        assertEquals(CoreRuntimeState.CONNECTED, h.supervisor.snapshot().state)
+        assertEquals(h.now, h.supervisor.snapshot().lastVerifiedAtMillis)
+    }
 }

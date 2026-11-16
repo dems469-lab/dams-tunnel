@@ -677,6 +677,16 @@ object CoreServiceManager {
                 }
             }
             val finalReport = report
+            // Un arrêt a été demandé pendant la sonde : l'utilisateur a coupé le
+            // tunnel. Une mesure tardive ne doit ni publier « connecté » ni
+            // relancer un cœur ou un serveur qu'il vient d'arrêter.
+            if (userStopped || supervisor.isStopRequested()) {
+                LogUtil.i(
+                    AppConfig.TAG,
+                    "StartCore-Manager: verification finished after a stop request, ignored",
+                )
+                return@launch
+            }
             val latency = finalReport?.latencyMillis ?: -1L
             if (CoreRecoveryPolicy.canPublishConnected(
                     probeReachable = finalReport?.reachable == true,
@@ -1178,6 +1188,16 @@ object CoreServiceManager {
     ) {
         if (fatalConfigError != null) return
         if (userStopped) return
+        // Un arrêt est déjà demandé (arrêt volontaire, rechargement, reconstruction
+        // du TUN) : planifier une relance dans cette fenêtre la ferait entrer en
+        // concurrence avec l'arrêt en cours.
+        if (supervisor.isStopRequested()) {
+            LogUtil.i(
+                AppConfig.TAG,
+                "StartCore-Manager: stop in progress, recovery not scheduled ($reason)",
+            )
+            return
+        }
         // Une relance automatique ne doit jamais couper un tunnel qui transporte
         // réellement des octets : la panne n'est pas prouvée. Les actions
         // manuelles (USER/SYSTEM/NOTIFICATION) ne sont pas concernées.
@@ -1721,6 +1741,10 @@ object CoreServiceManager {
         val service = getService()
         if (service == null) {
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: stop requested without a service instance")
+            // Sans cela, `stopRequested` resterait vrai pour toujours : plus
+            // aucune sortie du cœur ne serait reconnue comme inattendue et
+            // aucune relance ne pourrait être planifiée.
+            supervisor.stopFailed("service_unavailable")
             return@stop false
         }
         val laboratory = LaboratoryTunnelBridge.isActive(service)
