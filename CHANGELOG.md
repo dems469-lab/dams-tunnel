@@ -3,6 +3,31 @@
 Un seul fichier d'historique. Chaque entrée décrit une intervention terminée,
 les fichiers touchés, ce qui a été vérifié et ce qui reste à vérifier.
 
+## 1.10.8-lab (778) — journal complet
+
+**Contexte** : le journal de l'application remplaçait les hôtes, les adresses
+IP, les ports **et les noms de classes Java** par « [serveur masqué] » ou
+« [adresse masquée] ». Une trace de pile devenait illisible
+(`at [serveur masqué]([serveur masqué])`) et l'erreur réelle — serveur
+concerné, adresse, port, message du cœur — disparaissait. Impossible de
+diagnostiquer un incident à partir de ce journal.
+
+**Correctif**
+- `util/LogRedactor.kt` : le masquage des hôtes, des IPv4/IPv6, des ports et
+  des noms de classes est supprimé. Les traces de pile, les URL de test et les
+  messages du cœur sont affichés tels quels.
+- Seuls les secrets d'authentification restent masqués : liens de profil
+  complets, identifiants `user:password@`, paramètres `password=`, `token=`,
+  `secret=`, `api_key=` et UUID.
+- `util/LogRedactorTest.kt` : vérifie que hôtes, adresses, ports, traces de
+  pile et messages restent lisibles, et que les identifiants restent masqués.
+
+**Vérifications**
+- Tests unitaires `LogRedactorTest` exécutés par la CI.
+
+**À vérifier**
+- Journal réel sur téléphone après installation.
+
 ## 1.10.7-lab (777) — ne plus couper un tunnel qui fonctionne
 
 **Contexte** : cinq faiblesses du moteur de connexion se cumulaient. Une seule URL
