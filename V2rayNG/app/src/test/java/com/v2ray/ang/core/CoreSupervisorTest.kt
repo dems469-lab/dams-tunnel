@@ -408,6 +408,8 @@ class CoreSupervisorTest {
         sup.resetRecoveryBudget("network_handover")
         sup.coreStartFailed("core_start_failed", IllegalStateException("boom"), CoreOrigin.USER)
         sup.stopNotConfirmed(CoreOrigin.USER, "restart_stop_timeout", 25_000L)
+        // Abandon volontaire : du trafic réel a repris pendant la relance.
+        sup.recoveryPostponed("user_traffic_resumed")
 
         assertEquals(CoreEventKind.values().toSet(), h.kinds().toSet())
 
@@ -440,5 +442,37 @@ class CoreSupervisorTest {
     fun awaitCoreStoppedReturnsImmediatelyWhenNothingRuns() = runBlocking {
         assertTrue(awaitCoreStopped(isCoreRunning = { false }, timeoutMillis = 50, pollMillis = 5, settleMillis = 0))
         assertFalse(awaitCoreStopped(isCoreRunning = { true }, timeoutMillis = 30, pollMillis = 5, settleMillis = 0))
+    }
+
+    // 15. Trafic réel repris pendant une boucle de relance.
+    @Test
+    fun postponedRecoveryIsNeitherSuccessNorFailure() {
+        val h = Harness()
+        h.runningSession()
+        h.supervisor.unexpectedExit("native_loop_stopped", null, CoreOrigin.WATCHDOG)
+        val decision = h.supervisor.requestRecovery(
+            CoreOrigin.WATCHDOG,
+            "native_loop_stopped",
+            coreRunning = false,
+        ) as RecoveryDecision.Start
+
+        h.supervisor.recoveryAttemptStarted(decision.attempt)
+        h.supervisor.recoveryPostponed("user_traffic_resumed", decision.attempt.id)
+
+        // Ni réussite inventée, ni échec imputé : la tentative a été interrompue.
+        assertFalse(h.supervisor.isRecoveryInFlight())
+        assertFalse(h.supervisor.lastRecoverySucceeded())
+        assertFalse(h.has(CoreEventKind.RECONNECT_SUCCEEDED))
+        assertFalse(h.has(CoreEventKind.RECONNECT_FAILED))
+        assertEquals(CoreEventKind.RECONNECT_POSTPONED, h.kinds().last())
+        assertEquals("user_traffic_resumed", h.last(CoreEventKind.RECONNECT_POSTPONED).reason)
+        assertEquals(decision.attempt.id, h.last(CoreEventKind.RECONNECT_POSTPONED).attemptId)
+        // Le tunnel n'est pas déclaré connecté sur un simple abandon.
+        assertEquals(CoreRuntimeState.EXIT_UNEXPECTED, h.supervisor.snapshot().state)
+        // Le drapeau libéré permet de traiter la panne suivante.
+        assertTrue(
+            h.supervisor.requestRecovery(CoreOrigin.PROBE, "probe_failed", coreRunning = false)
+                is RecoveryDecision.Start,
+        )
     }
 }

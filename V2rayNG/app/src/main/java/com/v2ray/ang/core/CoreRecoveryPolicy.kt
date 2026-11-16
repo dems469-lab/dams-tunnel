@@ -117,4 +117,15 @@ internal object CoreRecoveryPolicy {
      */
     fun shouldHardResetWedgedCore(consecutiveStopFailures: Int): Boolean =
         consecutiveStopFailures >= 2
+
+    /**
+     * Une boucle de relance déjà engagée doit renoncer dès que des octets
+     * utilisateur traversent de nouveau le tunnel : celui-ci fonctionne, et
+     * recharger le cœur couperait la session en cours. Un tunnel déjà vérifié
+     * n'a de toute façon plus besoin de la boucle.
+     */
+    fun reconnectMustYieldToTraffic(
+        userTrafficFlowing: Boolean,
+        connectionVerified: Boolean,
+    ): Boolean = userTrafficFlowing && !connectionVerified
 }

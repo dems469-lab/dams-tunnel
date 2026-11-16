@@ -31,6 +31,8 @@ internal object CoreEventLogger {
             CoreEventKind.CORE_STARTED,
             CoreEventKind.CORE_STOPPED,
             CoreEventKind.RECONNECT_SUCCEEDED,
+            // Abandon volontaire : ni erreur, ni réussite.
+            CoreEventKind.RECONNECT_POSTPONED,
             -> LogUtil.i(TAG, line)
 
             else -> LogUtil.i(TAG, line)

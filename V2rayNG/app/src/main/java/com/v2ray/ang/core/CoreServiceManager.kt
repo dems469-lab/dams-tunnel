@@ -1287,8 +1287,26 @@ object CoreServiceManager {
         var attempt = initial.attempt
         var backoffMillis = initial.backoffMillis
         var lastFailure: String? = null
+        var postponed = false
         try {
             while (!userStopped && !connectionVerified && fatalConfigError == null) {
+                // Du trafic réel circule : le tunnel fonctionne au moins
+                // partiellement, recharger le cœur couperait l'utilisateur. La
+                // boucle s'arrête sans prétendre ni réussir ni échouer.
+                val yieldToTraffic = CoreRecoveryPolicy.reconnectMustYieldToTraffic(
+                    userTrafficFlowing = isUserTrafficFlowing(),
+                    connectionVerified = connectionVerified,
+                )
+                if (yieldToTraffic) {
+                    postponed = true
+                    lastFailure = "user_traffic_resumed"
+                    LogUtil.i(
+                        AppConfig.TAG,
+                        "StartCore-Manager: user traffic resumed, reconnect loop abandoned",
+                    )
+                    XrayConsole.event("Core", "User traffic resumed: reconnect loop abandoned")
+                    break
+                }
                 val currentService = getService()
                 if (currentService == null) {
                     lastFailure = "service_gone"
@@ -1384,6 +1402,13 @@ object CoreServiceManager {
         } finally {
             if (userStopped) {
                 supervisor.recoveryFinished(false, "user_stopped")
+            } else if (postponed && !connectionVerified) {
+                // Abandon volontaire : le superviseur libère la récupération
+                // sans annoncer de réussite ni d'échec. Le tunnel n'étant pas
+                // vérifié, une re-vérification non destructrice est programmée
+                // pour ne pas laisser l'interface en « reconnexion ».
+                supervisor.recoveryPostponed("user_traffic_resumed", attempt.id)
+                scheduleReverification("reconnect_postponed")
             } else {
                 supervisor.recoveryFinished(
                     connectionVerified,

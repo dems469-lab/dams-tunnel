@@ -216,4 +216,27 @@ class CoreRecoveryPolicyTest {
         assertTrue(CoreRecoveryPolicy.shouldHardResetWedgedCore(2))
         assertTrue(CoreRecoveryPolicy.shouldHardResetWedgedCore(3))
     }
+
+    @Test
+    fun `une relance renonce des que le trafic reel reprend`() {
+        assertTrue(
+            CoreRecoveryPolicy.reconnectMustYieldToTraffic(
+                userTrafficFlowing = true,
+                connectionVerified = false,
+            ),
+        )
+        // Tunnel déjà vérifié : la boucle n'a plus de raison d'être.
+        assertFalse(
+            CoreRecoveryPolicy.reconnectMustYieldToTraffic(
+                userTrafficFlowing = true,
+                connectionVerified = true,
+            ),
+        )
+        assertFalse(
+            CoreRecoveryPolicy.reconnectMustYieldToTraffic(
+                userTrafficFlowing = false,
+                connectionVerified = false,
+            ),
+        )
+    }
 }

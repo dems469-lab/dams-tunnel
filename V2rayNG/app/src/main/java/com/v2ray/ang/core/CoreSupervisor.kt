@@ -68,6 +68,13 @@ enum class CoreEventKind {
     RECONNECT_STARTED,
     RECONNECT_SUCCEEDED,
     RECONNECT_FAILED,
+
+    /**
+     * Récupération abandonnée volontairement : ni réussie, ni en échec. Du
+     * trafic réel a repris, recharger le cœur aurait coupé l'utilisateur.
+     */
+    RECONNECT_POSTPONED,
+
     RECONNECT_LIMIT_REACHED,
 
     /** Le quota de relances repart à zéro (nouveau réseau, action explicite). */
@@ -612,6 +619,32 @@ class CoreSupervisor(
         emit(
             if (success) CoreEventKind.RECONNECT_SUCCEEDED else CoreEventKind.RECONNECT_FAILED,
             reason = reason,
+            previousState = previous,
+            throwable = cause,
+        )
+    }
+
+    /**
+     * Abandonne une récupération sans la déclarer réussie ni échouée.
+     *
+     * Utilisé quand du trafic réel reprend pendant la boucle de relance : le
+     * tunnel transporte des octets, donc le recharger couperait la session en
+     * cours. Aucune réussite n'est inventée (la sonde n'a pas abouti) et
+     * l'échec n'est pas imputé à la tentative interrompue. Le drapeau
+     * `recoveryInFlight` est libéré pour qu'une prochaine panne soit traitée.
+     */
+    fun recoveryPostponed(
+        reason: String,
+        attemptId: Int? = null,
+        cause: Throwable? = null,
+    ) = synchronized(lock) {
+        val previous = state
+        recoveryInFlight = false
+        emit(
+            CoreEventKind.RECONNECT_POSTPONED,
+            reason = reason,
+            origin = CoreOrigin.RECONNECT,
+            attemptId = attemptId,
             previousState = previous,
             throwable = cause,
         )
