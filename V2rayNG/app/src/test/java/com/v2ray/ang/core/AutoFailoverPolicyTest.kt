@@ -166,4 +166,85 @@ class AutoFailoverPolicyTest {
         assertTrue(decision.switches)
         assertEquals("stable", decision.candidate?.guid)
     }
+
+    // ── Lot A2 ───────────────────────────────────────────────────────────────
+
+    @Test
+    fun `A2 le cooldown protege aussi un serveur degrade mais utilisable`() {
+        // 75 % de disponibilité : le serveur perd des paquets mais transporte
+        // encore. Le remplacer toutes les minutes rechargerait le cœur en boucle.
+        val decision = AutoFailoverPolicy.decide(
+            active = snapshot("active", 300L, samples = 4, failures = 1),
+            candidates = listOf(snapshot("candidate", 120L)),
+            nowMillis = now,
+            lastSwitchAtMillis = now - 1_000L,
+        )
+
+        assertFalse(decision.switches)
+        assertEquals("cooldown", decision.reason)
+    }
+
+    @Test
+    fun `A2 une latence inconnue ne gagne jamais une egalite de score`() {
+        val decision = AutoFailoverPolicy.decide(
+            active = snapshot("active", 900L, samples = 4, failures = 2),
+            candidates = listOf(
+                snapshot("unknown", -1L),
+                snapshot("slow-but-measured", 4_000L),
+            ),
+            nowMillis = now,
+        )
+
+        assertTrue(decision.switches)
+        assertEquals("slow-but-measured", decision.candidate?.guid)
+    }
+
+    @Test
+    fun `A2 un candidat sous le seuil de disponibilite est ignore`() {
+        val decision = AutoFailoverPolicy.decide(
+            active = snapshot("active", 900L, samples = 4, failures = 2),
+            candidates = listOf(snapshot("half-down", 60L, samples = 100, failures = 51)),
+            nowMillis = now,
+        )
+
+        assertFalse(decision.switches)
+        assertEquals("no_candidate", decision.reason)
+    }
+
+    @Test
+    fun `A2 un serveur actif jamais mesure autorise un sauvetage immediat`() {
+        val decision = AutoFailoverPolicy.decide(
+            active = snapshot("active", -1L, samples = 0),
+            candidates = listOf(snapshot("candidate", 100L)),
+            nowMillis = now,
+            lastSwitchAtMillis = now - 1_000L,
+        )
+
+        assertTrue(decision.switches)
+        assertEquals("active_degraded", decision.reason)
+    }
+
+    @Test
+    fun `A2 une mesure active perimee leve le cooldown`() {
+        // Surveillance morte depuis 11 min : le serveur n'est plus prouvé
+        // utilisable, donc le cooldown ne doit pas retarder le sauvetage.
+        val decision = AutoFailoverPolicy.decide(
+            active = snapshot("active", 300L, samples = 4, failures = 1, ageMillis = 11 * 60_000L),
+            candidates = listOf(snapshot("candidate", 200L)),
+            nowMillis = now,
+            lastSwitchAtMillis = now - 1_000L,
+        )
+
+        assertTrue(decision.switches)
+        assertEquals("active_degraded", decision.reason)
+    }
+
+    @Test
+    fun `A2 la bascule au demarrage exige deux passes confirmees et un relais vivant`() {
+        assertTrue(AutoFailoverPolicy.shouldAttemptFailover(2, relayAlive = true))
+        assertFalse(AutoFailoverPolicy.shouldAttemptFailover(1, relayAlive = true))
+        assertFalse(AutoFailoverPolicy.shouldAttemptFailover(0, relayAlive = true))
+        // Un relais TUN mort ne se répare pas en changeant de serveur.
+        assertFalse(AutoFailoverPolicy.shouldAttemptFailover(2, relayAlive = false))
+    }
 }

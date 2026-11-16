@@ -640,6 +640,7 @@ object CoreServiceManager {
             var report: ProbeReport? = null
             var lastError: String? = null
             var skippedPasses = 0
+            var confirmedDownPasses = 0
             for (attempt in 0 until VERIFICATION_ATTEMPTS) {
                 if (attempt > 0) delay(VERIFICATION_RETRY_DELAY_MILLIS)
                 val pass = try {
@@ -654,6 +655,7 @@ object CoreServiceManager {
                 if (pass == null) continue
                 report = pass
                 if (pass.reachable) break
+                if (pass.verdict == TunnelVerdict.DOWN) confirmedDownPasses++
                 // Sans Internet sous-jacent, une seconde passe ne changerait rien :
                 // c'est le réseau du téléphone qui manque, pas le tunnel.
                 if (pass.verdict == TunnelVerdict.NO_INTERNET) break
@@ -724,7 +726,9 @@ object CoreServiceManager {
                             if (relayAlive) "initial_probe_failed" else "tunnel_relay_down",
                         )
                         recordProbeHealth(finalReport)
-                        if (!failoverAttempted && relayAlive) {
+                        val provenFailover =
+                            AutoFailoverPolicy.shouldAttemptFailover(confirmedDownPasses, relayAlive)
+                        if (!failoverAttempted && provenFailover) {
                             // Hors de cette coroutine : le rechargement annule la
                             // vérification courante, la bascule doit lui survivre.
                             failoverJob = connectionTestScope.launch {
@@ -737,6 +741,27 @@ object CoreServiceManager {
                                     scheduleReconnect(service)
                                 }
                             }
+                            return@launch
+                        }
+                        if (relayAlive && !provenFailover) {
+                            // Une seule passe en échec : preuve insuffisante pour
+                            // changer de serveur, et rien ne justifie de couper un
+                            // cœur encore vivant. Nouvelle passe différée.
+                            LogUtil.w(
+                                AppConfig.TAG,
+                                "StartCore-Manager: failover not proven " +
+                                    "($confirmedDownPasses/${AutoFailoverPolicy.REQUIRED_CONFIRMED_FAILURES}), server kept",
+                            )
+                            MessageHelper.sendMsg2UI(
+                                service,
+                                AppConfig.MSG_STATE_RECONNECTING,
+                                service.getString(com.v2ray.ang.R.string.connection_verification_failed),
+                            )
+                            NotificationManager.updateState(
+                                service.getString(com.v2ray.ang.R.string.connection_reconnecting),
+                                android.graphics.Color.rgb(245, 196, 81),
+                            )
+                            scheduleReverification("startup_unproven")
                             return@launch
                         }
                         val message = service.getString(com.v2ray.ang.R.string.connection_verification_failed)
@@ -1410,13 +1435,29 @@ object CoreServiceManager {
                 return true
             }
             // Le candidat n'a pas donné de trafic réel : retour explicite.
+            // Le rejet est une mesure réelle (rechargement complet + sonde) :
+            // l'enregistrer évite de retenter le même candidat à l'aveugle au
+            // prochain cycle, alors qu'il vient de couper le tunnel.
+            ServerHealthStore.recordFailure(candidate.guid, candidate.protocol)
             MmkvManager.setSelectServer(fromGuid)
-            switchAndVerify(fromGuid)
-            ServerHealthStore.recordEvent(fromName, target.remarks, reason, "rollback")
-            LogUtil.w(AppConfig.TAG, "Failover: candidat rejeté, retour au serveur précédent")
-            // Traçabilité UI : la bascule annulée est visible dans la console,
-            // l'état connecté/échec reste publié par la boucle de vérification.
-            XrayConsole.event("Core", "Failover rollback: candidate rejected, restored previous server")
+            val restored = switchAndVerify(fromGuid)
+            if (restored) {
+                ServerHealthStore.recordEvent(fromName, target.remarks, reason, "rollback")
+                LogUtil.w(AppConfig.TAG, "Failover: candidat rejeté, retour au serveur précédent")
+                // Traçabilité UI : la bascule annulée est visible dans la console,
+                // l'état connecté/échec reste publié par la boucle de vérification.
+                XrayConsole.event("Core", "Failover rollback: candidate rejected, restored previous server")
+            } else {
+                // Restaurer le serveur précédent a échoué aussi : sans relance,
+                // le tunnel resterait mort sans aucune tentative suivante.
+                ServerHealthStore.recordEvent(fromName, target.remarks, reason, "rollback_failed")
+                LogUtil.e(
+                    AppConfig.TAG,
+                    "Failover: retour au serveur précédent non vérifié, reprise de la récupération",
+                )
+                XrayConsole.event("Core", "Failover rollback failed: previous server unverified")
+                scheduleReconnect(service, CoreOrigin.PROBE, "rollback_failed")
+            }
             return false
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -2334,5 +2375,11 @@ private const val SWITCH_EVALUATION_INTERVAL_MILLIS = 60_000L
 /** Rechargement borné avant de conclure que le candidat ne démarre pas. */
 private const val FAILOVER_RELOAD_TIMEOUT_MILLIS = 20_000L
 
-/** Attente de la vérification réelle du trafic après bascule. */
-private const val FAILOVER_VERIFY_WAIT_MILLIS = 12_000L
+/**
+ * Attente de la vérification réelle du trafic après bascule.
+ *
+ * Doit couvrir les deux passes de `verifyConnection` (2 × 8 s de sonde +
+ * 1,5 s d'écart) : à 12 s, un candidat correct mais lent était rejeté à tort
+ * puis restauré, ce qui produisait deux rechargements pour rien.
+ */
+private const val FAILOVER_VERIFY_WAIT_MILLIS = 20_000L

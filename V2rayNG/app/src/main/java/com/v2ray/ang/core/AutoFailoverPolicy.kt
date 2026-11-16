@@ -73,6 +73,30 @@ internal object AutoFailoverPolicy {
 
     const val DEFAULT_COOLDOWN_MILLIS = 3 * 60_000L
 
+    /**
+     * Disponibilité minimale d'un serveur pour être retenu comme candidat, et
+     * pour qu'un serveur actif soit considéré comme « encore utilisable » (donc
+     * protégé par le cooldown). En dessous, c'est un sauvetage : on ne temporise
+     * pas, le tunnel ne transporte quasiment plus rien.
+     */
+    const val MIN_USABLE_AVAILABILITY = 50
+
+    /**
+     * Nombre de passes de vérification réellement en échec avant d'autoriser
+     * une bascule au démarrage : un doute (sonde ignorée, exception) ne doit
+     * jamais faire changer de serveur. Chaque passe exige déjà plusieurs
+     * fournisseurs en échec, donc deux passes = quatre avis indépendants.
+     */
+    const val REQUIRED_CONFIRMED_FAILURES = 2
+
+    /**
+     * Une bascule au démarrage n'est permise que sur une panne prouvée par
+     * [REQUIRED_CONFIRMED_FAILURES] passes et avec un relais vivant : changer
+     * de serveur ne répare pas un relais TUN mort.
+     */
+    fun shouldAttemptFailover(confirmedDownPasses: Int, relayAlive: Boolean): Boolean =
+        relayAlive && confirmedDownPasses >= REQUIRED_CONFIRMED_FAILURES
+
     fun score(snapshot: ServerHealthSnapshot): Int {
         if (snapshot.samples <= 0) return 0
         val availability = snapshot.availabilityPercent
@@ -111,14 +135,34 @@ internal object AutoFailoverPolicy {
                 it.guid != active.guid &&
                 isCandidateFresh(it, nowMillis) &&
                 !it.lastFailed &&
-                it.availabilityPercent >= 50
+                it.availabilityPercent >= MIN_USABLE_AVAILABILITY
         }
         if (usable.isEmpty()) return FailoverDecision(null, "no_candidate")
 
-        val best = usable.maxWithOrNull(compareBy({ it.score }, { -it.latencyMillis }))
-            ?: return FailoverDecision(null, "no_candidate")
+        // À score égal, une latence inconnue ne doit jamais battre une mesure
+        // réelle : `-latencyMillis` donnerait +1 pour -1 ms, soit un avantage
+        // artificiel au serveur dont on ne sait rien.
+        val best = usable.maxWithOrNull(
+            compareBy(
+                { it.score },
+                { if (it.latencyMillis >= 0L) -it.latencyMillis else Long.MIN_VALUE },
+            ),
+        ) ?: return FailoverDecision(null, "no_candidate")
 
         val activeFresh = isFresh(active, nowMillis)
+        // Le cooldown protège tout serveur actif encore utilisable, pas
+        // seulement un serveur parfait : sinon un serveur disponible à 50-89 %
+        // serait remplacé toutes les minutes, à chaque rechargement du cœur.
+        // Un serveur réellement inutilisable (mesure absente/vieille ou
+        // disponibilité sous le seuil) reste un sauvetage immédiat.
+        val activeUsable = activeFresh && active.availabilityPercent >= MIN_USABLE_AVAILABILITY
+        if (activeUsable &&
+            lastSwitchAtMillis > 0L &&
+            nowMillis - lastSwitchAtMillis < cooldownMillis
+        ) {
+            return FailoverDecision(null, "cooldown")
+        }
+
         // Une seule sonde perdue ne rend pas le serveur « mauvais » : seule la
         // dernière mesure en échec (ou une disponibilité dégradée) le fait.
         val activeHealthy = activeFresh && active.availabilityPercent >= 90 && !active.lastFailed
@@ -135,9 +179,6 @@ internal object AutoFailoverPolicy {
             }
         }
 
-        if (lastSwitchAtMillis > 0L && nowMillis - lastSwitchAtMillis < cooldownMillis) {
-            return FailoverDecision(null, "cooldown")
-        }
         return if (gain >= HEALTHY_SERVER_MIN_GAIN) {
             FailoverDecision(best, "better_score")
         } else {
