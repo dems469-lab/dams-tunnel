@@ -3,30 +3,41 @@
 Un seul fichier d'historique. Chaque entrée décrit une intervention terminée,
 les fichiers touchés, ce qui a été vérifié et ce qui reste à vérifier.
 
-## 1.10.8-lab (778) — journal complet
+## 1.10.8-lab (778) — journal complet et sondes à l'épreuve des réseaux lents
 
-**Contexte** : le journal de l'application remplaçait les hôtes, les adresses
-IP, les ports **et les noms de classes Java** par « [serveur masqué] » ou
-« [adresse masquée] ». Une trace de pile devenait illisible
-(`at [serveur masqué]([serveur masqué])`) et l'erreur réelle — serveur
-concerné, adresse, port, message du cœur — disparaissait. Impossible de
-diagnostiquer un incident à partir de ce journal.
+**Contexte** : deux défauts se cumulaient. D'une part le journal remplaçait les
+hôtes, les adresses IP, les ports **et les noms de classes Java** par
+« [serveur masqué] » ou « [adresse masquée] » : une trace de pile devenait
+illisible (`at [serveur masqué]([serveur masqué])`) et l'erreur réelle — serveur
+concerné, adresse, port, message du cœur — disparaissait. D'autre part la
+vérification de connexion de la 1.10.7 répartissait 8 s sur trois URL, soit
+2,67 s par destination, alors que la 1.10.6 en accordait 4 s et que le réseau de
+référence demande déjà 2,2 à 2,5 s pour un seul voyage HTTPS complet. Les trois
+sondes expiraient sur un tunnel sain : verdict `DOWN`, bascule vers un autre
+serveur, vérification impossible, retour arrière, puis boucle de reconnexion.
 
-**Correctif**
-- `util/LogRedactor.kt` : le masquage des hôtes, des IPv4/IPv6, des ports et
-  des noms de classes est supprimé. Les traces de pile, les URL de test et les
-  messages du cœur sont affichés tels quels.
-- Seuls les secrets d'authentification restent masqués : liens de profil
-  complets, identifiants `user:password@`, paramètres `password=`, `token=`,
-  `secret=`, `api_key=` et UUID.
-- `util/LogRedactorTest.kt` : vérifie que hôtes, adresses, ports, traces de
-  pile et messages restent lisibles, et que les identifiants restent masqués.
+**Correctifs**
+- **Journal (A6)** — `util/LogRedactor.kt` : le masquage des hôtes, des
+  IPv4/IPv6, des ports et des noms de classes est supprimé. Les traces de pile,
+  les URL de test et les messages du cœur sont affichés tels quels. Seuls les
+  secrets d'authentification restent masqués : liens de profil complets,
+  identifiants `user:password@`, paramètres `password=`, `token=`, `secret=`,
+  `api_key=` et UUID. `util/LogRedactorTest.kt` vérifie les deux côtés.
+- **Budgets de sonde (A7)** — `core/CoreServiceManager.kt` : budget total porté
+  de 8 s à 12 s et budget minimal par destination de 1,5 s à 4 s
+  (`core/ProbePolicy.kt`), soit 4 s par URL comme en 1.10.6. Une sonde lente
+  mais fonctionnelle redevient une preuve de vie (`SLOW`), plus une panne.
+- **Ping manuel (A7)** — `service/RealPingWorkerService.kt` : le test TCP direct
+  passe de 1 s à 3 s. À 1 s, la mesure était à la limite exacte du réseau de
+  référence (0,85 à 1,0 s) et des serveurs fonctionnels étaient marqués en
+  échec.
 
 **Vérifications**
-- Tests unitaires `LogRedactorTest` exécutés par la CI.
+- Tests unitaires `LogRedactorTest` et `ProbePolicyTest` (dont le budget de
+  production 3 × 4 s) exécutés par la CI.
 
 **À vérifier**
-- Journal réel sur téléphone après installation.
+- Journal réel et connexion sur téléphone après installation.
 
 ## 1.10.7-lab (777) — ne plus couper un tunnel qui fonctionne
 
