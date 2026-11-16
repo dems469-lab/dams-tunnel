@@ -177,6 +177,16 @@ object AppConfig {
      * tunnel fonctionnait. Ce repli doit rester chez un autre fournisseur.
      */
     const val DELAY_TEST_URL3 = "https://cp.cloudflare.com/generate_204"
+
+    /**
+     * Troisième fournisseur, indépendant de Google et de Cloudflare.
+     *
+     * Les sondes automatiques doivent pouvoir conclure sur au moins deux
+     * fournisseurs distincts : si l'un est filtré par le serveur, les autres
+     * restent des preuves valables. Canonical répond 204, comme les deux
+     * précédentes.
+     */
+    const val DELAY_TEST_URL4 = "https://connectivity-check.ubuntu.com/"
     const val OBSERVATORY_LEAST_PING_INTERVAL = "3m"
     const val OBSERVATORY_LEAST_LOAD_INTERVAL = "5m"
     const val OBSERVATORY_LEAST_LOAD_METHOD = "HEAD"

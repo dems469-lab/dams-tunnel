@@ -436,6 +436,20 @@ object SettingsManager {
     ).distinct()
 
     /**
+     * Destinations des sondes automatiques, dans l'ordre d'essai.
+     *
+     * Le réglage utilisateur reste prioritaire. Les replis appartiennent à des
+     * fournisseurs distincts de l'URL principale (Cloudflare puis Canonical)
+     * pour qu'un blocage de Google ne condamne pas la vérification. Le test de
+     * latence manuel garde sa propre liste ([getDelayTestUrls]).
+     */
+    fun getProbeUrls(): List<String> = listOf(
+        getDelayTestUrl(),
+        AppConfig.DELAY_TEST_URL3,
+        AppConfig.DELAY_TEST_URL4,
+    )
+
+    /**
      * Get real ping concurrency.
      * @return The number of concurrent real-ping tests (clamped to 1..64).
      */

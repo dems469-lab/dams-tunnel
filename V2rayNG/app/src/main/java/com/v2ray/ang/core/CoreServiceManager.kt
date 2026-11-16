@@ -163,6 +163,9 @@ object CoreServiceManager {
     /** Relance lente unique après épuisement du quota (voir publishRecoveryLimitReached). */
     private var slowRetryJob: kotlinx.coroutines.Job? = null
 
+    /** Re-vérification différée, non destructrice, après une preuve insuffisante. */
+    private var reverificationJob: kotlinx.coroutines.Job? = null
+
     /** L'échec « quota atteint » n'est publié qu'une fois par épisode. */
     @Volatile
     private var recoveryLimitPublished = false
@@ -634,25 +637,37 @@ object CoreServiceManager {
     private fun verifyConnection(service: Service) {
         connectionVerificationJob?.cancel()
         connectionVerificationJob = connectionTestScope.launch {
-            var delayMillis = -1L
+            var report: ProbeReport? = null
             var lastError: String? = null
-            for (attempt in 0 until 2) {
-                if (attempt > 0) delay(1500L)
-                try {
-                    delayMillis = measureBounded()
-                    if (delayMillis >= 0) break
+            var skippedPasses = 0
+            for (attempt in 0 until VERIFICATION_ATTEMPTS) {
+                if (attempt > 0) delay(VERIFICATION_RETRY_DELAY_MILLIS)
+                val pass = try {
+                    probeTunnel()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     lastError = e.message
                     LogUtil.w(AppConfig.TAG, "StartCore-Manager: connectivity verification failed", e)
+                    null
+                }
+                if (pass == null) continue
+                report = pass
+                if (pass.reachable) break
+                // Sans Internet sous-jacent, une seconde passe ne changerait rien :
+                // c'est le réseau du téléphone qui manque, pas le tunnel.
+                if (pass.verdict == TunnelVerdict.NO_INTERNET) break
+                if (pass.verdict == TunnelVerdict.SKIPPED) {
+                    skippedPasses++
+                    if (skippedPasses >= VERIFICATION_ATTEMPTS) break
                 }
             }
-            val relayAlive = isTunnelPathAlive()
+            val finalReport = report
+            val latency = finalReport?.latencyMillis ?: -1L
             if (CoreRecoveryPolicy.canPublishConnected(
-                    probeReachable = delayMillis >= 0,
+                    probeReachable = finalReport?.reachable == true,
                     coreRunning = isRunning(),
-                    relayRunning = relayAlive,
+                    relayRunning = finalReport?.relayRunning ?: isTunnelPathAlive(),
                 )
             ) {
                 connectionVerified = true
@@ -660,12 +675,12 @@ object CoreServiceManager {
                 // qui rend la main ne prouve rien.
                 supervisor.tunnelVerified()
                 failoverAttempted = false
-                recordActiveHealth(delayMillis)
+                recordProbeHealth(finalReport)
                 // Première latence réelle disponible immédiatement pour l'accueil.
                 MessageHelper.sendMsg2UI(
                     service,
                     AppConfig.MSG_SESSION_RTT,
-                    SessionRttSample(delayMillis, System.currentTimeMillis(), true),
+                    SessionRttSample(latency, System.currentTimeMillis(), true),
                 )
                 startHealthCheck(service)
                 NotificationManager.updateState(service.getString(com.v2ray.ang.R.string.connection_connected), android.graphics.Color.rgb(34, 211, 238))
@@ -674,37 +689,87 @@ object CoreServiceManager {
                 MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_SUCCESS, "")
             } else if (isRunning()) {
                 connectionVerified = false
-                supervisor.tunnelUnverified(
-                    if (relayAlive) "initial_probe_failed" else "tunnel_relay_down",
-                )
-                recordActiveHealth(-1L)
-                if (!failoverAttempted && relayAlive) {
-                    // Hors de cette coroutine : le rechargement annule la
-                    // vérification courante, la bascule doit lui survivre.
-                    failoverJob = connectionTestScope.launch {
-                        try {
-                            if (!tryFailover(service)) scheduleReconnect(service)
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (e: Exception) {
-                            LogUtil.e(AppConfig.TAG, "Failover: boucle interrompue", e)
-                            scheduleReconnect(service)
+                when (finalReport?.verdict) {
+                    // Aucune preuve de panne du tunnel : réseau absent, sonde
+                    // ignorée ou un seul fournisseur interrogé. On ne change ni
+                    // de serveur ni de cœur ; une passe différée re-vérifiera.
+                    TunnelVerdict.NO_INTERNET,
+                    TunnelVerdict.SUSPECT,
+                    TunnelVerdict.SKIPPED -> {
+                        val reason = when (finalReport?.verdict) {
+                            TunnelVerdict.NO_INTERNET -> "no_internet"
+                            TunnelVerdict.SUSPECT -> "probe_unproven"
+                            else -> "probe_skipped"
                         }
+                        supervisor.tunnelUnverified(reason)
+                        LogUtil.w(
+                            AppConfig.TAG,
+                            "StartCore-Manager: no proof of failure ($reason), core and server kept",
+                        )
+                        MessageHelper.sendMsg2UI(
+                            service,
+                            AppConfig.MSG_STATE_RECONNECTING,
+                            service.getString(com.v2ray.ang.R.string.connection_verification_failed),
+                        )
+                        NotificationManager.updateState(
+                            service.getString(com.v2ray.ang.R.string.connection_reconnecting),
+                            android.graphics.Color.rgb(245, 196, 81),
+                        )
+                        scheduleReverification(reason)
                     }
-                    return@launch
+
+                    else -> {
+                        val relayAlive = finalReport?.relayRunning ?: isTunnelPathAlive()
+                        supervisor.tunnelUnverified(
+                            if (relayAlive) "initial_probe_failed" else "tunnel_relay_down",
+                        )
+                        recordProbeHealth(finalReport)
+                        if (!failoverAttempted && relayAlive) {
+                            // Hors de cette coroutine : le rechargement annule la
+                            // vérification courante, la bascule doit lui survivre.
+                            failoverJob = connectionTestScope.launch {
+                                try {
+                                    if (!tryFailover(service)) scheduleReconnect(service)
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (e: Exception) {
+                                    LogUtil.e(AppConfig.TAG, "Failover: boucle interrompue", e)
+                                    scheduleReconnect(service)
+                                }
+                            }
+                            return@launch
+                        }
+                        val message = service.getString(com.v2ray.ang.R.string.connection_verification_failed)
+                        LogUtil.e(AppConfig.TAG, "StartCore-Manager: no traffic after startup: ${lastError ?: "unknown error"}")
+                        // The core is still alive and the user did not stop it.  Keep the
+                        // lifecycle in reconnecting state so the UI does not present a
+                        // terminal failure while the backoff loop is still working.
+                        MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, message)
+                        NotificationManager.updateState(
+                            service.getString(com.v2ray.ang.R.string.connection_reconnecting),
+                            android.graphics.Color.rgb(245, 196, 81),
+                        )
+                        scheduleReconnect(service)
+                    }
                 }
-                val message = service.getString(com.v2ray.ang.R.string.connection_verification_failed)
-                LogUtil.e(AppConfig.TAG, "StartCore-Manager: no traffic after startup: ${lastError ?: "unknown error"}")
-                // The core is still alive and the user did not stop it.  Keep the
-                // lifecycle in reconnecting state so the UI does not present a
-                // terminal failure while the backoff loop is still working.
-                MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RECONNECTING, message)
-                NotificationManager.updateState(
-                    service.getString(com.v2ray.ang.R.string.connection_reconnecting),
-                    android.graphics.Color.rgb(245, 196, 81),
-                )
-                scheduleReconnect(service)
             }
+        }
+    }
+
+    /**
+     * Re-vérifie un tunnel sans rien détruire.
+     *
+     * Utilisé quand la sonde n'a produit aucune preuve (réseau absent, sonde
+     * ignorée) : recharger le cœur ou changer de serveur à ce moment couperait
+     * un tunnel potentiellement sain.
+     */
+    private fun scheduleReverification(reason: String) {
+        if (reverificationJob?.isActive == true) return
+        reverificationJob = connectionTestScope.launch {
+            delay(UNVERIFIED_RECHECK_MILLIS)
+            if (!isRunning() || userStopped) return@launch
+            XrayConsole.event("Core", "Re-verifying after an unproven probe ($reason)")
+            requestReverification("recheck_$reason")
         }
     }
 
@@ -729,15 +794,28 @@ object CoreServiceManager {
                     onUnexpectedCoreExit(service, "health_check_loop_exit", null, CoreOrigin.PROBE)
                     return@launch
                 }
-                val probe = try {
-                    measureBounded()
+                val report = try {
+                    probeTunnel()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
-                    -1L
+                    null
                 }
-                val reachable = probe >= 0L
+                if (report == null) {
+                    // Aucune mesure exploitable : ne rien imputer au tunnel.
+                    LogUtil.w(AppConfig.TAG, "StartCore-Manager: probe aborted, state kept")
+                    continue
+                }
+                val reachable = report.reachable
                 val now = System.currentTimeMillis()
+                // Seule une panne prouvée par plusieurs fournisseurs compte
+                // comme un échec : une sonde ignorée, un réseau absent ou une
+                // preuve insuffisante ne doivent jamais faire recharger le cœur.
+                when (report.verdict) {
+                    TunnelVerdict.DOWN -> consecutiveFailures++
+                    TunnelVerdict.UP, TunnelVerdict.SLOW, TunnelVerdict.NO_INTERNET -> consecutiveFailures = 0
+                    else -> Unit
+                }
                 // Fenêtre de qualité : on n'écrit que sur changement de verdict,
                 // ou toutes les 30 s pour garder des mesures fraîches. Une
                 // écriture MMKV toutes les 5 s réveillait le stockage en continu.
@@ -746,19 +824,26 @@ object CoreServiceManager {
                 ) {
                     lastHealthRecordAt = now
                     lastRecordedReachable = reachable
-                    recordActiveHealth(probe)
+                    recordProbeHealth(report)
                 }
                 // La sonde de santé traverse déjà le tunnel : on publie son
                 // résultat tel quel, sans requête supplémentaire.
                 MessageHelper.sendMsg2UI(
                     service,
                     AppConfig.MSG_SESSION_RTT,
-                    SessionRttSample(probe, now, reachable),
+                    SessionRttSample(if (reachable) report.latencyMillis else -1L, now, reachable),
                 )
-                if (!reachable) {
-                    consecutiveFailures++
-                } else {
-                    consecutiveFailures = 0
+                if (report.verdict == TunnelVerdict.NO_INTERNET ||
+                    report.verdict == TunnelVerdict.SUSPECT ||
+                    report.verdict == TunnelVerdict.SKIPPED
+                ) {
+                    // Ni succès ni panne : aucune action, aucune comparaison de
+                    // serveurs (une bascule hors ligne ne réparerait rien).
+                    LogUtil.i(
+                        AppConfig.TAG,
+                        "StartCore-Manager: probe inconclusive (${report.verdict}), core left untouched",
+                    )
+                    continue
                 }
                 val verdict = CoreRecoveryPolicy.probeVerdict(
                     reachable = reachable,
@@ -846,19 +931,23 @@ object CoreServiceManager {
             if (index > 0) delay(PROBE_CONFIRM_SPACING_MILLIS)
             if (userStopped) return false
             if (!isRunning()) return true
-            val delayMillis = try {
-                measureBounded(PROBE_CONFIRM_TIMEOUT_MILLIS)
+            val report = try {
+                probeTunnel(PROBE_CONFIRM_TIMEOUT_MILLIS)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                -1L
+                null
             }
             val service = getService() ?: return true
-            val reachable = delayMillis >= 0L
+            val reachable = report?.reachable == true
             MessageHelper.sendMsg2UI(
                 service,
                 AppConfig.MSG_SESSION_RTT,
-                SessionRttSample(delayMillis, System.currentTimeMillis(), reachable),
+                SessionRttSample(
+                    if (reachable) report?.latencyMillis ?: -1L else -1L,
+                    System.currentTimeMillis(),
+                    reachable,
+                ),
             )
             if (reachable) {
                 // La fenêtre ne juge que la joignabilité : sa latence (parfois
@@ -866,6 +955,15 @@ object CoreServiceManager {
                 // classement de bascule. La prochaine sonde normale mesurera la
                 // qualité réelle.
                 recordActiveReachable()
+                return false
+            }
+            // Sonde ignorée, preuve insuffisante ou réseau porteur absent : la
+            // panne du tunnel n'est pas confirmée, on ne détruit rien.
+            if (report?.confirmedDown != true) {
+                LogUtil.i(
+                    AppConfig.TAG,
+                    "StartCore-Manager: probe inconclusive during confirmation (${report?.verdict}), core left untouched",
+                )
                 return false
             }
         }
@@ -887,57 +985,110 @@ object CoreServiceManager {
         runCatching { serviceControl?.isTunnelRelayRunning() ?: true }.getOrDefault(true)
 
     /**
-     * Mesure bornée : l'appel natif est exécuté sur un thread dédié, puis
-     * abandonné au-delà de [timeoutMillis]. Une sonde JNI bloquée ne peut donc
-     * plus geler la vérification, la boucle de santé ni le handover (M5).
+     * Sonde multi-destinations bornée.
      *
-     * Un seul appel est autorisé à la fois : si le précédent est encore bloqué
-     * dans le natif, la sonde est simplement déclarée en échec au lieu
-     * d'empiler des threads.
+     * Le budget total est réparti entre **toutes** les destinations par
+     * [ProbePolicy.planBudgets] : l'ancien `timeout / 2` réservait la moitié du
+     * temps à la première URL, si bien que la troisième (le repli non-Google)
+     * n'était jamais essayée et qu'un serveur filtrant Google ne pouvait pas
+     * être déclaré connecté.
      *
-     * Le budget total reste [timeoutMillis], mais chaque URL ne peut en
-     * consommer que la moitié : une URL bloquée (paquets jetés) ne mange pas le
-     * temps des replis, sinon le repli non-Google ne serait jamais essayé.
+     * Une sonde déjà en cours renvoie [TunnelVerdict.SKIPPED] : elle ne prouve
+     * rien et n'est donc jamais comptée comme un échec.
      */
-    private suspend fun measureBounded(timeoutMillis: Long = MEASURE_TIMEOUT_MILLIS): Long =
+    private suspend fun probeTunnel(timeoutMillis: Long = MEASURE_TIMEOUT_MILLIS): ProbeReport =
         withContext(Dispatchers.IO) {
             if (!measureInFlight.compareAndSet(false, true)) {
                 LogUtil.w(AppConfig.TAG, "StartCore-Manager: measurement already in flight, skipping")
-                return@withContext -1L
+                return@withContext ProbePolicy.evaluate(
+                    coreRunning = isRunning(),
+                    relayRunning = isTunnelPathAlive(),
+                    internetValidated = isInternetAvailable(),
+                    attempts = emptyList(),
+                    skipped = true,
+                )
             }
             try {
+                val endpoints = ProbePolicy.endpoints(SettingsManager.getProbeUrls())
+                val budgets = ProbePolicy.planBudgets(
+                    totalMillis = timeoutMillis,
+                    count = endpoints.size,
+                    minPerUrl = MIN_PROBE_URL_BUDGET_MILLIS,
+                )
+                val attempts = ArrayList<ProbeAttempt>(endpoints.size)
                 val deadline = System.currentTimeMillis() + timeoutMillis
-                val perUrlBudget = (timeoutMillis / 2).coerceAtLeast(MIN_PROBE_URL_BUDGET_MILLIS)
-                for (url in SettingsManager.getDelayTestUrls()) {
+                for (index in endpoints.indices) {
+                    if (index >= budgets.size) break
                     val remaining = deadline - System.currentTimeMillis()
                     if (remaining <= 0L) break
-                    val delay = measureSingleBounded(url, minOf(perUrlBudget, remaining))
-                    if (delay >= 0L) return@withContext delay
+                    val budget = minOf(budgets[index], remaining)
+                    if (budget <= 0L) break
+                    val attempt = measureEndpoint(endpoints[index], budget)
+                    attempts.add(attempt)
+                    if (attempt.kind == ProbeKind.OK) break
                 }
-                -1L
+                ProbePolicy.evaluate(
+                    coreRunning = isRunning(),
+                    relayRunning = isTunnelPathAlive(),
+                    internetValidated = isInternetAvailable(),
+                    attempts = attempts,
+                )
             } finally {
                 measureInFlight.set(false)
             }
         }
 
-    /** Une seule URL, bornée : une sonde JNI bloquée est abandonnée. */
-    private fun measureSingleBounded(url: String, timeoutMillis: Long): Long {
+    /** Une destination, bornée : une sonde JNI bloquée n'empêche pas les replis. */
+    private fun measureEndpoint(endpoint: ProbeEndpoint, timeoutMillis: Long): ProbeAttempt {
+        val startedAt = System.currentTimeMillis()
         val future = measureExecutor.submit(
-            java.util.concurrent.Callable { coreEngine.measureDelay(url) },
+            java.util.concurrent.Callable { coreEngine.measureDelay(endpoint.url) },
         )
         return try {
-            future.get(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS)
+            val delay = future.get(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS)
+            if (delay < 0L) {
+                ProbeAttempt(endpoint.url, endpoint.provider, ProbeKind.ERROR, elapsedSince(startedAt))
+            } else {
+                ProbeAttempt(endpoint.url, endpoint.provider, ProbeKind.OK, delay)
+            }
         } catch (e: java.util.concurrent.TimeoutException) {
             future.cancel(true)
             LogUtil.w(
                 AppConfig.TAG,
-                "StartCore-Manager: measurement timed out after ${timeoutMillis}ms",
+                "StartCore-Manager: probe timed out after ${timeoutMillis}ms (${endpoint.provider})",
             )
-            -1L
+            ProbeAttempt(endpoint.url, endpoint.provider, ProbeKind.TIMEOUT, elapsedSince(startedAt))
         } catch (e: Exception) {
             future.cancel(true)
-            LogUtil.w(AppConfig.TAG, "StartCore-Manager: bounded measurement failed", e)
-            -1L
+            LogUtil.w(AppConfig.TAG, "StartCore-Manager: bounded probe failed (${endpoint.provider})", e)
+            ProbeAttempt(endpoint.url, endpoint.provider, ProbeKind.ERROR, elapsedSince(startedAt))
+        }
+    }
+
+    private fun elapsedSince(startedAt: Long): Long =
+        (System.currentTimeMillis() - startedAt).coerceAtLeast(0L)
+
+    /**
+     * L'accès Internet du réseau porteur est-il validé ?
+     *
+     * Un doute renvoie `true` : cette information ne doit jamais, à elle seule,
+     * empêcher une récupération légitime.
+     */
+    private fun isInternetAvailable(): Boolean =
+        networkMonitor?.upstreamValidated ?: true
+
+    /**
+     * Enregistre une mesure sans polluer le classement : un succès lent reste
+     * une preuve de vie, mais sa latence reflète la congestion du moment.
+     */
+    private fun recordProbeHealth(report: ProbeReport?) {
+        if (report == null) return
+        when {
+            report.reachable && report.latencyMillis in 0L..ProbePolicy.SLOW_PROBE_MILLIS ->
+                recordActiveHealth(report.latencyMillis)
+            report.reachable -> recordActiveReachable()
+            report.confirmedDown -> recordActiveHealth(-1L)
+            else -> Unit
         }
     }
 
@@ -1674,17 +1825,38 @@ object CoreServiceManager {
         // la radio peut mettre plusieurs secondes à se réinstaller : une seule
         // sonde négative ne prouve pas que le tunnel est mort, et la recharger
         // couperait le trafic encore en cours.
-        val firstVerified = measureBounded(HANDOVER_VERIFY_TIMEOUT_MILLIS) >= 0L
-        var secondVerified = false
-        if (!firstVerified) {
+        val firstReport = probeTunnel(HANDOVER_VERIFY_TIMEOUT_MILLIS)
+        var lastReport = firstReport
+        if (!firstReport.reachable) {
             delay(HANDOVER_VERIFY_RETRY_DELAY_MILLIS)
             if (userStopped) return
-            secondVerified = measureBounded(HANDOVER_VERIFY_TIMEOUT_MILLIS) >= 0L
+            lastReport = probeTunnel(HANDOVER_VERIFY_TIMEOUT_MILLIS)
         }
-        if (!CoreRecoveryPolicy.handoverNeedsRecovery(firstVerified, secondVerified)) {
+        if (lastReport.verdict == TunnelVerdict.NO_INTERNET) {
+            // Le réseau porteur n'a pas encore d'Internet : recharger le cœur ne
+            // le rendrait pas. Le prochain changement de réseau relancera la
+            // vérification.
+            LogUtil.w(
+                AppConfig.TAG,
+                "NetworkMonitor: no upstream internet after handover, tunnel left untouched",
+            )
+            return
+        }
+        if (!CoreRecoveryPolicy.handoverNeedsRecovery(firstReport.reachable, lastReport.reachable)) {
             supervisor.tunnelVerified()
             XrayConsole.event("Network", "Upstream changed, tunnel still verified: core left untouched")
             LogUtil.i(AppConfig.TAG, "NetworkMonitor: tunnel still verified after handover")
+            return
+        }
+        // Deux passes négatives ne suffisent pas : seule une panne prouvée par
+        // plusieurs fournisseurs (ou un relais mort) justifie de couper le
+        // trafic. Un doute laisse le tunnel en place et re-vérifie plus tard.
+        if (!lastReport.confirmedDown && lastReport.verdict != TunnelVerdict.RELAY_DOWN) {
+            LogUtil.w(
+                AppConfig.TAG,
+                "NetworkMonitor: handover failure not proven (${lastReport.verdict}), tunnel left untouched",
+            )
+            scheduleReverification("handover_unproven")
             return
         }
         XrayConsole.event("Network", "Upstream changed, tunnel unverified twice: recovery requested")
@@ -2104,11 +2276,31 @@ private const val RECONNECT_RELOAD_TIMEOUT_MILLIS = 30_000L
 private const val MEASURE_TIMEOUT_MILLIS = 8_000L
 
 /**
+ * Nombre de passes de vérification avant de conclure au démarrage.
+ *
+ * Deux passes restent nécessaires : la première peut tomber pendant que le
+ * relais s'installe. Une seule passe suffirait à déclarer un tunnel sain en
+ * échec sur un incident local très court.
+ */
+private const val VERIFICATION_ATTEMPTS = 2
+
+/** Délai entre deux passes de vérification. */
+private const val VERIFICATION_RETRY_DELAY_MILLIS = 1_500L
+
+/**
+ * Re-vérification différée quand aucune preuve de panne n'a pu être obtenue
+ * (réseau absent, sonde ignorée). Volontairement non destructrice : ni bascule
+ * ni rechargement, le tunnel reste en place.
+ */
+private const val UNVERIFIED_RECHECK_MILLIS = 30_000L
+
+/**
  * Budget minimal accordé à une URL de sonde : en dessous, un serveur lent mais
  * fonctionnel serait déclaré en échec. Le budget total reste borné par
- * `MEASURE_TIMEOUT_MILLIS`.
+ * `MEASURE_TIMEOUT_MILLIS` et réparti entre toutes les destinations par
+ * `ProbePolicy.planBudgets`.
  */
-private const val MIN_PROBE_URL_BUDGET_MILLIS = 2_500L
+private const val MIN_PROBE_URL_BUDGET_MILLIS = 1_500L
 
 /** Intervalle des statistiques de trafic, écran allumé / éteint. */
 private const val TRAFFIC_STATS_INTERVAL_MILLIS = 1_000L

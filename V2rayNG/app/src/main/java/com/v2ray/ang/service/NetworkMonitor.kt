@@ -39,6 +39,16 @@ class NetworkMonitor(
     @Volatile
     var underlyingIsCellular: Boolean? = null
         private set
+
+    /**
+     * Le réseau porteur est-il validé par le système (accès Internet réel) ?
+     * `null` tant qu'aucune capacité n'a été reçue : l'appelant doit alors
+     * considérer l'information comme inconnue, jamais comme une panne.
+     */
+    @Volatile
+    var upstreamValidated: Boolean? = null
+        private set
+
     private var handoverJob: Job? = null
     private var registered = false
     private val monitorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -66,8 +76,11 @@ class NetworkMonitor(
             if (isVpnNetwork(network)) return
             val previous = upstream
             upstream = network
-            underlyingIsCellular = connectivity.getNetworkCapabilities(network)
+            val capabilities = connectivity.getNetworkCapabilities(network)
+            underlyingIsCellular = capabilities
                 ?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+            upstreamValidated = capabilities
+                ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
             XrayConsole.event("Network", "Upstream available: ${if (underlyingIsCellular == true) "cellular" else "wifi/other"}")
             onUnderlyingNetworksChanged(arrayOf(network))
             if (previous != null && previous != network) {
@@ -80,6 +93,8 @@ class NetworkMonitor(
             // it's a good idea to refresh capabilities
             if (upstream == network) {
                 underlyingIsCellular = networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+                upstreamValidated = networkCapabilities
+                    .hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
             }
             onUnderlyingNetworksChanged(arrayOf(network))
         }
@@ -88,6 +103,7 @@ class NetworkMonitor(
             if (upstream == network) {
                 upstream = null
                 underlyingIsCellular = null
+                upstreamValidated = null
                 XrayConsole.event("Network", "Upstream network lost")
                 onUnderlyingNetworksChanged(null)
                 // A lost upstream must trigger the same recovery path as a handover;
@@ -119,6 +135,7 @@ class NetworkMonitor(
         monitorScope.coroutineContext.cancelChildren()
         upstream = null
         underlyingIsCellular = null
+        upstreamValidated = null
         if (!registered) return
         registered = false
         try {
