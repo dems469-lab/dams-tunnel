@@ -119,7 +119,7 @@ class RealPingWorkerService(
         ) {
             val url = config.server.orEmpty()
             val port = config.serverPort.orEmpty().toInt()
-            val tcpTime = SpeedtestManager.socketConnectTime(url, port, 1000)
+            val tcpTime = SpeedtestManager.socketConnectTime(url, port, TCP_PROBE_TIMEOUT_MILLIS)
             if (tcpTime <= -1L) {
                 return retFailure
             }
@@ -147,7 +147,7 @@ class RealPingWorkerService(
         ) {
             val url = config.server.orEmpty()
             val port = config.serverPort.orEmpty().toInt()
-            val tcpTime = SpeedtestManager.socketConnectTime(url, port, 1000)
+            val tcpTime = SpeedtestManager.socketConnectTime(url, port, TCP_PROBE_TIMEOUT_MILLIS)
 
             return tcpTime
         }
@@ -155,3 +155,13 @@ class RealPingWorkerService(
         return retFailure
     }
 }
+
+/**
+ * Budget du test TCP direct exécuté avant la mesure complète par le tunnel.
+ *
+ * 1 s était la limite exacte du réseau de référence (TCP vers Google :
+ * 0,85 à 1,0 s) : des serveurs fonctionnels étaient donc marqués en échec et
+ * le journal affichait « ... after 1000ms ». 3 s laisse passer un réseau lent
+ * sans masquer un serveur réellement absent.
+ */
+private const val TCP_PROBE_TIMEOUT_MILLIS = 3_000

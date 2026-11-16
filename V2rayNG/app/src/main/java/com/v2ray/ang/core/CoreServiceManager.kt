@@ -2443,8 +2443,16 @@ private const val WATCHDOG_INTERVAL_MILLIS = 1_000L
 /** Borne d'un rechargement pendant une relance : un appel natif bloqué ne gèle pas la boucle. */
 private const val RECONNECT_RELOAD_TIMEOUT_MILLIS = 30_000L
 
-/** Borne d'une mesure JNI (voyage complet par le tunnel). */
-private const val MEASURE_TIMEOUT_MILLIS = 8_000L
+/**
+ * Borne d'une mesure JNI (voyage complet par le tunnel).
+ *
+ * Mesuré sur le réseau de référence : un seul `https://www.gstatic.com/generate_204`
+ * demande déjà 2,2 à 2,5 s en direct (DNS 0,4-0,6 s, TCP 0,9-1,0 s, TLS fini à
+ * 1,4-1,9 s), avant la traversée du tunnel. Un budget total de 8 s réparti sur
+ * trois destinations ne laissait que 2,67 s par URL : les trois expiraient sur
+ * un tunnel sain, verdict `DOWN`, bascule puis retour arrière en boucle.
+ */
+private const val MEASURE_TIMEOUT_MILLIS = 12_000L
 
 /**
  * Nombre de passes de vérification avant de conclure au démarrage.
@@ -2470,8 +2478,12 @@ private const val UNVERIFIED_RECHECK_MILLIS = 30_000L
  * fonctionnel serait déclaré en échec. Le budget total reste borné par
  * `MEASURE_TIMEOUT_MILLIS` et réparti entre toutes les destinations par
  * `ProbePolicy.planBudgets`.
+ *
+ * 4 s par destination : c'est le budget qu'accordait la version 1.10.6
+ * (`timeoutMillis / 2` sur 8 s) et qui suffisait aux réseaux lents. Au-dessous,
+ * la vérification condamnait un tunnel qui fonctionnait.
  */
-private const val MIN_PROBE_URL_BUDGET_MILLIS = 1_500L
+private const val MIN_PROBE_URL_BUDGET_MILLIS = 4_000L
 
 /** Intervalle des statistiques de trafic, écran allumé / éteint. */
 private const val TRAFFIC_STATS_INTERVAL_MILLIS = 1_000L

@@ -42,10 +42,19 @@ class ProbePolicyTest {
     }
 
     @Test
-    fun `T2 deux destinations se partagent le budget a parts egales`() {
-        val budgets = ProbePolicy.planBudgets(totalMillis = 8_000L, count = 2, minPerUrl = 1_500L)
+    fun `T1b le budget de production accorde quatre secondes par destination`() {
+        val budgets = ProbePolicy.planBudgets(totalMillis = 12_000L, count = 3)
 
-        assertEquals(listOf(4_000L, 4_000L), budgets)
+        // Réseau de référence : 2,2 à 2,5 s par voyage HTTPS complet. Quatre
+        // secondes par URL laissent la marge nécessaire au tunnel.
+        assertEquals(listOf(4_000L, 4_000L, 4_000L), budgets)
+    }
+
+    @Test
+    fun `T2 deux destinations se partagent le budget a parts egales`() {
+        val budgets = ProbePolicy.planBudgets(totalMillis = 12_000L, count = 2)
+
+        assertEquals(listOf(6_000L, 6_000L), budgets)
     }
 
     @Test

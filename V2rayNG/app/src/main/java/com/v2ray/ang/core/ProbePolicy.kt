@@ -115,8 +115,14 @@ internal object ProbePolicy {
      */
     const val SLOW_PROBE_MILLIS = 2_500L
 
-    /** Part minimale réservée à chaque destination quand le budget le permet. */
-    const val MIN_PER_URL_BUDGET_MILLIS = 1_500L
+    /**
+     * Part minimale réservée à chaque destination quand le budget le permet.
+     *
+     * 4 s : mesuré sur le réseau de référence, un voyage HTTPS complet demande
+     * 2,2 à 2,5 s en direct, davantage à travers un tunnel. La version 1.10.6
+     * accordait ce budget ; le diviser par trois condamnait un tunnel sain.
+     */
+    const val MIN_PER_URL_BUDGET_MILLIS = 4_000L
 
     /**
      * Nombre de fournisseurs distincts dont l'échec est nécessaire pour
