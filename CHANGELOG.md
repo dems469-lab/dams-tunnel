@@ -3,6 +3,45 @@
 Un seul fichier d'historique. Chaque entrée décrit une intervention terminée,
 les fichiers touchés, ce qui a été vérifié et ce qui reste à vérifier.
 
+## 1.10.7-lab (777) — ne plus couper un tunnel qui fonctionne
+
+**Contexte** : cinq faiblesses du moteur de connexion se cumulaient. Une seule URL
+de sonde en échec suffisait à conclure à une panne ; un serveur pouvait être
+changé sans panne prouvée ; un rechargement pouvait couper un téléchargement en
+cours ; une boucle de relance déjà engagée continuait même si le trafic avait
+repris ; et une sonde tardive pouvait republier « connecté » après un arrêt
+volontaire. Cette version traite les cinq points, un lot à la fois, avec CI verte
+à chaque étape.
+
+**Correctifs**
+- **Sondes (A1)** — `core/ProbePolicy.kt` : trois destinations indépendantes,
+  budgets bornés par destination, `DOWN` exige au moins deux fournisseurs et un
+  Internet validé. Une sonde ignorée n'est jamais un échec ; l'absence de preuve
+  programme une re-vérification différée non destructrice.
+- **Bascule (A2)** — `core/AutoFailoverPolicy.kt` : cooldown élargi aux serveurs
+  actifs utilisables, départage des latences inconnues corrigé, bascule au
+  démarrage après deux passes `DOWN` confirmées et relais vivant, retour arrière
+  durci, attente de vérification portée à 20 s.
+- **Trafic réel (A3)** — `core/CoreServiceManager.kt` : les deltas d'octets du
+  cœur (sortie `direct` exclue, seuil 16 Kio) protègent le tunnel. Une sonde en
+  échec pendant qu'un flux passe ne déclenche ni rechargement, ni bascule, ni
+  échantillon de santé faussé. Les relances automatiques attendent 10 s de
+  silence ; les actions de l'utilisateur restent immédiates.
+- **Relance déjà engagée (A4)** — la boucle renonce dès que le trafic reprend,
+  avec un événement `RECONNECT_POSTPONED` : ni succès ni échec inventés, drapeau
+  de récupération libéré, re-vérification différée programmée.
+- **Arrêt volontaire (A5)** — `tunnelVerified()` ignore les mesures tardives après
+  un arrêt demandé ou une mort du cœur ; la vérification abandonne toute
+  publication si un arrêt intervient pendant la sonde ; une relance ne peut plus
+  être planifiée pendant un arrêt en cours.
+
+**Vérifications**
+- 20 tests `ProbePolicyTest`, 22 `AutoFailoverPolicyTest`, 22
+  `CoreRecoveryPolicyTest` (dont le renoncement au trafic), 21
+  `CoreSupervisorTest` (dont abandon de récupération et sonde tardive).
+- CI `dams-ci.yml` verte sur les cinq commits, puis build signé de cette version.
+- Aucun test terrain n'a été exécuté pour cette version.
+
 ## 1.10.6-lab (776) — réinitialiser un moteur bloqué sans forcer l'arrêt de l'app
 
 **Contexte** : après `restart aborted` puis `automatic recovery stopped`, tous
